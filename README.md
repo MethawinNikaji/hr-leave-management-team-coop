@@ -34,6 +34,10 @@ pnpm install
 ```bash
 pnpm prisma db push
 pnpm prisma:seed
+
+HR : hr.manager@company.com	Password123
+Worker A : worker.a@company.com	Password123
+Worker B : worker.b@company.com	Password123
 ```
 ### To Run Project
 ```bash
