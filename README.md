@@ -30,6 +30,11 @@ pnpm prisma generate
 cd fronend
 pnpm install
 ```
+### DB Sample Data
+```bash
+pnpm prisma db push
+pnpm prisma:seed
+```
 ### To Run Project
 ```bash
 both backend and frontend using
