@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import axios from 'axios';
 import "./LoginPage.css";
 
 export default function LoginPage() {
@@ -21,9 +22,34 @@ export default function LoginPage() {
 
     try {
       setSubmitting(true);
-      // TODO: เรียก API login จริง (axios/fetch)
-      console.log("login payload:", form);
-      alert("Login (mock) ✅");
+
+      // 1. ยิง API ไปที่ Backend (Port 8000)
+      // เช็ค Route ให้ชัวร์นะครับ ปกติจะเป็น /auth/login
+      const response = await axios.post('http://localhost:8000/auth/login', {
+        email: form.email,
+        password: form.password
+      });
+
+      // 2. ถ้าสำเร็จ (Backend ตอบ 200 OK)
+      const data = response.data;
+      
+      // เก็บ Token (ตั๋วผ่านทาง) และข้อมูล User
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+
+      alert("Login สำเร็จ! ✅ ยินดีต้อนรับ " + (data.user?.firstName || "User"));
+      
+      // 3. พาไปหน้า Dashboard (ถ้ามีหน้า dashboard แล้ว ให้เอาคอมเมนต์บรรทัดล่างออกครับ)
+      // window.location.href = '/dashboard'; 
+
+    } catch (err) {
+      // 3. ถ้าพัง (รหัสผิด / Server ดับ)
+      console.error("Login Error:", err);
+      
+      // ดึงข้อความ Error ที่ Backend ส่งมา
+      const errorMessage = err.response?.data?.message || "เชื่อมต่อ Server ไม่ได้ หรือรหัสผ่านผิด";
+      alert("❌ " + errorMessage);
+
     } finally {
       setSubmitting(false);
     }

@@ -4,14 +4,20 @@ const dotenv = require('dotenv');
 // โหลด environment variables จาก .env
 dotenv.config({ path: './.env' }); 
 
+const cors = require('cors');
 const http = require('http');
 const createApp = require('./config/server');
 const notificationService = require('./services/notification.service'); 
 const prisma = require('./models/prisma'); // เพื่อให้มั่นใจว่า connection ถูกสร้าง
 
-const PORT = process.env.PORT || 8000;
+const app = createApp(); // <-- สร้าง app ก่อนใช้
 
-const app = createApp();
+app.use(cors({
+    origin: 'http://localhost:5173', // อนุญาตให้ Frontend (React) เข้ามา
+    credentials: true // เผื่ออนาคตต้องส่ง cookie
+}));
+
+const PORT = process.env.PORT || 8000;
 const server = http.createServer(app);
 
 // Initialize Web Socket Server
