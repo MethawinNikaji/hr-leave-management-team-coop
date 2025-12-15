@@ -1,0 +1,30 @@
+# Dependencies
+/node_modules
+/pnpm-lock.yaml
+
+# Runtime and build files
+/dist
+/build
+/out
+
+# Configuration and environment
+# ห้าม Commit ไฟล์ .env ที่เก็บความลับ (เช่น รหัสผ่านฐานข้อมูล)
+.env
+.env.development
+.env.production
+.env.local
+
+# Database ORM/Schema (ถ้ามีการ Generate ไฟล์)
+# Prisma
+/prisma/migrations
+/prisma/dev.db
+# ถ้ามีการ generate client (แต่ส่วนใหญ่จะอยู่ใน node_modules อยู่แล้ว)
+# prisma/generated
+
+# Logs
+*.log
+npm-debug.log*
+
+# Other (Optional)
+/coverage
+.vscode # ถ้าเป็นไฟล์การตั้งค่าที่ต้องการให้เป็นส่วนตัว

@@ -1,0 +1,24 @@
+{
+  "name": "hr-leave-management-system",
+  "version": "1.0.0",
+  "description": "Full-Stack HR/Leave Management System (React + Express + Prisma v6 + MySQL8)",
+  "main": "index.js",
+  "scripts": {
+    "start:backend": "cd backend && pnpm start",
+    "start:frontend": "cd frontend && pnpm start",
+    "dev:backend": "cd backend && pnpm dev",
+    "dev:frontend": "cd frontend && pnpm dev"
+  },
+  "keywords": [
+    "react",
+    "express",
+    "prisma",
+    "javascript"
+  ],
+  "author": "",
+  "license": "ISC",
+  "private": true,
+  "dependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

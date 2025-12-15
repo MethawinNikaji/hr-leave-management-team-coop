@@ -1,0 +1,141 @@
+// backend/src/controllers/leave.controller.js
+
+const prisma = require('../models/prisma');
+const leaveService = require('../services/leave.service');
+const leaveModel = require('../models/leave.model');
+const notificationService = require('../services/notification.service');
+const CustomError = require('../utils/customError');
+const moment = require('moment-timezone');
+
+const requestLeave = async (req, res, next) => {
+    try {
+        const employeeId = req.user.employeeId;
+        const { leaveTypeId, startDate, endDate, startDuration, endDuration, reason } = req.body;
+
+        const totalDaysRequested = leaveService.calculateTotalDays(startDate, endDate, startDuration, endDuration);
+        const requestYear = moment(startDate).year();
+
+        await leaveService.checkQuotaAvailability(employeeId, leaveTypeId, totalDaysRequested, requestYear);
+
+        const newRequest = await leaveModel.createLeaveRequest({
+            employeeId, leaveTypeId,
+            startDate: new Date(startDate), endDate: new Date(endDate),
+            totalDaysRequested, startDuration, endDuration,
+            reason: reason || null, status: 'Pending',
+        });
+
+        // Notification: แจ้ง HR ว่ามีคำขอใหม่
+        const hrEmployees = await prisma.employee.findMany({ where: { role: 'HR' } });
+        hrEmployees.forEach(hr => {
+            notificationService.sendNotification(hr.employeeId, {
+                type: 'NewLeaveRequest',
+                message: `New pending leave request from Employee #${employeeId}.`,
+                requestId: newRequest.requestId
+            });
+        });
+
+        res.status(201).json({ success: true, message: 'Leave request submitted successfully.', request: newRequest });
+    } catch (error) { next(error); }
+};
+
+const getMyRequests = async (req, res, next) => {
+    try {
+        const employeeId = req.user.employeeId;
+        const requests = await prisma.leaveRequest.findMany({
+            where: { employeeId },
+            orderBy: { requestedAt: 'desc' },
+            include: { leaveType: true }
+        });
+        res.status(200).json({ success: true, requests });
+    } catch (error) { next(error); }
+};
+
+const getAllPendingRequests = async (req, res, next) => {
+    try {
+        const pendingRequests = await prisma.leaveRequest.findMany({
+            where: { status: 'Pending' },
+            include: { employee: { select: { employeeId: true, firstName: true, lastName: true } }, leaveType: true },
+            orderBy: { requestedAt: 'asc' },
+        });
+        res.status(200).json({ success: true, requests: pendingRequests });
+    } catch (error) { next(error); }
+};
+
+const getRequestDetail = async (req, res, next) => {
+    try {
+        const requestId = parseInt(req.params.requestId);
+        const request = await leaveModel.getLeaveRequestById(requestId);
+
+        if (!request) { throw CustomError.notFound('Leave request not found.'); }
+        if (req.user.role !== 'HR' && req.user.employeeId !== request.employeeId) {
+            throw CustomError.forbidden('You are not authorized to view this request.');
+        }
+
+        res.status(200).json({ success: true, request });
+    } catch (error) { next(error); }
+};
+
+const handleApproval = async (req, res, next) => {
+    try {
+        const hrId = req.user.employeeId;
+        const requestId = parseInt(req.params.requestId);
+        const { action } = req.body; 
+
+        const originalRequest = await leaveModel.getLeaveRequestById(requestId);
+        if (!originalRequest || originalRequest.status !== 'Pending') {
+            throw CustomError.badRequest('Request not found or already processed.');
+        }
+
+        const result = await prisma.$transaction(async (tx) => {
+            const requestedDays = originalRequest.totalDaysRequested.toNumber();
+            const requestYear = moment(originalRequest.startDate).year();
+            const leaveTypeId = originalRequest.leaveTypeId;
+            const employeeId = originalRequest.employeeId;
+
+            let finalStatus = 'Rejected';
+            let quotaDelta = 0; 
+
+            if (action === 'approve') {
+                // Check Quota within Transaction (for safety/concurrency)
+                const isPaid = (await tx.leaveType.findUnique({ where: { leaveTypeId } }))?.isPaid;
+
+                if (isPaid) {
+                    const quota = await tx.leaveQuota.findUnique({
+                        where: { employeeId_leaveTypeId_year: { employeeId, leaveTypeId, year: requestYear } },
+                    });
+                    
+                    if (quota) {
+                        const availableDays = parseFloat((quota.totalDays.toNumber() - quota.usedDays.toNumber()).toFixed(2));
+                        if (requestedDays > availableDays) {
+                            // Throw error to rollback transaction
+                            throw CustomError.conflict("Transaction failed: Insufficient quota detected during approval.");
+                        }
+                    }
+                }
+
+                finalStatus = 'Approved';
+                quotaDelta = requestedDays; 
+                
+                // Update usedDays
+                if (quotaDelta > 0 && isPaid) {
+                     await leaveService.updateUsedQuota(employeeId, leaveTypeId, quotaDelta, requestYear, tx);
+                }
+            } 
+            
+            const updatedRequest = await leaveModel.updateRequestStatusTx(requestId, finalStatus, hrId, tx);
+            return updatedRequest;
+        });
+
+        // Notification: แจ้ง Employee ถึงสถานะคำขอ
+        notificationService.sendNotification(result.employeeId, {
+            type: 'RequestStatusUpdate',
+            message: `Your leave request (ID: ${result.requestId}) has been ${result.status.toLowerCase()}.`,
+            requestId: result.requestId,
+            status: result.status
+        });
+
+        res.status(200).json({ success: true, message: `Leave request ${result.status.toLowerCase()} successfully.`, request: result });
+    } catch (error) { next(error); }
+};
+
+module.exports = { requestLeave, getMyRequests, getAllPendingRequests, getRequestDetail, handleApproval };

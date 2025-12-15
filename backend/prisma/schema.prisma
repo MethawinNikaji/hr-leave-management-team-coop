@@ -1,0 +1,139 @@
+// backend/prisma/schema.prisma
+
+// กำหนดค่า Data Source (MySQL) และ Generator (Prisma Client)
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+  // ตั้งค่า Timezone เพื่อให้ Prisma ส่งค่าเวลาไปยัง DB ได้อย่างถูกต้อง
+  // ตามข้อกำหนด 'TIMEZONE="Asia/Bangkok"' ใน .env
+  previewFeatures = ["driverAdapters"] 
+}
+
+// 1. Model: Employee (พนักงาน)
+model Employee {
+  employeeId      Int      @id @default(autoincrement())
+  firstName       String   @map("first_name")
+  lastName        String   @map("last_name")
+  email           String   @unique
+  passwordHash    String   @map("password_hash")
+  role            String   @default("Worker") // 'Worker', 'HR'
+  joiningDate     DateTime @map("joining_date") @db.Date // Store only Date
+  resignationDate DateTime? @map("resignation_date") @db.Date // Nullable, Date
+  isActive        Boolean  @map("is_active") @default(true)
+  createdAt       DateTime @map("created_at") @default(now())
+  updatedAt       DateTime @map("updated_at") @updatedAt
+  profileImageUrl String?  @map("profile_image_url") @db.VarChar(255)
+
+  // Relations
+  timeRecords     TimeRecord[]
+  leaveQuotas     LeaveQuota[]
+  leaveRequests   LeaveRequest[]
+  notifications   Notification[]
+  // ใช้สำหรับ approvedByHrId ใน LeaveRequest
+  approvals       LeaveRequest[] @relation("ApprovedByHR") 
+}
+
+// 2. Model: LeaveType (ประเภทการลา)
+model LeaveType {
+  leaveTypeId Int          @id @default(autoincrement()) @map("leave_type_id")
+  typeName    String       @unique @map("type_name")
+  isPaid      Boolean      @map("is_paid") @default(true)
+
+  // Relations
+  leaveQuotas   LeaveQuota[]
+  leaveRequests LeaveRequest[]
+}
+
+// 3. Model: LeaveQuota (โควต้าการลา)
+model LeaveQuota {
+  quotaId     Int      @id @default(autoincrement()) @map("quota_id")
+  employeeId  Int      @map("employee_id")
+  leaveTypeId Int      @map("leave_type_id")
+  year        Int
+  totalDays   Decimal  @map("total_days") @default(0.00) @db.Decimal(5, 2)
+  usedDays    Decimal  @map("used_days") @default(0.00) @db.Decimal(5, 2)
+
+  // Relations
+  employee  Employee  @relation(fields: [employeeId], references: [employeeId])
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [leaveTypeId])
+
+  // Composite Unique Key (employeeId, leaveTypeId, year)
+  @@unique([employeeId, leaveTypeId, year])
+  // Index for efficiency
+  @@index([employeeId])
+  @@index([leaveTypeId])
+}
+
+// 4. Model: TimeRecord (การลงเวลา)
+model TimeRecord {
+  recordId      Int      @id @default(autoincrement()) @map("record_id")
+  employeeId    Int      @map("employee_id")
+  workDate      DateTime @map("work_date") @db.Date // Store only Date
+  checkInTime   DateTime @map("check_in_time")
+  checkOutTime  DateTime? @map("check_out_time") // Nullable
+  isLate        Boolean  @map("is_late") @default(false)
+
+  // Relations
+  employee Employee @relation(fields: [employeeId], references: [employeeId])
+
+  // Index for efficiency (e.g., querying history)
+  @@index([employeeId])
+  // Ensure only one record per employee per day
+  @@unique([employeeId, workDate])
+}
+
+// 5. Model: LeaveRequest (คำขอลา)
+model LeaveRequest {
+  requestId           Int       @id @default(autoincrement()) @map("request_id")
+  employeeId          Int       @map("employee_id")
+  leaveTypeId         Int       @map("leave_type_id")
+  startDate           DateTime  @map("start_date") @db.Date
+  endDate             DateTime  @map("end_date") @db.Date
+  totalDaysRequested  Decimal   @map("total_days_requested") @db.Decimal(4, 2)
+  startDuration       String    @map("start_duration") // 'Full', 'HalfMorning', 'HalfAfternoon'
+  endDuration         String    @map("end_duration") // 'Full', 'HalfMorning', 'HalfAfternoon'
+  reason              String?
+  status              String    @default("Pending") // 'Pending', 'Approved', 'Rejected'
+  requestedAt         DateTime  @map("requested_at") @default(now())
+  approvedByHrId      Int?      @map("approved_by_hr_id")
+  approvalDate        DateTime? @map("approval_date")
+
+  // Relations
+  employee      Employee     @relation(fields: [employeeId], references: [employeeId])
+  leaveType     LeaveType    @relation(fields: [leaveTypeId], references: [leaveTypeId])
+  approvedByHR  Employee?    @relation("ApprovedByHR", fields: [approvedByHrId], references: [employeeId])
+  notifications Notification[]
+
+  // Index for efficiency (e.g., querying for a specific employee's requests or pending requests)
+  @@index([employeeId])
+  @@index([status])
+}
+
+// 6. Model: Notification (การแจ้งเตือน)
+model Notification {
+  notificationId      Int       @id @default(autoincrement()) @map("notification_id")
+  employeeId          Int       @map("employee_id")
+  notificationType    String    @map("notification_type") // 'NewRequest', 'Approval', 'Rejection', 'LateWarning'
+  message             String
+  relatedRequestId    Int?      @map("related_request_id")
+  isRead              Boolean   @map("is_read") @default(false)
+  createdAt           DateTime  @map("created_at") @default(now())
+
+  // Relations
+  employee      Employee      @relation(fields: [employeeId], references: [employeeId])
+  relatedRequest LeaveRequest? @relation(fields: [relatedRequestId], references: [requestId])
+
+  // Index for efficiency (e.g., querying unread notifications for a specific employee)
+  @@index([employeeId])
+}
+
+// 7. Model: Holiday (วันหยุดนักขัตฤกษ์)
+model Holiday {
+  holidayId   Int      @id @default(autoincrement()) @map("holiday_id")
+  holidayDate DateTime @unique @map("holiday_date") @db.Date
+  holidayName String   @map("holiday_name") @db.VarChar(255)
+}

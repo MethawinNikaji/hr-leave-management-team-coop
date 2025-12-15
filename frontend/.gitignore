@@ -1,0 +1,25 @@
+# Dependencies
+/node_modules
+/pnpm-lock.yaml
+
+# Build output
+# Vite จะสร้างไฟล์สำหรับ Production ในโฟลเดอร์นี้
+/dist
+
+# Configuration and environment
+# ห้าม Commit ไฟล์ .env ที่เก็บ Key (แม้จะเป็น Public Key ก็ไม่ควร)
+.env
+.env.*local
+
+# Logs
+*.log
+npm-debug.log*
+
+# Vite specific
+.vite
+# สำหรับไฟล์ที่ Vite cache
+/.cache
+
+# Other (Optional)
+/coverage
+.vscode # ถ้าเป็นไฟล์การตั้งค่าที่ต้องการให้เป็นส่วนตัว
