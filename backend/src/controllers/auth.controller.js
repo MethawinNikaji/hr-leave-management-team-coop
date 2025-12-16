@@ -97,11 +97,20 @@ const login = async (req, res, next) => {
         // 4. สร้าง JWT Token
         const token = generateToken(employee);
 
+        // --- 🔥 [เพิ่มใหม่] กำหนด Redirect URL ตาม Role ---
+        let redirectUrl = '/worker/dashboard'; // ค่าเริ่มต้นให้เป็น Worker
+        
+        if (employee.role === 'HR') {
+            redirectUrl = '/hr/dashboard'; // ถ้าเป็น HR ให้ไปหน้า HR Dashboard
+        }
+        // -----------------------------------------------
+
         // 5. ส่ง Response
         res.status(200).json({
             success: true,
             message: 'Login successful.',
             token,
+            redirectUrl, // <--- ส่ง path ปลายทางกลับไปให้ Frontend
             user: {
                 employeeId: employee.employeeId,
                 email: employee.email,

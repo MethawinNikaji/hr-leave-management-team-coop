@@ -36,7 +36,7 @@ export default function AppSidebar() {
           </div>
 
           {/* MOCK: สลับ role เพื่อทดสอบ (ลบทิ้งได้ตอนมี backend) */}
-          <div className="role-switch">
+          {/* <div className="role-switch">
             <button
               className={`role-btn ${user.role === "Worker" ? "active" : ""}`}
               onClick={() => setRole("Worker")}
@@ -51,7 +51,7 @@ export default function AppSidebar() {
             >
               HR
             </button>
-          </div>
+          </div> */}
         </div>
 
         <nav className="nav-list">

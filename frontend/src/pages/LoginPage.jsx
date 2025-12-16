@@ -23,27 +23,29 @@ export default function LoginPage() {
     try {
       setSubmitting(true);
 
-      // 1. ยิง API ไปที่ Backend (Port 8000)
-      // เช็ค Route ให้ชัวร์นะครับ ปกติจะเป็น /auth/login
+      // 1. ยิง API ไปที่ Backend
       const response = await axios.post('http://localhost:8000/api/auth/login', {
         email: form.email,
         password: form.password
       });
 
-      // 2. ถ้าสำเร็จ (Backend ตอบ 200 OK)
       const data = response.data;
-      
-      // เก็บ Token (ตั๋วผ่านทาง) และข้อมูล User
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
 
-      alert("Login สำเร็จ! ✅ ยินดีต้อนรับ " + (data.user?.firstName || "User"));
-      
-      // 3. พาไปหน้า Dashboard (ถ้ามีหน้า dashboard แล้ว ให้เอาคอมเมนต์บรรทัดล่างออกครับ)
-      // window.location.href = '/dashboard'; 
+      // 2. ถ้าสำเร็จ (Backend ตอบ 200 OK)
+      if (data.success) {
+        // เก็บ Token และข้อมูล User
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+
+        // Alert บอกผู้ใช้
+        alert("Login สำเร็จ! ✅ ยินดีต้อนรับ " + (data.user?.firstName || "User"));
+
+        // 3. --- 🔥 จุดที่แก้ไข: ย้ายหน้าตามที่ Backend บอก ---
+        // ใช้ data.redirectUrl ที่ backend ส่งมา (ถ้าไม่มีให้กันเหนียวไป worker)
+        window.location.href = data.redirectUrl || '/worker/dashboard'; 
+      }
 
     } catch (err) {
-      // 3. ถ้าพัง (รหัสผิด / Server ดับ)
       console.error("Login Error:", err);
       
       // ดึงข้อความ Error ที่ Backend ส่งมา
@@ -117,9 +119,6 @@ export default function LoginPage() {
             {submitting ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
           </button>
 
-
-
-         
         </form>
       </div>
     </div>

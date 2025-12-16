@@ -33,7 +33,7 @@ export default function App() {
         <Route path="hr/employees" element={<Placeholder title="Employees" />} />
 
         {/* default */}
-        <Route index element={<Navigate to="/worker/dashboard" replace />} />
+        <Route index element={<Navigate to="/login" replace />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/login" replace />} />
