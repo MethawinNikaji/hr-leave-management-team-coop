@@ -1,18 +1,7 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
+import axios from "axios"; // หรือ import axiosClient จากไฟล์ config ของคุณ
+import moment from "moment";
 import "./HRDashboard.css";
-
-/* ===== Mock Data ===== */
-const MOCK_DAY_RECORDS = {
-  "2025-12-12": [
-    { id: 1, name: "Jokec", role: "Worker", checkIn: "10:50", checkOut: "18:10", status: "Late", note: "-" },
-    { id: 2, name: "Mina", role: "Worker", checkIn: "09:01", checkOut: "18:02", status: "On Time", note: "-" },
-    { id: 3, name: "Boss", role: "Worker", checkIn: "-", checkOut: "-", status: "Leave (Sick)", note: "Flu" },
-  ],
-  "2025-12-11": [
-    { id: 4, name: "Jokec", role: "Worker", checkIn: "09:00", checkOut: "18:00", status: "On Time", note: "-" },
-    { id: 5, name: "Mina", role: "Worker", checkIn: "09:10", checkOut: "18:00", status: "Late", note: "-" },
-  ],
-};
 
 /* ===== Helpers ===== */
 const pad2 = (n) => String(n).padStart(2, "0");
@@ -38,34 +27,89 @@ function getMonthMatrix(year, monthIndex) {
 }
 
 export default function HRDashboard() {
-  const [viewYear, setViewYear] = useState(2025);
-  const [viewMonth, setViewMonth] = useState(11); // Dec
-  const [selectedDate, setSelectedDate] = useState("2025-12-12");
+  const [viewYear, setViewYear] = useState(new Date().getFullYear());
+  const [viewMonth, setViewMonth] = useState(new Date().getMonth());
+  const [selectedDate, setSelectedDate] = useState(toISODate(new Date()));
+  
+  // States สำหรับข้อมูลจาก DB
+  const [attendanceRecords, setAttendanceRecords] = useState([]);
+  const [leaveRequests, setLeaveRequests] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const getAuthHeader = () => {
+    const token = localStorage.getItem("token");
+    return { headers: { Authorization: `Bearer ${token}` } };
+  };
 
   const weeks = useMemo(
     () => getMonthMatrix(viewYear, viewMonth),
     [viewYear, viewMonth]
   );
 
-  const dayRecords = useMemo(
-    () => MOCK_DAY_RECORDS[selectedDate] || [],
-    [selectedDate]
-  );
+  // --- 🔥 ฟังก์ชันดึงข้อมูลจาก Database ---
+  const fetchDailyRecords = async () => {
+    setLoading(true);
+    try {
+      // 1. ดึงข้อมูล Attendance ทั้งหมดของวันที่เลือก
+      const attRes = await axios.get(
+        `http://localhost:8000/api/timerecord/all?startDate=${selectedDate}&endDate=${selectedDate}`,
+        getAuthHeader()
+      );
+      
+      // 2. ดึงข้อมูลการลาที่อนุมัติแล้ว (Approved) ของวันที่เลือก
+      const leaveRes = await axios.get(
+        `http://localhost:8000/api/leave/admin/all?startDate=${selectedDate}&endDate=${selectedDate}`,
+        getAuthHeader()
+      );
+
+      setAttendanceRecords(attRes.data.records || []);
+      // กรองเอาเฉพาะรายการลาที่สถานะเป็น Approved เท่านั้นมาแสดงใน Dashboard
+      setLeaveRequests(leaveRes.data.requests?.filter(r => r.status === 'Approved') || []);
+    } catch (err) {
+      console.error("Fetch HR Data Error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDailyRecords();
+  }, [selectedDate]);
+
+  // --- 📊 ประมวลผลข้อมูลเพื่อแสดงในตาราง (Merge Attendance & Leave) ---
+  const dayRecords = useMemo(() => {
+    // แปลงข้อมูล Attendance ให้เข้ากับ format ตาราง
+    const attendanceMapped = attendanceRecords.map(r => ({
+      id: `att-${r.recordId}`,
+      name: `${r.employee.firstName} ${r.employee.lastName}`,
+      role: r.employee.role,
+      checkIn: r.checkInTime ? moment(r.checkInTime).format("HH:mm") : "-",
+      checkOut: r.checkOutTime ? moment(r.checkOutTime).format("HH:mm") : "-",
+      status: r.isLate ? "Late" : "On Time",
+      note: "-"
+    }));
+
+    // แปลงข้อมูล Leave ให้เข้ากับ format ตาราง
+    const leaveMapped = leaveRequests.map(l => ({
+      id: `leave-${l.requestId}`,
+      name: `${l.employee.firstName} ${l.employee.lastName}`,
+      role: l.employee.role,
+      checkIn: "-",
+      checkOut: "-",
+      status: `Leave (${l.leaveType.typeName})`,
+      note: l.reason || "-"
+    }));
+
+    return [...attendanceMapped, ...leaveMapped];
+  }, [attendanceRecords, leaveRequests]);
 
   const daySummary = useMemo(() => {
-    const totalLeave = dayRecords.filter((r) =>
-      String(r.status).toLowerCase().includes("leave")
-    ).length;
-    const totalLate = dayRecords.filter((r) => r.status === "Late").length;
-    const totalPresent = dayRecords.filter(
-      (r) =>
-        r.checkIn !== "-" &&
-        !String(r.status).toLowerCase().includes("leave")
-    ).length;
-    return { totalPresent, totalLeave, totalLate };
-  }, [dayRecords]);
-
-  const monthHasData = (iso) => Boolean(MOCK_DAY_RECORDS[iso]?.length);
+    return {
+      totalPresent: attendanceRecords.length,
+      totalLeave: leaveRequests.length,
+      totalLate: attendanceRecords.filter((r) => r.isLate).length,
+    };
+  }, [attendanceRecords, leaveRequests]);
 
   const goPrevMonth = () => {
     const m = viewMonth - 1;
@@ -89,46 +133,32 @@ export default function HRDashboard() {
 
   return (
     <div className="page-card">
-      {/* ===== Header ===== */}
       <header className="hr-header">
         <div>
           <h1 className="hr-title">HR Dashboard</h1>
-          <p className="hr-subtitle">
-            Calendar + Attendance Overview
-          </p>
+          <p className="hr-subtitle">Calendar + Attendance Overview</p>
         </div>
-
         <div className="hr-header-right">
           <div className="pill">{selectedDate}</div>
-          <button className="icon-btn" aria-label="Notifications">
-            🔔
-          </button>
+          <button className="icon-btn">🔔</button>
         </div>
       </header>
 
-      {/* ===== Calendar Controls ===== */}
       <div className="calendar-top">
         <div className="calendar-title">
           <button className="nav-btn" onClick={goPrevMonth}>‹</button>
-          <div className="month-label">
-            {monthName} {viewYear}
-          </div>
+          <div className="month-label">{monthName} {viewYear}</div>
           <button className="nav-btn" onClick={goNextMonth}>›</button>
         </div>
-
-        <div className="hint">
-          คลิกวันที่เพื่อดูสรุปการทำงานของพนักงาน
-        </div>
+        <div className="hint">คลิกวันที่เพื่อดูสรุปการทำงานของพนักงานจากฐานข้อมูล</div>
       </div>
 
-      {/* ===== Calendar ===== */}
       <div className="calendar">
         <div className="calendar-head">
           {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map((d) => (
             <div className="cal-cell head" key={d}>{d}</div>
           ))}
         </div>
-
         <div className="calendar-body">
           {weeks.map((week, wIdx) => (
             <React.Fragment key={wIdx}>
@@ -136,21 +166,14 @@ export default function HRDashboard() {
                 const iso = toISODate(d);
                 const inMonth = d.getMonth() === viewMonth;
                 const isSelected = iso === selectedDate;
-                const hasData = monthHasData(iso);
 
                 return (
                   <button
                     key={iso}
-                    className={[
-                      "cal-cell",
-                      inMonth ? "" : "muted",
-                      isSelected ? "selected" : "",
-                      hasData ? "hasData" : "",
-                    ].join(" ")}
+                    className={`cal-cell ${!inMonth ? "muted" : ""} ${isSelected ? "selected" : ""}`}
                     onClick={() => setSelectedDate(iso)}
                   >
                     <div className="cal-date">{d.getDate()}</div>
-                    {hasData && <div className="dot" />}
                   </button>
                 );
               })}
@@ -159,7 +182,6 @@ export default function HRDashboard() {
         </div>
       </div>
 
-      {/* ===== Summary ===== */}
       <section className="summary-row">
         <div className="summary-card">
           <h4>Present</h4>
@@ -169,7 +191,7 @@ export default function HRDashboard() {
         <div className="summary-card">
           <h4>Leave</h4>
           <p className="big">{daySummary.totalLeave}</p>
-          <span className="mutetext">คนลา</span>
+          <span className="mutetext">คนลา (อนุมัติแล้ว)</span>
         </div>
         <div className="summary-card">
           <h4>Late</h4>
@@ -178,57 +200,48 @@ export default function HRDashboard() {
         </div>
       </section>
 
-      {/* ===== Daily Records ===== */}
       <section className="table-section">
-        <h2 className="section-title">
-          Daily Records ({selectedDate})
-        </h2>
-
+        <h2 className="section-title">Daily Records ({selectedDate})</h2>
         <div className="table-wrap">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Role</th>
-                <th>Check-in</th>
-                <th>Check-out</th>
-                <th>Status</th>
-                <th>Note</th>
-              </tr>
-            </thead>
-            <tbody>
-              {dayRecords.length === 0 ? (
+          {loading ? (
+            <div className="loading-box">กำลังดึงข้อมูลจากระบบ...</div>
+          ) : (
+            <table className="table">
+              <thead>
                 <tr>
-                  <td colSpan="6" className="empty">
-                    No data for this day
-                  </td>
+                  <th>Name</th>
+                  <th>Role</th>
+                  <th>Check-in</th>
+                  <th>Check-out</th>
+                  <th>Status</th>
+                  <th>Note</th>
                 </tr>
-              ) : (
-                dayRecords.map((r) => (
-                  <tr key={r.id}>
-                    <td>{r.name}</td>
-                    <td>{r.role}</td>
-                    <td>{r.checkIn}</td>
-                    <td>{r.checkOut}</td>
-                    <td>
-                      <span
-                        className={`badge ${
-                          r.status === "Late"
-                            ? "badge-late"
-                            : String(r.status).includes("Leave")
-                            ? "badge-leave"
-                            : "badge-ok"
-                        }`}
-                      >
-                        {r.status}
-                      </span>
-                    </td>
-                    <td>{r.note}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {dayRecords.length === 0 ? (
+                  <tr><td colSpan="6" className="empty">ไม่มีข้อมูลการทำงานหรือการลาในวันนี้</td></tr>
+                ) : (
+                  dayRecords.map((r) => (
+                    <tr key={r.id}>
+                      <td>{r.name}</td>
+                      <td>{r.role}</td>
+                      <td>{r.checkIn}</td>
+                      <td>{r.checkOut}</td>
+                      <td>
+                        <span className={`badge ${
+                          r.status === "Late" ? "badge-late" : 
+                          r.status.includes("Leave") ? "badge-leave" : "badge-ok"
+                        }`}>
+                          {r.status}
+                        </span>
+                      </td>
+                      <td>{r.note}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
       </section>
     </div>

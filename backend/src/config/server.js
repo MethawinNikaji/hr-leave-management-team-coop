@@ -18,6 +18,9 @@ const leaveRequestRoute = require('../routes/leaveRequest.route');
 const createApp = () => {
     const app = express();
 
+    // favicon.ico ไม่ให้แจ้ง Error
+    app.get('/favicon.ico', (req, res) => res.status(204).end());
+
     // 1. Security Middleware
     app.use(helmet()); 
     app.use(cors({
