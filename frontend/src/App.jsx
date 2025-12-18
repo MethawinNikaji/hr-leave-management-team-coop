@@ -10,6 +10,8 @@ import HRLeaveApprovals from "./pages/HRLeaveApprovals";
 import Placeholder from "./pages/Placeholder";
 import LoginPage from "./pages/LoginPage";
 
+import HRAttendancePage from "./pages/HRAttendancePage";
+
 export default function App() {
   return (
     <Routes>
@@ -27,6 +29,7 @@ export default function App() {
         <Route path="worker/profile" element={<Placeholder title="Profile" />} />
 
         {/* HR */}
+        <Route path="/hr/attendance" element={<HRAttendancePage />} />
         <Route path="hr/dashboard" element={<HRDashboard />} />
         <Route path="hr/calendar" element={<HRDashboard />} />
         <Route path="hr/leave-approvals" element={<HRLeaveApprovals />} />

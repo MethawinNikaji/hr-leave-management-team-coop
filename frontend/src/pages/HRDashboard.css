@@ -269,7 +269,7 @@
 }
 
 .cal-cell {
-  min-height: 120px; /* เพิ่มความสูงช่อง */
+  min-height: 90px; /* เพิ่มความสูงช่อง */
   padding: 8px;
   background: white;
   border: 1px solid #f0f0f0;
@@ -324,3 +324,5 @@
 .leave-item-name:hover {
   background-color: #fed7d7;
 }
+
+

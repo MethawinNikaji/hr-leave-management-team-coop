@@ -14,7 +14,8 @@ const MENU = [
 
   // HR
   { label: "HR Dashboard", to: "/hr/dashboard", roles: ["HR"] },
-  //**{ label: "HR Calendar", to: "/hr/calendar", roles: ["HR"] },
+  { label: "Attendance", to: "/hr/attendance", roles: ["HR"] }, // ✅ หน้าใหม่
+  // { label: "HR Calendar", to: "/hr/calendar", roles: ["HR"] },
   { label: "Leave Approvals", to: "/hr/leave-approvals", roles: ["HR"] },
   { label: "Employees", to: "/hr/employees", roles: ["HR"] },
 
@@ -24,7 +25,8 @@ const MENU = [
 
 export default function AppSidebar() {
   const { user, setRole } = useAuth();
-  const visibleMenu = MENU.filter((m) => m.roles.includes(user.role));
+
+  const visibleMenu = MENU.filter((m) => m.roles?.includes(user.role));
 
   return (
     <aside className="app-sidebar">

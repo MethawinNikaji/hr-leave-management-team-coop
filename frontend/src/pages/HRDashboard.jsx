@@ -3,6 +3,7 @@ import axios from "axios";
 import moment from "moment";
 import "./HRDashboard.css";
 
+
 /* ===== Helpers ===== */
 const pad2 = (n) => String(n).padStart(2, "0");
 const toISODate = (d) =>
@@ -26,6 +27,7 @@ function getMonthMatrix(year, monthIndex) {
   return weeks;
 }
 
+
 export default function HRDashboard() {
   const [viewYear, setViewYear] = useState(new Date().getFullYear());
   const [viewMonth, setViewMonth] = useState(new Date().getMonth());
@@ -37,6 +39,8 @@ export default function HRDashboard() {
   const [monthLeaveMap, setMonthLeaveMap] = useState({}); 
   const [loading, setLoading] = useState(false);
 
+  
+ 
   const getAuthHeader = () => {
     const token = localStorage.getItem("token");
     return { headers: { Authorization: `Bearer ${token}` } };
@@ -46,6 +50,7 @@ export default function HRDashboard() {
     () => getMonthMatrix(viewYear, viewMonth),
     [viewYear, viewMonth]
   );
+  
 
   // --- 📅 1. ดึงข้อมูลการลาทั้งเดือน (แสดง ชื่อ-นามสกุล บนปฏิทิน) ---
   const fetchMonthLeaves = async () => {
