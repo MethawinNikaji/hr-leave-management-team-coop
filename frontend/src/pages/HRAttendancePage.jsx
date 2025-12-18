@@ -65,11 +65,18 @@ export default function HRAttendancePage() {
         "http://localhost:8000/api/leave/quota/my",
         getAuthHeader()
       );
-      const qs = response.data.quotas || [];
+      
+      // ลอง console.log ดูว่า response.data หน้าตาเป็นยังไง
+      console.log("Quota Response:", response.data);
+
+      const qs = response.data.quotas || []; // Backend ส่งมาเป็นชื่อ 'quotas'
       setQuotas(qs);
 
       if (qs.length > 0) {
-        setLeaveForm((prev) => ({ ...prev, leaveTypeId: qs[0].leaveTypeId }));
+        setLeaveForm((prev) => ({ 
+          ...prev, 
+          leaveTypeId: qs[0].leaveTypeId.toString() 
+        }));
       }
     } catch (err) {
       console.error("Failed to fetch quotas:", err);
@@ -280,16 +287,20 @@ export default function HRAttendancePage() {
             <form onSubmit={handleSubmitLeave} className="leave-form">
               <label>Leave Type</label>
               <select
-                name="leaveTypeId"
-                value={leaveForm.leaveTypeId}
-                onChange={handleLeaveChange}
-                required
+                  name="leaveTypeId"
+                  value={leaveForm.leaveTypeId}
+                  onChange={handleLeaveChange}
+                  required
               >
-                {quotas.map((q) => (
-                  <option key={q.leaveTypeId} value={q.leaveTypeId}>
-                    {q.leaveType.typeName}
-                  </option>
-                ))}
+                  {quotas.length > 0 ? (
+                      quotas.map((q) => (
+                          <option key={q.leaveTypeId} value={q.leaveTypeId}>
+                              {q.leaveType?.typeName || "Unknown Type"} 
+                          </option>
+                      ))
+                  ) : (
+                      <option value="" disabled>No leave types available</option>
+                  )}
               </select>
 
               <div className="date-row">

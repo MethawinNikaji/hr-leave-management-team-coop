@@ -111,24 +111,46 @@ export default function WorkerDashboard() {
   };
 
   const handleSubmitLeave = async (e) => {
-    e.preventDefault();
-    try {
-      const payload = {
-        leaveTypeId: parseInt(leaveForm.leaveTypeId),
-        startDate: leaveForm.startDate,
-        endDate: leaveForm.endDate,
-        startDuration: "Full",
-        endDuration: "Full",
-        reason: leaveForm.detail
-      };
-      await axios.post("http://localhost:8000/api/leave/request", payload, getAuthHeader());
+  e.preventDefault();
+  try {
+    const payload = {
+      leaveTypeId: parseInt(leaveForm.leaveTypeId),
+      startDate: leaveForm.startDate,
+      endDate: leaveForm.endDate,
+      startDuration: "Full",
+      endDuration: "Full",
+      reason: leaveForm.detail
+    };
+
+    // 💡 ส่งข้อมูล (ตอนนี้ Backend จะส่ง 200 พร้อม success: false ถ้าโควต้าไม่พอ)
+    const res = await axios.post("http://localhost:8000/api/leave/request", payload, getAuthHeader());
+    
+    // ✅ ตรวจสอบผลลัพธ์จาก Body
+    if (res.data.success) {
       alert("✅ ส่งคำขอลาสำเร็จ!");
       setIsLeaveModalOpen(false);
-      fetchQuotaData(); // รีโหลดตัวเลขโควต้า
-    } catch (err) {
-      alert("❌ " + (err.response?.data?.message || "ส่งคำขอลาไม่สำเร็จ"));
+      
+      // ล้างฟอร์ม
+      setLeaveForm({
+        leaveTypeId: quotas.length > 0 ? quotas[0].leaveTypeId : "",
+        startDate: "",
+        endDate: "",
+        detail: "",
+      });
+
+      fetchQuotaData(); // อัปเดตตัวเลขโควต้า
+    } else {
+      // ⚠️ กรณีโควต้าไม่พอ หรือลาซ้ำ (ผลลัพธ์จาก Backend ที่เราดักไว้)
+      alert("⚠️ ไม่สำเร็จ: " + res.data.message);
     }
-  };
+
+  } catch (err) {
+    // ❌ กรณี Error รุนแรง เช่น Server ล่ม
+    const errorMsg = err.response?.data?.message || "เกิดข้อผิดพลาดในการเชื่อมต่อ";
+    alert("❌ " + errorMsg);
+    console.error("Submit Leave Error:", err);
+  }
+};
 
   // Helper Formats
   const formatTime = (d) => d ? new Date(d).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "--:--";
@@ -225,9 +247,16 @@ export default function WorkerDashboard() {
             <h3>Request Leave</h3>
             <form onSubmit={handleSubmitLeave} className="leave-form">
               <label>Leave Type</label>
-              <select name="leaveTypeId" value={leaveForm.leaveTypeId} onChange={handleLeaveChange} required>
+              <select 
+                name="leaveTypeId" 
+                value={leaveForm.leaveTypeId} // ต้องผูก value กับ state
+                onChange={handleLeaveChange} 
+                required
+              >
                 {quotas.map(q => (
-                  <option key={q.leaveTypeId} value={q.leaveTypeId}>{q.leaveType.typeName}</option>
+                  <option key={q.leaveTypeId} value={q.leaveTypeId}>
+                    {q.leaveType.typeName}
+                  </option>
                 ))}
               </select>
               <div className="date-row">

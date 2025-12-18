@@ -12,15 +12,23 @@ const requestLeave = async (req, res, next) => {
         const employeeId = parseInt(req.user.employeeId);
         const { startDate, endDate, leaveTypeId, startDuration, endDuration, reason } = req.body;
 
-        // 🔥 เพิ่มการตรวจสอบ Overlap ที่นี่
+        // 1. ตรวจสอบการลาทับซ้อน (Overlap)
         await leaveService.checkLeaveOverlap(employeeId, startDate, endDate);
 
-        // --- Logic เดิมหลังจากนี้ ---
+        // 2. คำนวณจำนวนวันที่ลา (หักวันหยุด/เสาร์-อาทิตย์)
         const totalDaysRequested = await leaveService.calculateTotalDays(startDate, endDate, startDuration, endDuration);
+        
+        // ตรวจสอบกรณีเลือกวันลาที่เป็นวันหยุดทั้งหมด
+        if (totalDaysRequested <= 0) {
+            return res.status(200).json({ success: false, message: "จำนวนวันลาต้องมากกว่า 0 (โปรดตรวจสอบว่าเป็นวันหยุดหรือไม่)" });
+        }
+
         const requestYear = moment(startDate).year(); 
         
+        // 3. ตรวจสอบโควต้าคงเหลือ (จะโยน Error 409 ถ้าโควต้าไม่พอ)
         await leaveService.checkQuotaAvailability(employeeId, parseInt(leaveTypeId), totalDaysRequested, requestYear);
 
+        // 4. บันทึกข้อมูลลงฐานข้อมูล
         const newRequest = await leaveModel.createLeaveRequest({
             employeeId,
             leaveTypeId: parseInt(leaveTypeId),
@@ -35,7 +43,9 @@ const requestLeave = async (req, res, next) => {
 
         res.status(201).json({ success: true, message: 'ส่งคำขอลาสำเร็จ', request: newRequest });
     } catch (error) {
-        if (error.statusCode === 409) {
+        // 🔥 ดักจับ Error 409 (Conflict) เช่น ลาซ้ำ หรือ โควต้าไม่พอ 
+        // ให้ส่งกลับเป็น 200 success: false เพื่อไม่ให้ Console ขึ้นตัวแดง
+        if (error.statusCode === 409 || error.statusCode === 400) {
             return res.status(200).json({ success: false, message: error.message });
         }
         next(error);
@@ -110,7 +120,7 @@ const handleApproval = async (req, res, next) => {
 
         const originalRequest = await leaveModel.getLeaveRequestById(requestId);
         if (!originalRequest || originalRequest.status !== 'Pending') {
-            throw CustomError.badRequest('Request not found or already processed.');
+            throw CustomError.badRequest('ไม่พบคำขอลา หรือคำขอนี้ถูกดำเนินการไปแล้ว');
         }
 
         const result = await prisma.$transaction(async (tx) => {
@@ -123,72 +133,100 @@ const handleApproval = async (req, res, next) => {
             let quotaDelta = 0; 
 
             if (action === 'approve') {
-                // Check Quota within Transaction (for safety/concurrency)
-                const isPaid = (await tx.leaveType.findUnique({ where: { leaveTypeId } }))?.isPaid;
+                // 1. ตรวจสอบประเภทการลาว่าต้องเช็คโควต้าหรือไม่
+                const leaveType = await tx.leaveType.findUnique({ where: { leaveTypeId } });
 
-                if (isPaid) {
+                if (leaveType?.isPaid) {
                     const quota = await tx.leaveQuota.findUnique({
                         where: { employeeId_leaveTypeId_year: { employeeId, leaveTypeId, year: requestYear } },
                     });
                     
-                    if (quota) {
-                        const availableDays = parseFloat((quota.totalDays.toNumber() - quota.usedDays.toNumber()).toFixed(2));
-                        if (requestedDays > availableDays) {
-                            // Throw error to rollback transaction
-                            throw CustomError.conflict("Transaction failed: Insufficient quota detected during approval.");
-                        }
+                    if (!quota) {
+                        throw CustomError.badRequest("ไม่พบข้อมูลโควต้าสำหรับการลาประเภทนี้ในปีปัจจุบัน");
                     }
+
+                    // 2. ตรวจสอบโควต้าคงเหลืออีกครั้งเพื่อความปลอดภัย
+                    const availableDays = parseFloat((quota.totalDays.toNumber() - quota.usedDays.toNumber()).toFixed(2));
+                    if (requestedDays > availableDays) {
+                        // โยน Error เพื่อ Rollback Transaction ทันที
+                        throw CustomError.conflict(`โควต้าไม่พออนุมัติ (คงเหลือ: ${availableDays}, ต้องการใช้: ${requestedDays})`);
+                    }
+
+                    // 3. อัปเดตยอดวันลาที่ใช้ไป (usedDays)
+                    await tx.leaveQuota.update({
+                        where: { quotaId: quota.quotaId },
+                        data: { usedDays: { increment: requestedDays } }
+                    });
                 }
 
                 finalStatus = 'Approved';
-                quotaDelta = requestedDays; 
-                
-                // Update usedDays
-                if (quotaDelta > 0 && isPaid) {
-                     await leaveService.updateUsedQuota(employeeId, leaveTypeId, quotaDelta, requestYear, tx);
-                }
             } 
             
-            const updatedRequest = await leaveModel.updateRequestStatusTx(requestId, finalStatus, hrId, tx);
+            // 4. อัปเดตสถานะของใบลา
+            const updatedRequest = await tx.leaveRequest.update({
+                where: { requestId },
+                data: {
+                    status: finalStatus,
+                    approvedByHrId: hrId,
+                    approvalDate: new Date(),
+                },
+                select: {
+                    requestId: true,
+                    employeeId: true,
+                    leaveTypeId: true,
+                    status: true,
+                }
+            });
+
             return updatedRequest;
         });
 
-        // Notification: แจ้ง Employee ถึงสถานะคำขอ
+        // 5. ส่ง Notification แจ้งพนักงาน
         notificationService.sendNotification(result.employeeId, {
             type: 'RequestStatusUpdate',
-            message: `Your leave request (ID: ${result.requestId}) has been ${result.status.toLowerCase()}.`,
+            message: `คำขอลาของคุณ (ID: ${result.requestId}) ได้ถูก ${result.status === 'Approved' ? 'อนุมัติ' : 'ปฏิเสธ'} แล้ว`,
             requestId: result.requestId,
             status: result.status
         });
 
-        res.status(200).json({ success: true, message: `Leave request ${result.status.toLowerCase()} successfully.`, request: result });
-    } catch (error) { next(error); }
+        res.status(200).json({ success: true, message: `ดำเนินการ ${result.status.toLowerCase()} สำเร็จ`, request: result });
+    } catch (error) { 
+        // จัดการ Error 409 (โควต้าไม่พอตอนอนุมัติ) ให้ส่งกลับแบบละมุน
+        if (error.statusCode === 409 || error.statusCode === 400) {
+            return res.status(200).json({ success: false, message: error.message });
+        }
+        next(error); 
+    }
 };
 
 const getMyQuotas = async (req, res, next) => {
     try {
-        const employeeId = req.user.employeeId;
+        const employeeId = parseInt(req.user.employeeId);
         const currentYear = moment().year();
 
+        // ค้นหาโควต้า
         const quotas = await prisma.leaveQuota.findMany({
             where: {
-                employeeId,
+                employeeId: employeeId,
                 year: currentYear
             },
-            include: { leaveType: true },
-            orderBy: { leaveTypeId: 'asc' }
+            include: { leaveType: true } // ต้องมีบรรทัดนี้เพื่อเอาชื่อประเภทการลามาแสดง
         });
         
-        // คำนวณ Available Days ที่ Frontend ต้องการ
+        // Debug: ดูใน Terminal ของ Backend ว่าเจอข้อมูลไหม
+        // console.log(`Searching quota for Emp: ${employeeId}, Year: ${currentYear}, Found: ${quotas.length}`);
+
         const formattedQuotas = quotas.map(q => ({
             ...q,
-            totalDays: parseFloat(q.totalDays.toFixed(2)),
-            usedDays: parseFloat(q.usedDays.toFixed(2)),
-            availableDays: parseFloat((q.totalDays - q.usedDays).toFixed(2)),
+            totalDays: parseFloat(q.totalDays.toString()),
+            usedDays: parseFloat(q.usedDays.toString()),
+            availableDays: parseFloat((parseFloat(q.totalDays) - parseFloat(q.usedDays)).toFixed(2)),
         }));
 
         res.status(200).json({ success: true, quotas: formattedQuotas });
-    } catch (error) { next(error); }
+    } catch (error) { 
+        next(error); 
+    }
 };
 
 const getAllLeaveRequests = async (req, res, next) => {
