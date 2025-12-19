@@ -1,5 +1,6 @@
 // backend/src/controllers/auth.controller.js
 
+const prisma = require('../models/prisma');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const authModel = require('../models/auth.model');
@@ -125,7 +126,30 @@ const login = async (req, res, next) => {
     }
 };
 
+const getMe = async (req, res, next) => {
+  try {
+    const employeeId = req.user.employeeId;
+    const user = await prisma.employee.findUnique({
+      where: { employeeId },
+      select: {
+        employeeId: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        role: true,
+        joiningDate: true,
+        isActive: true,
+        profileImageUrl: true,
+      }
+    });
+    res.status(200).json({ success: true, user });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
     register,
     login,
+    getMe,
 };

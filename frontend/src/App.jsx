@@ -14,6 +14,7 @@ import LoginPage from "./pages/LoginPage";
 import HRAttendancePage from "./pages/HRAttendancePage";
 import WorkerCalendar from "./pages/WorkerCalendar";
 import WorkerNotifications from "./pages/WorkerNotifications";
+import WorkerProfile from "./pages/WorkerProfile";
 
 import Employees from "./pages/Employees";
 
@@ -30,6 +31,7 @@ export default function App() {
         <Route path="worker/leave" element={<WorkerLeave />} />
         <Route path="worker/calendar" element={<WorkerCalendar />} />
         <Route path="worker/notifications" element={<WorkerNotifications />} />
+        <Route path="worker/profile" element={<WorkerProfile />} />
 
         {/* HR */}
         <Route path="/hr/attendance" element={<HRAttendancePage />} />
