@@ -41,7 +41,6 @@ const MENUS = {
       section: "MAIN MENU",
       items: [
         { to: "/hr/dashboard", label: "แดชบอร์ด", icon: <FiGrid /> },
-        { to: "/hr/calendar", label: "ปฏิทินทีม", icon: <FiCalendar /> },
         { to: "/hr/attendance", label: "การลงเวลาพนักงาน", icon: <FiCalendar /> },
       ],
     },

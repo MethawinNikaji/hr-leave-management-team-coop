@@ -148,8 +148,52 @@ const getMe = async (req, res, next) => {
   }
 };
 
+const updateProfile = async (req, res, next) => {
+    try {
+        const employeeId = req.user.employeeId;
+        const { firstName, lastName, currentPassword, newPassword } = req.body;
+
+        // 1. เตรียมข้อมูลสำหรับอัปเดตชื่อ-นามสกุล
+        let updateData = {
+            firstName,
+            lastName
+        };
+
+        // 2. ถ้ามีการขอเปลี่ยนรหัสผ่าน
+        if (newPassword) {
+            const user = await prisma.employee.findUnique({ where: { employeeId } });
+            
+            // ตรวจสอบรหัสผ่านเดิมก่อนเปลี่ยน
+            const isMatch = await bcrypt.compare(currentPassword, user.passwordHash);
+            if (!isMatch) {
+                return res.status(400).json({ success: false, message: "รหัสผ่านเดิมไม่ถูกต้อง" });
+            }
+
+            // Hash รหัสผ่านใหม่
+            updateData.passwordHash = await bcrypt.hash(newPassword, 10);
+        }
+
+        const updatedUser = await prisma.employee.update({
+            where: { employeeId },
+            data: updateData,
+            select: {
+                employeeId: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                role: true
+            }
+        });
+
+        res.status(200).json({ success: true, message: "อัปเดตข้อมูลสำเร็จ", user: updatedUser });
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     register,
     login,
     getMe,
+    updateProfile,
 };

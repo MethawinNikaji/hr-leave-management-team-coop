@@ -38,5 +38,6 @@ router.post(
 );
 
 router.get('/me', authenticateToken, authController.getMe);
+router.put('/update-profile', authenticateToken, authController.updateProfile);
 
 module.exports = router;

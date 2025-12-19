@@ -3,7 +3,7 @@ import axios from "axios";
 import moment from "moment";
 import { 
   FiUser, FiMail, FiCalendar, FiShield, 
-  FiBriefcase, FiRefreshCw, FiInfo 
+  FiBriefcase, FiRefreshCw, FiEdit2, FiCheck, FiX, FiLock
 } from "react-icons/fi";
 import "./WorkerProfile.css";
 
@@ -13,6 +13,15 @@ export default function WorkerProfile() {
     return savedUser ? JSON.parse(savedUser) : null;
   });
   const [loading, setLoading] = useState(!profile);
+  
+  // State สำหรับโหมดแก้ไข
+  const [isEditing, setIsEditing] = useState(false);
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    currentPassword: "",
+    newPassword: ""
+  });
 
   const fetchProfile = async () => {
     try {
@@ -23,6 +32,14 @@ export default function WorkerProfile() {
       if (res.data.success) {
         setProfile(res.data.user);
         localStorage.setItem("user", JSON.stringify(res.data.user));
+        // Reset ฟอร์มข้อมูลตามฐานข้อมูลล่าสุด
+        setFormData(prev => ({
+          ...prev,
+          firstName: res.data.user.firstName,
+          lastName: res.data.user.lastName,
+          currentPassword: "",
+          newPassword: ""
+        }));
       }
     } catch (err) {
       console.error("Error fetching profile:", err);
@@ -35,6 +52,27 @@ export default function WorkerProfile() {
     fetchProfile();
   }, []);
 
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+    try {
+        const token = localStorage.getItem("token");
+        const res = await axios.put("http://localhost:8000/api/auth/update-profile", formData, {
+        headers: { Authorization: `Bearer ${token}` },
+        });
+        
+        if (res.data.success) {
+        alert("อัปเดตข้อมูลสำเร็จ");
+        setIsEditing(false); // ปิดโหมดแก้ไข
+        
+        // --- เรียกฟังก์ชันดึงข้อมูลใหม่ เพื่ออัปเดต UI โดยไม่ต้องรีโหลดหน้า ---
+        await fetchProfile(); 
+        // --------------------------------------------------------
+        }
+    } catch (err) {
+        alert(err.response?.data?.message || "เกิดข้อผิดพลาดในการอัปเดต");
+    }
+  };
+
   if (loading) return <div className="p-loader">กำลังโหลดข้อมูลโปรไฟล์...</div>;
   if (!profile) return <div className="p-error">ไม่พบข้อมูลผู้ใช้งาน</div>;
 
@@ -44,10 +82,25 @@ export default function WorkerProfile() {
     <div className="profile-page-container">
       <header className="profile-page-header">
         <h1 className="profile-page-title">My Profile</h1>
+        <div className="profile-page-actions">
+          {!isEditing ? (
+            <button className="btn outline small" onClick={() => setIsEditing(true)}>
+              <FiEdit2 /> แก้ไขโปรไฟล์
+            </button>
+          ) : (
+            <div className="edit-mode-btns">
+              <button className="btn small ok" onClick={handleUpdate}>
+                <FiCheck /> บันทึก
+              </button>
+              <button className="btn small danger" onClick={() => setIsEditing(false)}>
+                <FiX /> ยกเลิก
+              </button>
+            </div>
+          )}
+        </div>
       </header>
 
       <div className="profile-main-content">
-        {/* Left Column: Identity Card */}
         <aside className="profile-identity-card">
           <div className="avatar-section">
             <div className="avatar-circle">
@@ -66,15 +119,32 @@ export default function WorkerProfile() {
           </div>
         </aside>
 
-        {/* Right Column: Information Sections */}
-        <div className="profile-details-grid">
-          {/* Personal Info Card */}
+        <form className="profile-details-grid" onSubmit={handleUpdate}>
+          {/* ข้อมูลส่วนตัว */}
           <section className="info-section">
             <h3 className="section-header"><FiUser /> ข้อมูลส่วนตัว</h3>
             <div className="info-field-list">
               <div className="info-box">
-                <label>ชื่อ-นามสกุล</label>
-                <p>{profile.firstName} {profile.lastName}</p>
+                <label>ชื่อ</label>
+                {isEditing ? (
+                  <input 
+                    type="text" 
+                    className="edit-input"
+                    value={formData.firstName}
+                    onChange={(e) => setFormData({...formData, firstName: e.target.value})}
+                  />
+                ) : <p>{profile.firstName}</p>}
+              </div>
+              <div className="info-box">
+                <label>นามสกุล</label>
+                {isEditing ? (
+                  <input 
+                    type="text" 
+                    className="edit-input"
+                    value={formData.lastName}
+                    onChange={(e) => setFormData({...formData, lastName: e.target.value})}
+                  />
+                ) : <p>{profile.lastName}</p>}
               </div>
               <div className="info-box">
                 <label><FiMail /> อีเมลติดต่อ</label>
@@ -83,25 +153,54 @@ export default function WorkerProfile() {
             </div>
           </section>
 
-          {/* Work Info Card */}
-          <section className="info-section">
-            <h3 className="section-header"><FiBriefcase /> ข้อมูลการทำงาน</h3>
-            <div className="info-field-list">
-              <div className="info-box">
-                <label>รหัสพนักงาน</label>
-                <p>#{profile.employeeId}</p>
+          {/* ข้อมูลการทำงาน หรือ โหมดเปลี่ยนรหัสผ่าน */}
+          {!isEditing ? (
+            <section className="info-section">
+              <h3 className="section-header"><FiBriefcase /> ข้อมูลการทำงาน</h3>
+              <div className="info-field-list">
+                <div className="info-box">
+                  <label>รหัสพนักงาน</label>
+                  <p>#{profile.employeeId}</p>
+                </div>
+                <div className="info-box">
+                  <label><FiCalendar /> วันที่เริ่มงาน</label>
+                  <p>{profile.joiningDate ? moment(profile.joiningDate).format("DD MMM YYYY") : "-"}</p>
+                </div>
+                <div className={`info-box highlight ${profile.isActive ? 'ok' : 'danger'}`}>
+                  <label><FiShield /> สถานะพนักงาน</label>
+                  <p>{profile.isActive ? "กำลังทำงาน (Active)" : "พ้นสภาพพนักงาน"}</p>
+                </div>
               </div>
-              <div className="info-box">
-                <label><FiCalendar /> วันที่เริ่มงาน</label>
-                <p>{profile.joiningDate ? moment(profile.joiningDate).format("DD MMM YYYY") : "-"}</p>
+            </section>
+          ) : (
+            <section className="info-section edit-password-section">
+              <h3 className="section-header"><FiLock /> เปลี่ยนรหัสผ่าน</h3>
+              <div className="info-field-list">
+                <div className="info-box">
+                  <label>รหัสผ่านปัจจุบัน (เพื่อยืนยันการเปลี่ยนแปลง)</label>
+                  <input 
+                    type="password" 
+                    className="edit-input"
+                    placeholder="ใส่รหัสผ่านเดิม..."
+                    value={formData.currentPassword}
+                    onChange={(e) => setFormData({...formData, currentPassword: e.target.value})}
+                  />
+                </div>
+                <div className="info-box">
+                  <label>รหัสผ่านใหม่ (ปล่อยว่างถ้าไม่ต้องการเปลี่ยน)</label>
+                  <input 
+                    type="password" 
+                    className="edit-input"
+                    placeholder="ใส่รหัสผ่านใหม่..."
+                    value={formData.newPassword}
+                    onChange={(e) => setFormData({...formData, newPassword: e.target.value})}
+                  />
+                </div>
+                <p className="edit-hint">* หากต้องการเปลี่ยนรหัสผ่าน ต้องระบุทั้งสองช่อง</p>
               </div>
-              <div className={`info-box highlight ${profile.isActive ? 'ok' : 'danger'}`}>
-                <label><FiShield /> สถานะพนักงาน</label>
-                <p>{profile.isActive ? "กำลังทำงาน (Active)" : "พ้นสภาพพนักงาน"}</p>
-              </div>
-            </div>
-          </section>
-        </div>
+            </section>
+          )}
+        </form>
       </div>
     </div>
   );
