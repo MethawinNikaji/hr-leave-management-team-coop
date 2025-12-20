@@ -1,113 +1,196 @@
-// src/pages/WorkerNotifications.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import axios from "axios";
-import moment from "moment";
+import { 
+  FiBell, 
+  FiTrash2, 
+  FiCheckCircle, 
+  FiRefreshCw, 
+  FiXCircle, 
+  FiCheck,
+  FiInfo 
+} from "react-icons/fi";
 import "./WorkerNotifications.css";
-import Pagination from "../components/Pagination";
+import Pagination from "../components/Pagination"; // นำ Pagination กลับมา
+
+const api = axios.create({ baseURL: "http://localhost:8000" });
+const getAuthHeader = () => ({ 
+  headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } 
+});
 
 export default function WorkerNotifications() {
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
 
+  // ✅ Pagination State
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  const getAuthHeader = () => {
-    const token = localStorage.getItem("token");
-    return { headers: { Authorization: `Bearer ${token}` } };
-  };
-
-  const fetchAndDiff = async () => {
-    setLoading(true);
+  // 1. ดึงการแจ้งเตือนจาก Database
+  const fetchNotifications = async () => {
     try {
-      const res = await axios.get("http://localhost:8000/api/leave/my", getAuthHeader());
-      const reqs = res.data.requests || [];
-
-      const prev = JSON.parse(localStorage.getItem("leave_status_cache") || "{}");
-      const now = {};
-
-      const notis = [];
-      reqs.forEach((r) => {
-        const id = r.requestId;
-        const curStatus = r.status;
-        now[id] = curStatus;
-
-        const oldStatus = prev[id];
-        if (oldStatus && oldStatus !== curStatus) {
-          notis.push({
-            id,
-            title: `Leave request #${id} updated`,
-            message: `Status: ${oldStatus} → ${curStatus}`,
-            when: moment().toISOString(),
-            type: curStatus.toLowerCase().includes("approve")
-              ? "ok"
-              : curStatus.toLowerCase().includes("reject")
-              ? "danger"
-              : "info",
-          });
-        }
-      });
-
-      localStorage.setItem("leave_status_cache", JSON.stringify(now));
-      const existing = JSON.parse(localStorage.getItem("worker_notifications") || "[]");
-      const merged = [...notis, ...existing].slice(0, 200);
-      localStorage.setItem("worker_notifications", JSON.stringify(merged));
-      setItems(merged);
-    } catch (e) {
-      console.error(e);
+      setLoading(true);
+      const res = await api.get("/api/notifications/my", getAuthHeader());
+      setNotifications(res.data.notifications || []);
+      
+      // อัปเดตตัวเลข Badge บน Sidebar
+      localStorage.setItem("worker_unread_notifications", res.data.unreadCount || "0");
+      window.dispatchEvent(new Event("storage"));
+    } catch (err) {
+      console.error("Failed to fetch notifications:", err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    const existing = JSON.parse(localStorage.getItem("worker_notifications") || "[]");
-    setItems(existing);
-    fetchAndDiff();
+    fetchNotifications();
   }, []);
 
-  const total = items.length;
-  const start = (page - 1) * pageSize;
-  const paged = items.slice(start, start + pageSize);
+  // ✅ คำนวณข้อมูลสำหรับการแบ่งหน้า (Pagination Logic)
+  const total = notifications.length;
+  const startIdx = (page - 1) * pageSize;
+  const pagedNotifications = useMemo(() => {
+    return notifications.slice(startIdx, startIdx + pageSize);
+  }, [notifications, startIdx, pageSize]);
 
-  const clearAll = () => {
-    localStorage.removeItem("worker_notifications");
-    setItems([]);
-    setPage(1);
+  // 2. กดอ่านการแจ้งเตือน
+  const markAsRead = async (id) => {
+    try {
+      await api.put(`/api/notifications/${id}/read`, {}, getAuthHeader());
+      setNotifications(notifications.map(n => 
+        n.notificationId === id ? { ...n, isRead: true } : n
+      ));
+    } catch (err) {
+      console.error("Mark read failed:", err);
+    }
+  };
+
+  // 3. ลบการแจ้งเตือนทีละอัน
+  const deleteNoti = async (id) => {
+    try {
+      await api.delete(`/api/notifications/${id}`, getAuthHeader());
+      setNotifications(notifications.filter(n => n.notificationId !== id));
+      // ถ้าลบจนหน้านั้นว่าง ให้ถอยกลับไป 1 หน้า
+      if (pagedNotifications.length === 1 && page > 1) setPage(page - 1);
+    } catch (err) {
+      console.error("Delete failed:", err);
+      alert("ไม่สามารถลบการแจ้งเตือนได้");
+    }
+  };
+
+  // 4. ลบการแจ้งเตือนทั้งหมด
+  const handleClearAll = async () => {
+    if (!window.confirm("คุณต้องการลบการแจ้งเตือนทั้งหมดใช่หรือไม่?")) return;
+    try {
+      const res = await api.delete("/api/notifications/clear-all", getAuthHeader());
+      if (res.data.success) {
+        setNotifications([]);
+        setPage(1);
+        alert("ล้างการแจ้งเตือนทั้งหมดเรียบร้อยแล้ว");
+      }
+    } catch (err) {
+      console.error("Clear all failed:", err);
+      alert("เกิดข้อผิดพลาดในการล้างข้อมูล");
+    }
+  };
+
+  const getNotificationIcon = (type) => {
+    switch (type) {
+      case "Approval": return <FiCheckCircle style={{ color: "#10b981" }} />;
+      case "Rejection": return <FiXCircle style={{ color: "#ef4444" }} />;
+      default: return <FiInfo style={{ color: "#3b82f6" }} />;
+    }
+  };
+
+  const getStatusClass = (type) => {
+    if (type === "Rejection") return "danger";
+    if (type === "Approval") return "ok";
+    return "info";
   };
 
   return (
     <div className="page-card wn">
-      <header className="wn-head">
+      <div className="wn-head">
         <div>
           <h1 className="wn-title">Notifications</h1>
-          <p className="wn-sub">Approval / rejection updates</p>
+          <p className="wn-sub">แสดงรายการแจ้งเตือนสถานะคำขอลา (หน้า {page})</p>
         </div>
         <div className="wn-actions">
-          <button className="btn outline small" onClick={fetchAndDiff} type="button" disabled={loading}>
-            Refresh
+          <button className="btn outline small" onClick={fetchNotifications} title="Refresh">
+            <FiRefreshCw className={loading ? "spin" : ""} />
           </button>
-          <button className="btn small" onClick={clearAll} type="button">
-            Clear
+          <button className="btn small" onClick={handleClearAll} disabled={notifications.length === 0}>
+            <FiTrash2 /> Clear All
           </button>
         </div>
-      </header>
+      </div>
 
       <div className="wn-list">
-        {paged.length === 0 ? (
-          <div className="wn-empty">{loading ? "Loading..." : "No notifications yet."}</div>
+        {loading ? (
+          <div className="wn-empty">
+            <FiRefreshCw className="spin" size={24} />
+            <p>กำลังโหลดข้อมูล...</p>
+          </div>
+        ) : pagedNotifications.length === 0 ? (
+          <div className="wn-empty">
+            <FiBell style={{ opacity: 0.5 }} size={32} />
+            <p>ยังไม่มีการแจ้งเตือนในขณะนี้</p>
+          </div>
         ) : (
-          paged.map((n) => (
-            <div key={`${n.id}-${n.when}`} className={`wn-item ${n.type}`}>
-              <div className="wn-item-title">{n.title}</div>
-              <div className="wn-item-msg">{n.message}</div>
-              <div className="wn-item-time">{moment(n.when).format("DD MMM YYYY HH:mm")}</div>
+          pagedNotifications.map((n) => (
+            <div 
+              key={n.notificationId} 
+              className={`wn-item ${getStatusClass(n.notificationType)} ${n.isRead ? 'read' : 'unread'}`}
+              onClick={() => !n.isRead && markAsRead(n.notificationId)}
+            >
+              <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
+                <div className="noti-icon-box" style={{ marginTop: '4px', fontSize: '20px' }}>
+                  {getNotificationIcon(n.notificationType)}
+                </div>
+                
+                <div style={{ flex: 1 }}>
+                  <div className="wn-item-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {n.notificationType === "Approval" ? "คำขอลาได้รับการอนุมัติ" : 
+                     n.notificationType === "Rejection" ? "คำขอลาถูกปฏิเสธ" : "แจ้งเตือนระบบ"}
+                    {!n.isRead && <span className="badge-new">NEW</span>}
+                  </div>
+                  <div className="wn-item-msg">{n.message}</div>
+                  <div className="wn-item-time">
+                    {new Date(n.createdAt).toLocaleString("en-GB", {
+                      day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                    })}
+                  </div>
+                </div>
+
+                <button 
+                  className="delete-btn-icon"
+                  style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteNoti(n.notificationId);
+                  }}
+                  title="Delete"
+                >
+                  <FiTrash2 size={16} />
+                </button>
+              </div>
             </div>
           ))
         )}
       </div>
 
-      <Pagination total={total} page={page} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={setPageSize} />
+      {/* ✅ Pagination Component */}
+      {!loading && notifications.length > 0 && (
+        <div style={{ marginTop: '20px' }}>
+          <Pagination 
+            total={total} 
+            page={page} 
+            pageSize={pageSize} 
+            onPageChange={setPage} 
+            onPageSizeChange={setPageSize} 
+          />
+        </div>
+      )}
     </div>
   );
 }
