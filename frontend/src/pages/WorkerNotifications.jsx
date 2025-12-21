@@ -10,7 +10,7 @@ import {
   FiInfo 
 } from "react-icons/fi";
 import "./WorkerNotifications.css";
-import Pagination from "../components/Pagination"; 
+import Pagination from "../components/Pagination"; // นำ Pagination กลับมา
 
 const api = axios.create({ baseURL: "http://localhost:8000" });
 const getAuthHeader = () => ({ 
@@ -20,18 +20,20 @@ const getAuthHeader = () => ({
 export default function WorkerNotifications() {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // ✅ Pagination State
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
+  // 1. ดึงการแจ้งเตือนจาก Database
   const fetchNotifications = async () => {
     try {
       setLoading(true);
       const res = await api.get("/api/notifications/my", getAuthHeader());
-      const fetchedNotis = res.data.notifications || [];
-      setNotifications(fetchedNotis);
+      setNotifications(res.data.notifications || []);
       
-      const unreadCount = fetchedNotis.filter(n => !n.isRead).length;
-      localStorage.setItem("worker_unread_notifications", unreadCount.toString());
+      // อัปเดตตัวเลข Badge บน Sidebar
+      localStorage.setItem("worker_unread_notifications", res.data.unreadCount || "0");
       window.dispatchEvent(new Event("storage"));
     } catch (err) {
       console.error("Failed to fetch notifications:", err);
@@ -44,58 +46,39 @@ export default function WorkerNotifications() {
     fetchNotifications();
   }, []);
 
+  // ✅ คำนวณข้อมูลสำหรับการแบ่งหน้า (Pagination Logic)
   const total = notifications.length;
   const startIdx = (page - 1) * pageSize;
   const pagedNotifications = useMemo(() => {
     return notifications.slice(startIdx, startIdx + pageSize);
   }, [notifications, startIdx, pageSize]);
 
+  // 2. กดอ่านการแจ้งเตือน
   const markAsRead = async (id) => {
     try {
       await api.put(`/api/notifications/${id}/read`, {}, getAuthHeader());
-      const updatedNotis = notifications.map(n => 
+      setNotifications(notifications.map(n => 
         n.notificationId === id ? { ...n, isRead: true } : n
-      );
-      setNotifications(updatedNotis);
-
-      const unreadCount = updatedNotis.filter(n => !n.isRead).length;
-      localStorage.setItem("worker_unread_notifications", unreadCount.toString());
-      window.dispatchEvent(new Event("storage"));
+      ));
     } catch (err) {
       console.error("Mark read failed:", err);
     }
   };
 
-  // ✅ ฟังก์ชัน Mark All Read สำหรับ Worker
-  const handleMarkAllAsRead = async () => {
-    try {
-      await api.put("/api/notifications/mark-all-read", {}, getAuthHeader());
-      setNotifications(notifications.map(n => ({ ...n, isRead: true })));
-
-      localStorage.setItem("worker_unread_notifications", "0");
-      window.dispatchEvent(new Event("storage"));
-    } catch (err) {
-      console.error("Mark all read failed:", err);
-    }
-  };
-
+  // 3. ลบการแจ้งเตือนทีละอัน
   const deleteNoti = async (id) => {
-    if (!window.confirm("คุณต้องการลบการแจ้งเตือนนี้ใช่หรือไม่?")) return;
     try {
       await api.delete(`/api/notifications/${id}`, getAuthHeader());
-      const filteredNotis = notifications.filter(n => n.notificationId !== id);
-      setNotifications(filteredNotis);
-
-      const unreadCount = filteredNotis.filter(n => !n.isRead).length;
-      localStorage.setItem("worker_unread_notifications", unreadCount.toString());
-      window.dispatchEvent(new Event("storage"));
-
+      setNotifications(notifications.filter(n => n.notificationId !== id));
+      // ถ้าลบจนหน้านั้นว่าง ให้ถอยกลับไป 1 หน้า
       if (pagedNotifications.length === 1 && page > 1) setPage(page - 1);
     } catch (err) {
       console.error("Delete failed:", err);
+      alert("ไม่สามารถลบการแจ้งเตือนได้");
     }
   };
 
+  // 4. ลบการแจ้งเตือนทั้งหมด
   const handleClearAll = async () => {
     if (!window.confirm("คุณต้องการลบการแจ้งเตือนทั้งหมดใช่หรือไม่?")) return;
     try {
@@ -103,11 +86,11 @@ export default function WorkerNotifications() {
       if (res.data.success) {
         setNotifications([]);
         setPage(1);
-        localStorage.setItem("worker_unread_notifications", "0");
-        window.dispatchEvent(new Event("storage"));
+        alert("ล้างการแจ้งเตือนทั้งหมดเรียบร้อยแล้ว");
       }
     } catch (err) {
       console.error("Clear all failed:", err);
+      alert("เกิดข้อผิดพลาดในการล้างข้อมูล");
     }
   };
 
@@ -129,22 +112,15 @@ export default function WorkerNotifications() {
     <div className="page-card wn">
       <div className="wn-head">
         <div>
-          <h2 className="wn-title">Notifications</h2>
+          <h1 className="wn-title">Notifications</h1>
           <p className="wn-sub">แสดงรายการแจ้งเตือนสถานะคำขอลา (หน้า {page})</p>
         </div>
-        
-        {/* ✅ ปรับ Actions ให้มีปุ่ม Mark all read และ UI เหมือนหน้า HR */}
         <div className="wn-actions">
-          <button className="emp-btn emp-btn-outline small" onClick={fetchNotifications} title="Refresh">
+          <button className="btn outline small" onClick={fetchNotifications} title="Refresh">
             <FiRefreshCw className={loading ? "spin" : ""} />
           </button>
-          
-          <button className="emp-btn emp-btn-outline small" onClick={handleClearAll} disabled={notifications.length === 0}>
+          <button className="btn small" onClick={handleClearAll} disabled={notifications.length === 0}>
             <FiTrash2 /> Clear All
-          </button>
-
-          <button className="emp-btn emp-btn-primary small" onClick={handleMarkAllAsRead} disabled={notifications.length === 0}>
-            <FiCheck /> Mark all read
           </button>
         </div>
       </div>
@@ -203,6 +179,7 @@ export default function WorkerNotifications() {
         )}
       </div>
 
+      {/* ✅ Pagination Component */}
       {!loading && notifications.length > 0 && (
         <div style={{ marginTop: '20px' }}>
           <Pagination 
