@@ -1,20 +1,184 @@
 /* src/pages/WorkerNotifications.css */
-.wn-head{ display:flex; justify-content:space-between; align-items:flex-end; gap: 14px; margin-bottom: 12px; }
-.wn-title{ margin:0; font-size: 26px; font-weight: 950; }
-.wn-sub{ margin:6px 0 0; color: var(--muted); font-size: 13px; }
-.wn-actions{ display:flex; gap: 10px; align-items:center; }
-.wn-list{ display:flex; flex-direction:column; gap: 10px; }
-.wn-item{
-  padding: 12px 14px;
-  border-radius: 16px;
-  border: 1px solid rgba(255,255,255,.14);
-  background: var(--tint);
-}
-.wn-item.ok{ border-color: rgba(16,185,129,.30); background: rgba(16,185,129,.10); }
-.wn-item.danger{ border-color: rgba(220,38,38,.22); background: rgba(220,38,38,.08); }
-.wn-item.info{ border-color: rgba(59,130,246,.25); background: rgba(59,130,246,.10); }
 
-.wn-item-title{ font-weight: 950; }
-.wn-item-msg{ margin-top: 4px; color: rgba(255,255,255,.82); }
-.wn-item-time{ margin-top: 6px; color: var(--muted); font-size: 12px; }
-.wn-empty{ text-align:center; color: var(--muted); padding: 18px 0; }
+/* Header */
+.wn-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-end;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.wn-title{
+  margin:0;
+  font-size: 26px;
+  font-weight: 950;
+  color: rgba(15,23,42,.95);
+}
+
+.wn-sub{
+  margin:6px 0 0;
+  color: rgba(15,23,42,.60);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.wn-actions{
+  display:flex;
+  gap: 10px;
+  align-items:center;
+}
+
+/* List */
+.wn-list{
+  display:flex;
+  flex-direction:column;
+  gap: 12px;
+}
+
+/* Item layout */
+.wn-row{
+  display:flex;
+  gap: 14px;
+  align-items:flex-start;
+}
+
+/* Card base */
+.wn-item{
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(15,23,42,.10);
+  background: rgba(255,255,255,.78);
+  box-shadow: 0 12px 28px rgba(2,6,23,.06);
+  cursor: pointer;
+  transition: transform .08s ease, box-shadow .15s ease, border-color .15s ease, background .15s ease;
+}
+
+.wn-item:hover{
+  box-shadow: 0 16px 34px rgba(2,6,23,.10);
+}
+
+.wn-item:active{
+  transform: translateY(1px);
+}
+
+/* Status themes (soft corporate) */
+.wn-item.ok{
+  border-color: rgba(16,185,129,.22);
+  background: rgba(16,185,129,.06);
+}
+
+.wn-item.danger{
+  border-color: rgba(239,68,68,.22);
+  background: rgba(239,68,68,.06);
+}
+
+.wn-item.info{
+  border-color: rgba(59,130,246,.20);
+  background: rgba(59,130,246,.06);
+}
+
+/* Unread highlight */
+.wn-item.unread{
+  border-color: rgba(22,163,74,.30);
+  box-shadow: 0 18px 40px rgba(22,163,74,.10);
+}
+
+.wn-item.read{
+  opacity: .92;
+}
+
+/* Icon box */
+.noti-icon-box{
+  width: 44px;
+  height: 44px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(15,23,42,.10);
+  background: rgba(255,255,255,.75);
+  flex: 0 0 auto;
+}
+
+/* Icon colors */
+.noti-ico{
+  width: 20px;
+  height: 20px;
+}
+.noti-ico.ok{ color: #16a34a; }
+.noti-ico.danger{ color: #ef4444; }
+.noti-ico.info{ color: #3b82f6; }
+
+/* Text */
+.wn-body{ flex: 1; min-width: 0; }
+
+.wn-item-title{
+  font-weight: 950;
+  color: rgba(15,23,42,.95);
+  display:flex;
+  align-items:center;
+  gap: 10px;
+  line-height: 1.25;
+}
+
+.wn-item-msg{
+  margin-top: 6px;
+  color: rgba(15,23,42,.72); /* ✅ จากเดิมเป็นขาว -> อ่านชัด */
+  font-weight: 700;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.wn-item-time{
+  margin-top: 8px;
+  color: rgba(15,23,42,.55);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+/* NEW badge */
+.badge-new{
+  font-size: 11px;
+  font-weight: 950;
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: #0f172a;
+  background: rgba(22,163,74,.14);
+  border: 1px solid rgba(22,163,74,.25);
+  letter-spacing: .08em;
+}
+
+/* Delete button (remove inline white styles that cause invisibility) */
+.delete-btn-icon{
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  border: 1px solid rgba(15,23,42,.12);
+  background: rgba(255,255,255,.65);
+  color: rgba(15,23,42,.65);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex: 0 0 auto;
+  transition: background .15s ease, border-color .15s ease, color .15s ease, transform .08s ease;
+}
+
+.delete-btn-icon:hover{
+  background: rgba(239,68,68,.08);
+  border-color: rgba(239,68,68,.25);
+  color: rgba(185,28,28,.92);
+}
+.delete-btn-icon:active{ transform: translateY(1px); }
+
+/* Empty state */
+.wn-empty{
+  text-align:center;
+  color: rgba(15,23,42,.60);
+  padding: 22px 0;
+  font-weight: 800;
+}
+
+/* Footer */
+.wn-footer{
+  margin-top: 20px;
+}

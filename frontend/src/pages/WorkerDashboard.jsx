@@ -4,19 +4,63 @@ import axios from "axios";
 import "./WorkerDashboard.css";
 import Pagination from "../components/Pagination";
 
+function clamp(n, min, max) {
+  return Math.max(min, Math.min(max, n));
+}
+
+function num(v) {
+  const x = Number(v);
+  return Number.isFinite(x) ? x : 0;
+}
+
+function QuotaCard({ title, usedDays, totalDays }) {
+  const used = num(usedDays);
+  const total = num(totalDays);
+  const remaining = Math.max(0, total - used);
+  const percent = total > 0 ? clamp((used / total) * 100, 0, 100) : 0;
+
+  return (
+    <div className="quota-card" role="group" aria-label={`${title} quota`}>
+      <div className="quota-top">
+        <h4 className="quota-title">{title}</h4>
+        <span className="quota-chip">{Math.round(percent)}%</span>
+      </div>
+
+      <div className="quota-metrics">
+        <div className="qm">
+          <div className="qm-label">Used</div>
+          <div className="qm-value">{used}</div>
+        </div>
+        <div className="qm">
+          <div className="qm-label">Total</div>
+          <div className="qm-value">{total}</div>
+        </div>
+        <div className="qm">
+          <div className="qm-label">Remaining</div>
+          <div className="qm-value">{remaining}</div>
+        </div>
+      </div>
+
+      <div className="quota-bar" aria-label="Usage progress">
+        <div className="quota-bar-fill" style={{ width: `${percent}%` }} />
+      </div>
+    </div>
+  );
+}
+
 export default function WorkerDashboard() {
   const [now, setNow] = useState(new Date());
 
-  // States สำหรับ Attendance (Today)
+  // Attendance (Today)
   const [checkedInAt, setCheckedInAt] = useState(null);
   const [checkedOutAt, setCheckedOutAt] = useState(null);
 
-  // States สำหรับข้อมูลจริงจาก Backend
+  // Backend data
   const [history, setHistory] = useState([]);
   const [quotas, setQuotas] = useState([]);
   const [lateSummary, setLateSummary] = useState({ lateCount: 0, lateLimit: 5 });
 
-  // States สำหรับ Leave Modal & Form
+  // Leave modal
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
   const [leaveForm, setLeaveForm] = useState({
     leaveTypeId: "",
@@ -25,7 +69,7 @@ export default function WorkerDashboard() {
     detail: "",
   });
 
-  // ✅ Pagination
+  // Pagination
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
@@ -34,12 +78,16 @@ export default function WorkerDashboard() {
     return { headers: { Authorization: `Bearer ${token}` } };
   };
 
-  // --- 1. Fetch Attendance (History & Today's Status) ---
+  // 1) Attendance (History + Today status)
   const fetchAttendanceData = async () => {
     try {
       const response = await axios.get("http://localhost:8000/api/timerecord/my", getAuthHeader());
       const records = response.data.records || [];
       setHistory(records);
+
+      // ✅ FIX: reset ทุกครั้งก่อนหา today (กันค้าง)
+      setCheckedInAt(null);
+      setCheckedOutAt(null);
 
       const todayStr = new Date().toISOString().split("T")[0];
       const todayRecord = records.find((r) => r.workDate && r.workDate.startsWith(todayStr));
@@ -53,20 +101,22 @@ export default function WorkerDashboard() {
     }
   };
 
-  // --- 2. Fetch Quota (Real data from Backend) ---
+  // 2) Quota
   const fetchQuotaData = async () => {
     try {
       const response = await axios.get("http://localhost:8000/api/leave/quota/my", getAuthHeader());
-      setQuotas(response.data.quotas || []);
-      if (response.data.quotas.length > 0) {
-        setLeaveForm((prev) => ({ ...prev, leaveTypeId: response.data.quotas[0].leaveTypeId }));
+      const qs = response.data.quotas || [];
+      setQuotas(qs);
+
+      if (qs.length > 0) {
+        setLeaveForm((prev) => ({ ...prev, leaveTypeId: qs[0].leaveTypeId }));
       }
     } catch (err) {
       console.error("Failed to fetch quotas:", err);
     }
   };
 
-  // --- 3. Fetch Late Summary (Real data from Backend) ---
+  // 3) Late Summary
   const fetchLateSummary = async () => {
     try {
       const response = await axios.get("http://localhost:8000/api/timerecord/late/summary", getAuthHeader());
@@ -85,9 +135,10 @@ export default function WorkerDashboard() {
     fetchLateSummary();
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // --- Handlers ---
+  // Handlers
   const handleCheckIn = async () => {
     try {
       await axios.post("http://localhost:8000/api/timerecord/checkin", {}, getAuthHeader());
@@ -111,7 +162,6 @@ export default function WorkerDashboard() {
 
   const handleLeaveChange = (e) => {
     const { name, value } = e.target;
-
     setLeaveForm((prev) => {
       const newState = { ...prev, [name]: value };
       if (name === "startDate") newState.endDate = value;
@@ -123,7 +173,7 @@ export default function WorkerDashboard() {
     e.preventDefault();
     try {
       const payload = {
-        leaveTypeId: parseInt(leaveForm.leaveTypeId),
+        leaveTypeId: parseInt(leaveForm.leaveTypeId, 10),
         startDate: leaveForm.startDate,
         endDate: leaveForm.endDate,
         startDuration: "Full",
@@ -223,18 +273,18 @@ export default function WorkerDashboard() {
         </div>
       </section>
 
-      <section className="summary-row">
+      <section className="quota-grid" aria-label="Leave quotas">
         {quotas.length > 0 ? (
           quotas.map((q) => (
-            <div className="summary-card" key={q.quotaId}>
-              <h4>{q.leaveType.typeName}</h4>
-              <p>
-                Used {parseFloat(q.usedDays)} / {parseFloat(q.totalDays)} Days
-              </p>
-            </div>
+            <QuotaCard
+              key={q.quotaId}
+              title={q.leaveType?.typeName || "Leave"}
+              usedDays={q.usedDays}
+              totalDays={q.totalDays}
+            />
           ))
         ) : (
-          <p>Loading quotas...</p>
+          <div className="quota-empty">Loading quotas...</div>
         )}
       </section>
 
@@ -251,18 +301,26 @@ export default function WorkerDashboard() {
               </tr>
             </thead>
             <tbody>
-              {pagedHistory.map((row) => (
-                <tr key={row.recordId}>
-                  <td>{formatDate(row.workDate)}</td>
-                  <td>{formatTime(row.checkInTime)}</td>
-                  <td>{formatTime(row.checkOutTime)}</td>
-                  <td>
-                    <span className={`status-badge ${row.isLate ? "status-late" : "status-ok"}`}>
-                      {row.isLate ? "Late" : "On Time"}
-                    </span>
+              {pagedHistory.length === 0 ? (
+                <tr>
+                  <td colSpan="4" className="empty">
+                    ไม่มีข้อมูล
                   </td>
                 </tr>
-              ))}
+              ) : (
+                pagedHistory.map((row) => (
+                  <tr key={row.recordId}>
+                    <td>{formatDate(row.workDate)}</td>
+                    <td>{formatTime(row.checkInTime)}</td>
+                    <td>{formatTime(row.checkOutTime)}</td>
+                    <td>
+                      <span className={`status-badge ${row.isLate ? "status-late" : "status-ok"}`}>
+                        {row.isLate ? "Late" : "On Time"}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
 
@@ -285,7 +343,7 @@ export default function WorkerDashboard() {
               <select name="leaveTypeId" value={leaveForm.leaveTypeId} onChange={handleLeaveChange} required>
                 {quotas.map((q) => (
                   <option key={q.leaveTypeId} value={q.leaveTypeId}>
-                    {q.leaveType.typeName}
+                    {q.leaveType?.typeName || "Unknown Type"}
                   </option>
                 ))}
               </select>

@@ -3,6 +3,50 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import "./HRAttendancePage.css";
 
+function clamp(n, min, max) {
+  return Math.max(min, Math.min(max, n));
+}
+
+function num(v) {
+  const x = Number(v);
+  return Number.isFinite(x) ? x : 0;
+}
+
+function QuotaCard({ title, usedDays, totalDays }) {
+  const used = num(usedDays);
+  const total = num(totalDays);
+  const remaining = Math.max(0, total - used);
+  const percent = total > 0 ? clamp((used / total) * 100, 0, 100) : 0;
+
+  return (
+    <div className="quota-card" role="group" aria-label={`${title} quota`}>
+      <div className="quota-top">
+        <h4 className="quota-title">{title}</h4>
+        <span className="quota-chip">{Math.round(percent)}%</span>
+      </div>
+
+      <div className="quota-metrics">
+        <div className="qm">
+          <div className="qm-label">Used</div>
+          <div className="qm-value">{used}</div>
+        </div>
+        <div className="qm">
+          <div className="qm-label">Total</div>
+          <div className="qm-value">{total}</div>
+        </div>
+        <div className="qm">
+          <div className="qm-label">Remaining</div>
+          <div className="qm-value">{remaining}</div>
+        </div>
+      </div>
+
+      <div className="quota-bar" aria-label="Usage progress">
+        <div className="quota-bar-fill" style={{ width: `${percent}%` }} />
+      </div>
+    </div>
+  );
+}
+
 export default function HRAttendancePage() {
   const [now, setNow] = useState(new Date());
 
@@ -29,25 +73,19 @@ export default function HRAttendancePage() {
     return { headers: { Authorization: `Bearer ${token}` } };
   };
 
-  // --- 1) Attendance (History + Today status) ---
+  // Attendance
   const fetchAttendanceData = async () => {
     try {
-      const response = await axios.get(
-        "http://localhost:8000/api/timerecord/my",
-        getAuthHeader()
-      );
-
+      const response = await axios.get("http://localhost:8000/api/timerecord/my", getAuthHeader());
       const records = response.data.records || [];
       setHistory(records);
 
-      // ✅ FIX: reset ค่าทุกครั้งก่อนหา today (กันค้าง)
+      // ✅ reset กันค้าง
       setCheckedInAt(null);
       setCheckedOutAt(null);
 
       const todayStr = new Date().toISOString().split("T")[0];
-      const todayRecord = records.find(
-        (r) => r.workDate && r.workDate.startsWith(todayStr)
-      );
+      const todayRecord = records.find((r) => r.workDate && r.workDate.startsWith(todayStr));
 
       if (todayRecord) {
         if (todayRecord.checkInTime) setCheckedInAt(new Date(todayRecord.checkInTime));
@@ -58,16 +96,10 @@ export default function HRAttendancePage() {
     }
   };
 
-  // --- 2) Leave Quota ---
+  // Quota
   const fetchQuotaData = async () => {
     try {
-      const response = await axios.get(
-        "http://localhost:8000/api/leave/quota/my",
-        getAuthHeader()
-      );
-
-      console.log("Quota Response:", response.data);
-
+      const response = await axios.get("http://localhost:8000/api/leave/quota/my", getAuthHeader());
       const qs = response.data.quotas || [];
       setQuotas(qs);
 
@@ -82,13 +114,10 @@ export default function HRAttendancePage() {
     }
   };
 
-  // --- 3) Late Summary ---
+  // Late Summary
   const fetchLateSummary = async () => {
     try {
-      const response = await axios.get(
-        "http://localhost:8000/api/timerecord/late/summary",
-        getAuthHeader()
-      );
+      const response = await axios.get("http://localhost:8000/api/timerecord/late/summary", getAuthHeader());
       setLateSummary({
         lateCount: response.data.lateCount,
         lateLimit: response.data.lateLimit,
@@ -105,9 +134,10 @@ export default function HRAttendancePage() {
 
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // --- Handlers ---
+  // Handlers
   const handleCheckIn = async () => {
     try {
       await axios.post("http://localhost:8000/api/timerecord/checkin", {}, getAuthHeader());
@@ -150,11 +180,7 @@ export default function HRAttendancePage() {
         reason: leaveForm.detail,
       };
 
-      const response = await axios.post(
-        "http://localhost:8000/api/leave/request",
-        payload,
-        getAuthHeader()
-      );
+      const response = await axios.post("http://localhost:8000/api/leave/request", payload, getAuthHeader());
 
       if (response.data.success) {
         alert("✅ " + (response.data.message || "ส่งคำขอลาสำเร็จ!"));
@@ -216,11 +242,7 @@ export default function HRAttendancePage() {
         <div className="action-card">
           <h3>Check Out</h3>
           <p className="action-time">{formatTime(checkedOutAt)}</p>
-          <button
-            className="btn-checkout"
-            onClick={handleCheckOut}
-            disabled={!checkedInAt || !!checkedOutAt}
-          >
+          <button className="btn-checkout" onClick={handleCheckOut} disabled={!checkedInAt || !!checkedOutAt}>
             {!checkedInAt ? "Check In First" : checkedOutAt ? "Checked Out" : "Check Out"}
           </button>
         </div>
@@ -234,18 +256,18 @@ export default function HRAttendancePage() {
         </div>
       </section>
 
-      <section className="summary-row">
+      <section className="quota-grid" aria-label="Leave quotas">
         {quotas.length > 0 ? (
           quotas.map((q) => (
-            <div className="summary-card" key={q.quotaId}>
-              <h4>{q.leaveType.typeName}</h4>
-              <p>
-                Used {parseFloat(q.usedDays)} / {parseFloat(q.totalDays)} Days
-              </p>
-            </div>
+            <QuotaCard
+              key={q.quotaId}
+              title={q.leaveType?.typeName || "Leave"}
+              usedDays={q.usedDays}
+              totalDays={q.totalDays}
+            />
           ))
         ) : (
-          <p>Loading quotas.</p>
+          <div className="quota-empty">Loading quotas...</div>
         )}
       </section>
 

@@ -1,24 +1,7 @@
-/* ===== Employees (match other pages: centered max-width card) ===== */
+/* Corporate Green/White theme for Employees + Modals (fix dark edit screens) */
 
-.emp-page{
-  width: 100%;
-  padding: 18px 18px 24px;
-  /* ❌ ตัด min-height:100vh และ flex center ออก เพื่อไม่ชน AppLayout */
-}
-
-.emp-card{
-  width: 100%;
-  max-width: 1250px;
-  margin: 0 auto;
-
-  border-radius: 22px;
-  padding: 22px 24px 26px;
-
-  background: var(--card);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow);
-  color: var(--text);
-}
+/* Page wrapper is handled by AppLayout; keep this light */
+.page-card.emp {}
 
 /* Header */
 .emp-head{
@@ -33,15 +16,16 @@
 .emp-title{
   margin: 0;
   font-size: 26px;
-  font-weight: 950;
+  font-weight: 900;
   letter-spacing: -.01em;
-  color: var(--text);
+  color: var(--text, rgba(15,23,42,.95));
 }
 
 .emp-sub{
   margin: 6px 0 0;
   font-size: 13px;
-  color: var(--muted);
+  color: var(--muted, rgba(15,23,42,.60));
+  font-weight: 700;
 }
 
 .emp-tools{
@@ -51,19 +35,29 @@
   flex-wrap: wrap;
 }
 
+/* Search input */
 .emp-input{
   width: min(420px, 78vw);
-  border-radius: 999px;
-  padding: 11px 14px;
+  border-radius: 12px;
+  padding: 12px 14px;
   background: #fff;
-  border: 1px solid var(--border);
-  color: var(--text);
-  outline: none;
+  border: 1px solid rgba(15,23,42,.12);
+  color: rgba(15,23,42,.92);
+  outline:none;
+  font-size: 14px;
+  font-weight: 650;
+  transition: box-shadow .15s ease, border-color .15s ease;
+}
+
+.emp-input::placeholder{
+  color: rgba(15,23,42,.45);
+  font-weight: 600;
+  opacity: 1;
 }
 
 .emp-input:focus{
   border-color: rgba(22,163,74,.55);
-  box-shadow: 0 0 0 3px var(--focus);
+  box-shadow: 0 0 0 4px rgba(22,163,74,.12);
 }
 
 /* Buttons */
@@ -73,82 +67,159 @@
   cursor:pointer;
   border-radius: 999px;
   padding: 11px 16px;
-  font-weight: 950;
-  transition: transform .08s ease, filter .15s ease, background .15s ease;
+  font-weight: 900;
+  display:inline-flex;
+  align-items:center;
+  gap: 8px;
+  transition: transform .08s ease, filter .15s ease, background .15s ease, border-color .15s ease;
 }
 .emp-btn:active{ transform: translateY(1px); }
 .emp-btn:disabled{ opacity: .6; cursor:not-allowed; }
 
 .emp-btn-primary{
-  color: #fff;
-  background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+  color:#fff;
+  background: linear-gradient(135deg, var(--accent, #16a34a) 0%, var(--accent2, #0f7a33) 100%);
   box-shadow: 0 12px 22px rgba(22,163,74,.16);
 }
-.emp-btn-primary:hover{ filter: brightness(1.05); }
+.emp-btn-primary:hover{ filter: brightness(1.04); }
 
 .emp-btn-outline{
-  background: var(--tint);
-  border: 1px solid rgba(22,163,74,.35);
-  color: var(--text);
+  background: rgba(22,163,74,.08);
+  border: 1px solid rgba(22,163,74,.30);
+  color: rgba(15,23,42,.92);
 }
-.emp-btn-outline:hover{ background: rgba(22,163,74,.10); }
+.emp-btn-outline:hover{ background: rgba(22,163,74,.12); }
+
+.emp-btn-outline.warn{
+  background: rgba(245,158,11,.10);
+  border-color: rgba(245,158,11,.30);
+}
+.emp-btn-outline.warn:hover{
+  background: rgba(245,158,11,.14);
+  border-color: rgba(245,158,11,.40);
+}
+
+.small{ padding: 8px 12px; font-size: 12px; }
+.hidden-mobile{ display:inline; }
+@media (max-width: 680px){ .hidden-mobile{ display:none; } }
 
 /* Table */
-.emp-table-wrap{
+.table-wrap{
   border-radius: 16px;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  background: var(--card2);
+  overflow:hidden;
+  border: 1px solid rgba(15,23,42,.10);
+  background: rgba(255,255,255,.75);
 }
 
-.emp-table{
+.table{
   width:100%;
   border-collapse: collapse;
 }
 
-.emp-table thead{
-  background: var(--tint);
+.table thead{
+  background: rgba(22,163,74,.08);
 }
 
-.emp-table th,
-.emp-table td{
+.table th, .table td{
   padding: 12px 14px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid rgba(15,23,42,.08);
   text-align:left;
-  color: var(--text);
-  font-weight: 800;
+  color: rgba(15,23,42,.92);
+  font-weight: 650;
 }
 
-.emp-table th{
+.table th{
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: .6px;
-  color: var(--muted);
-  font-weight: 950;
+  color: rgba(15,23,42,.60);
+  font-weight: 900;
 }
 
-.emp-table tbody tr:hover td{
-  background: var(--tint);
+.table tbody tr:hover td{
+  background: rgba(22,163,74,.06);
 }
 
-.emp-empty{
+.text-center{ text-align:center !important; }
+
+.empty{
   text-align:center;
   padding: 18px 10px;
-  color: var(--muted, rgba(255,255,255,.60));
-  font-weight: 850;
+  color: rgba(15,23,42,.55);
+  font-weight: 800;
 }
 
-.emp-mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace; }
-.emp-muted{ color: var(--muted, rgba(255,255,255,.60)); }
-.emp-strong{ font-weight: 950; color: var(--text, rgba(255,255,255,.92)); }
+.emp-mono{
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+}
 
-/* ===== Modal ===== */
+.emp-muted{ color: rgba(15,23,42,.60); font-weight: 650; }
+.emp-muted.mini{ font-size: 12px; }
+.emp-strong{ font-weight: 900; color: rgba(15,23,42,.95); }
+
+.action-column{ vertical-align: middle; }
+
+.btn-group-row{
+  display:flex;
+  gap: 8px;
+  justify-content: center;
+  align-items:center;
+  flex-wrap: wrap;
+}
+
+.emp-btn-outline.small.info{
+  background: rgba(59,130,246,.08);
+  border-color: rgba(59,130,246,.25);
+}
+.emp-btn-outline.small.info:hover{
+  background: rgba(59,130,246,.12);
+  border-color: rgba(59,130,246,.35);
+}
+
+.emp-btn-outline.small.quota{
+  background: rgba(139,92,246,.08);
+  border-color: rgba(139,92,246,.22);
+}
+.emp-btn-outline.small.quota:hover{
+  background: rgba(139,92,246,.12);
+  border-color: rgba(139,92,246,.32);
+}
+
+/* Badges */
+.badge{
+  display:inline-flex;
+  align-items:center;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 900;
+  border: 1px solid transparent;
+  margin-right: 6px;
+}
+
+.badge-role-hr{
+  background: rgba(59,130,246,.12);
+  color: rgba(30,64,175,.95);
+  border-color: rgba(59,130,246,.22);
+}
+.badge-role-worker{
+  background: rgba(22,163,74,.12);
+  color: rgba(20,83,45,.95);
+  border-color: rgba(22,163,74,.25);
+}
+.badge-danger{
+  background: rgba(239,68,68,.10);
+  color: rgba(153,27,27,.95);
+  border-color: rgba(239,68,68,.25);
+}
+
+/* ===== Modal (แก้ให้ไม่ดำ + เข้าธีม) ===== */
 .emp-modal-backdrop{
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,.60);
-  backdrop-filter: blur(7px);
-  -webkit-backdrop-filter: blur(7px);
+  background: rgba(2,6,23,.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display:flex;
   justify-content:center;
   align-items:center;
@@ -156,11 +227,11 @@
 }
 
 .emp-modal{
-  width: min(640px, 95vw);
+  width: min(720px, 95vw);
   border-radius: 18px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow);
+  background: rgba(255,255,255,.92);
+  border: 1px solid rgba(15,23,42,.12);
+  box-shadow: 0 30px 90px rgba(2,6,23,.25);
   padding: 16px;
 }
 
@@ -170,210 +241,136 @@
   align-items:flex-start;
   gap: 12px;
   padding-bottom: 10px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid rgba(15,23,42,.10);
 }
 
 .emp-modal-title{
   font-size: 20px;
   font-weight: 950;
-  color: var(--text);
+  color: rgba(15,23,42,.95);
 }
-
 .emp-modal-sub{
   margin-top: 6px;
   font-size: 13px;
-  color: var(--muted);
+  color: rgba(15,23,42,.60);
+  font-weight: 700;
 }
 
 .emp-x{
   width: 38px;
   height: 38px;
   border-radius: 999px;
-  border: 1px solid rgba(255,255,255,.16);
-  background: rgba(0,0,0,.25);
-  color: rgba(255,255,255,.92);
+  border: 1px solid rgba(15,23,42,.12);
+  background: rgba(255,255,255,.85);
+  color: rgba(15,23,42,.75);
   cursor:pointer;
   font-size: 20px;
   font-weight: 900;
+}
+.emp-x:hover{
+  background: rgba(22,163,74,.10);
+  border-color: rgba(22,163,74,.25);
+  color: rgba(15,23,42,.90);
 }
 
 .emp-modal-body{
   padding: 12px 2px;
   display:flex;
   flex-direction:column;
-  gap: 10px;
-  max-height: 55vh;
+  gap: 12px;
+  max-height: 60vh;
   overflow:auto;
-
   scrollbar-width: none;
-  -ms-overflow-style: none;
 }
 .emp-modal-body::-webkit-scrollbar{ width:0; height:0; }
 
+/* Form */
+.form-row{ display:flex; gap: 12px; }
+@media (max-width: 640px){ .form-row{ flex-direction: column; } }
+
+.form-col{
+  flex: 1;
+  display:flex;
+  flex-direction:column;
+  gap: 6px;
+}
+.form-col label{
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  color: rgba(15,23,42,.60);
+}
+
+.w-full{ width: 100%; }
+
+.quota-input{
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: #fff;
+  border: 1px solid rgba(15,23,42,.12);
+  color: rgba(15,23,42,.92);
+  font-size: 14px;
+  font-weight: 700;
+  outline:none;
+  transition: box-shadow .15s ease, border-color .15s ease;
+}
+.quota-input:focus{
+  border-color: rgba(22,163,74,.55);
+  box-shadow: 0 0 0 4px rgba(22,163,74,.12);
+}
+
+.checkbox-label{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+  font-size: 14px;
+  color: rgba(15,23,42,.78);
+  font-weight: 700;
+  cursor:pointer;
+}
+
+/* Quota rows */
 .quota-row{
   display:flex;
   justify-content:space-between;
   align-items:center;
   gap: 12px;
-
   border-radius: 16px;
-  border: 1px solid var(--tint2);
-  background: var(--tint2);
+  border: 1px solid rgba(15,23,42,.10);
+  background: rgba(2,6,23,.03);
   padding: 12px;
 }
-
 .quota-type{
-  font-weight: 950;
-  color: var(--text, rgba(255,255,255,.92));
+  font-weight: 900;
+  color: rgba(15,23,42,.95);
 }
-
 .quota-mini{
   margin-top: 4px;
   font-size: 12px;
-  color: var(--muted, rgba(255,255,255,.55));
+  color: rgba(15,23,42,.60);
+  font-weight: 700;
 }
-
 .quota-right{
   display:flex;
   align-items:center;
   gap: 8px;
 }
-
-.quota-input{
-  width: 110px;
-  border-radius: 14px;
-  padding: 10px 10px;
-  background: var(--tint);
-  border: 1px solid var(--border, rgba(255,255,255,.14));
-  color: var(--text, rgba(255,255,255,.92));
-  outline:none;
-}
-.quota-input:focus{
-  border-color: rgba(22,163,74,.55);
-  box-shadow: 0 0 0 3px var(--focus);
-}
 .quota-unit{
   font-size: 12px;
-  color: var(--muted, rgba(255,255,255,.60));
-  font-weight: 850;
+  color: rgba(15,23,42,.60);
+  font-weight: 800;
 }
 
+/* Footer actions */
 .emp-modal-actions{
   display:flex;
   justify-content:flex-end;
   gap: 10px;
   padding-top: 10px;
-  border-top: 1px solid var(--tint2);
+  border-top: 1px solid rgba(15,23,42,.10);
 }
 
-/* ===== 1. ปรับปรุง Search Input & Placeholder ===== */
-.emp-input {
-  width: min(420px, 78vw);
-  border-radius: 12px; /* ปรับให้โค้งมนแบบทันสมัย */
-  padding: 12px 16px 12px 42px; /* เว้นที่ด้านหน้าไว้ใส่ Icon */
-  background: #ffffff;
-  border: 2px solid #e2e8f0; /* เพิ่มความหนาของเส้นขอบ */
-  color: var(--text);
-  outline: none;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  
-  /* เพิ่ม icon ค้นหาจำลองด้วย background-image */
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'%3E%3C/path%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: 12px center;
-  background-size: 20px;
-}
-
-/* ลบอันเก่าออกทั้งหมด แล้วใช้ชุดนี้แทน */
-.emp-input::placeholder {
-  color: #475569 !important; /* สีเทาเข้ม (Slate-600) เห็นชัดแน่นอน */
-  font-weight: 500;          /* เพิ่มความหนาเล็กน้อย */
-  opacity: 1 !important;     /* บังคับให้ไม่จาง */
-}
-
-/* สำหรับ Browser อื่นๆ เพื่อความแน่นอน */
-.emp-input::-webkit-input-placeholder { color: #475569; opacity: 1; }
-.emp-input::-moz-placeholder { color: #475569; opacity: 1; }
-
-.emp-input:focus {
-  border-color: #22c55e;
-  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.1);
-  background-color: #fff;
-}
-
-/* ===== 2. ปรับปรุงปุ่มหลัก (Sync Default, Add New) ===== */
-.emp-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
-  font-size: 14px;
-  border-radius: 10px;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* ปุ่ม Sync Default (สีเหลือง/ทอง เพื่อบอกว่าเป็นระบบจัดการข้อมูล) */
-.emp-btn-outline[title="Sync Default Quotas"] {
-  background: #fffbeb;
-  border: 1px solid #fde68a;
-  color: #92400e;
-}
-
-.emp-btn-outline[title="Sync Default Quotas"]:hover {
-  background: #fef3c7;
-  border-color: #f59e0b;
-  transform: translateY(-1px);
-}
-
-/* ===== 3. ปรับปรุงปุ่ม Action ในตาราง (Info, Quota) ===== */
-.btn-group-row {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-}
-
-/* ปุ่ม Info (สีน้ำเงิน) */
-.emp-btn-outline.small:has(.FiEdit2), 
-.emp-btn-outline.small:first-child {
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  color: #1e40af;
-  padding: 6px 14px;
-  font-size: 12px;
-}
-
-.emp-btn-outline.small:first-child:hover {
-  background: #dbeafe;
-  border-color: #3b82f6;
-  color: #1d4ed8;
-}
-
-/* ปุ่ม Quota (สีม่วง) */
-.emp-btn-outline.small:last-child {
-  background: #f5f3ff;
-  border: 1px solid #ddd6fe;
-  color: #5b21b6;
-  padding: 6px 14px;
-  font-size: 12px;
-}
-
-.emp-btn-outline.small:last-child:hover {
-  background: #ede9fe;
-  border-color: #8b5cf6;
-  color: #6d28d9;
-}
-
-/* หมุน Icon เวลา Sync */
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-.spin {
-  animation: spin 1s linear infinite;
-}
-
-@media (max-width: 900px){
-  .emp-card{ padding: 18px; }
-}
+/* Anim */
+.spin{ animation: spin 1s linear infinite; }
+@keyframes spin{ from{ transform: rotate(0deg);} to{ transform: rotate(360deg);} }
