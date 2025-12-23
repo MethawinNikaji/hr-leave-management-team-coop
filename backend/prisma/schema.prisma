@@ -56,6 +56,7 @@ model LeaveQuota {
   year        Int
   totalDays   Decimal  @map("total_days") @default(0.00) @db.Decimal(5, 2)
   usedDays    Decimal  @map("used_days") @default(0.00) @db.Decimal(5, 2)
+  carriedOverDays Decimal @map("carried_over_days") @default(0.00) @db.Decimal(5, 2)
 
   // Relations
   employee  Employee  @relation(fields: [employeeId], references: [employeeId])
