@@ -1,12 +1,22 @@
 import React, { useMemo, useState, useEffect } from "react";
 import axios from "axios";
 import moment from "moment";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 import "./HRDashboard.css";
 import Pagination from "../components/Pagination";
 
 /* ===== Helpers ===== */
 const pad2 = (n) => String(n).padStart(2, "0");
-const toISODate = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const toISODate = (d) =>
+  `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 
 function getMonthMatrix(year, monthIndex) {
   const first = new Date(year, monthIndex, 1);
@@ -26,7 +36,6 @@ function getMonthMatrix(year, monthIndex) {
   return weeks;
 }
 
-// map typeName -> class
 const leaveTypeClass = (typeName = "") => {
   const t = typeName.toLowerCase();
   if (t.includes("sick")) return "leave-badge sick";
@@ -41,21 +50,21 @@ export default function HRDashboard() {
   const [viewMonth, setViewMonth] = useState(new Date().getMonth());
   const [selectedDate, setSelectedDate] = useState(toISODate(new Date()));
 
-  // States
+  // Data States
   const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [leaveRequests, setLeaveRequests] = useState([]);
-
-  // { "YYYY-MM-DD": [ {name, typeName}, ... ] }
   const [monthLeaveMap, setMonthLeaveMap] = useState({});
-
   const [loading, setLoading] = useState(false);
+  
+  // Graph State
+  const [chartData, setChartData] = useState([]);
 
-  // modal state
+  // Modal States
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
   const [leaveModalDate, setLeaveModalDate] = useState(toISODate(new Date()));
-  const [leaveModalItems, setLeaveModalItems] = useState([]); // [{name,typeName}]
+  const [leaveModalItems, setLeaveModalItems] = useState([]);
 
-  // ✅ Pagination (เพิ่มเฉพาะส่วนนี้)
+  // Pagination
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
@@ -64,9 +73,12 @@ export default function HRDashboard() {
     return { headers: { Authorization: `Bearer ${token}` } };
   };
 
-  const weeks = useMemo(() => getMonthMatrix(viewYear, viewMonth), [viewYear, viewMonth]);
+  const weeks = useMemo(
+    () => getMonthMatrix(viewYear, viewMonth),
+    [viewYear, viewMonth]
+  );
 
-  // 1) Month leaves
+  // Fetch Month Overview
   const fetchMonthLeaves = async () => {
     try {
       const startOfMonth = toISODate(new Date(viewYear, viewMonth, 1));
@@ -77,7 +89,8 @@ export default function HRDashboard() {
         getAuthHeader()
       );
 
-      const approvedLeaves = res.data.requests?.filter((r) => r.status === "Approved") || [];
+      const approvedLeaves =
+        res.data.requests?.filter((r) => r.status === "Approved") || [];
       const mapping = {};
 
       approvedLeaves.forEach((leave) => {
@@ -96,14 +109,13 @@ export default function HRDashboard() {
           current.add(1, "day");
         }
       });
-
       setMonthLeaveMap(mapping);
     } catch (err) {
       console.error("Fetch Month Leaves Error:", err);
     }
   };
 
-  // 2) Daily records
+  // Fetch Daily Detail
   const fetchDailyRecords = async () => {
     setLoading(true);
     try {
@@ -119,7 +131,9 @@ export default function HRDashboard() {
       ]);
 
       setAttendanceRecords(attRes.data.records || []);
-      setLeaveRequests(leaveRes.data.requests?.filter((r) => r.status === "Approved") || []);
+      setLeaveRequests(
+        leaveRes.data.requests?.filter((r) => r.status === "Approved") || []
+      );
     } catch (err) {
       console.error("Fetch Daily Data Error:", err);
     } finally {
@@ -127,20 +141,54 @@ export default function HRDashboard() {
     }
   };
 
+  // Fetch Chart Data
+  const fetchChartData = async () => {
+    try {
+      const res = await axios.get(
+        "http://localhost:8000/api/timerecord/stats/late-monthly",
+        getAuthHeader()
+      );
+      setChartData(res.data.data || []);
+    } catch (err) {
+      console.error("Fetch Stats Error:", err);
+    }
+  };
+
+  // Export CSV
+  const handleExport = () => {
+    if (!window.confirm("Download attendance report as CSV?")) return;
+    
+    axios
+      .get("http://localhost:8000/api/timerecord/export", {
+        ...getAuthHeader(),
+        responseType: "blob",
+      })
+      .then((response) => {
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", `attendance_report_${moment().format("YYYY-MM-DD")}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      })
+      .catch((err) => {
+        console.error(err);
+        alert("Export failed!");
+      });
+  };
+
   useEffect(() => {
     fetchMonthLeaves();
+    fetchChartData();
   }, [viewYear, viewMonth]);
 
   useEffect(() => {
     fetchDailyRecords();
-  }, [selectedDate]);
-
-  // ✅ reset page เมื่อเปลี่ยนวัน (pagination เท่านั้น)
-  useEffect(() => {
     setPage(1);
   }, [selectedDate]);
 
-  // dayRecords single array
+  // Prepare Table Data
   const dayRecords = useMemo(() => {
     const att = attendanceRecords.map((r) => ({
       id: `att-${r.recordId}`,
@@ -187,7 +235,9 @@ export default function HRDashboard() {
     } else setViewMonth(m);
   };
 
-  const monthName = new Date(viewYear, viewMonth, 1).toLocaleString("en-US", { month: "long" });
+  const monthName = new Date(viewYear, viewMonth, 1).toLocaleString("en-US", {
+    month: "long",
+  });
 
   const openLeaveModal = (dateStr) => {
     const items = monthLeaveMap[dateStr] || [];
@@ -199,147 +249,229 @@ export default function HRDashboard() {
   const todayStr = toISODate(new Date());
   const todayLeavesCount = (monthLeaveMap[todayStr] || []).length;
 
-  // ✅ Pagination apply on dayRecords (เพิ่มเฉพาะส่วนนี้)
   const totalDay = dayRecords.length;
   const startIdx = (page - 1) * pageSize;
-  const pagedDayRecords = useMemo(() => dayRecords.slice(startIdx, startIdx + pageSize), [dayRecords, startIdx, pageSize]);
+  const pagedDayRecords = useMemo(
+    () => dayRecords.slice(startIdx, startIdx + pageSize),
+    [dayRecords, startIdx, pageSize]
+  );
 
   return (
-    <div className="page-card">
+    <div className="page-card hr-dashboard">
+      {/* 1. Header Section */}
       <header className="hr-header">
         <div>
-          <h1 className="hr-title">HR Dashboard</h1>
-          <p className="hr-subtitle">Calendar - Employee Leave Overview</p>
+          <h1 className="hr-title">HR Overview</h1>
+          <p className="hr-subtitle">Manage attendance and monitor leaves</p>
         </div>
         <div className="hr-header-right">
-          <div className="pill">{selectedDate}</div>
+          <div className="pill date-pill">
+            Selected: {moment(selectedDate).format("DD MMM YYYY")}
+          </div>
         </div>
       </header>
 
-      <div className="calendar-top">
-        <div className="calendar-title">
-          <button className="nav-btn" onClick={goPrevMonth} type="button">
-            ‹
-          </button>
-          <div className="month-label">
-            {monthName} {viewYear}
+      {/* 2. Calendar Section */}
+      <section className="dashboard-section calendar-section">
+        <div className="calendar-top">
+          <div className="calendar-title-group">
+            <button className="nav-btn" onClick={goPrevMonth}>
+              ‹
+            </button>
+            <h2 className="month-label">
+              {monthName} {viewYear}
+            </h2>
+            <button className="nav-btn" onClick={goNextMonth}>
+              ›
+            </button>
           </div>
-          <button className="nav-btn" onClick={goNextMonth} type="button">
-            ›
-          </button>
+
+          <div className="calendar-actions">
+            <button
+              className="btn outline small"
+              onClick={() => setSelectedDate(todayStr)}
+            >
+              Go to Today
+            </button>
+            {todayLeavesCount > 0 && (
+              <button
+                className="btn primary small"
+                onClick={() => openLeaveModal(todayStr)}
+              >
+                Today's Leaves ({todayLeavesCount})
+              </button>
+            )}
+          </div>
         </div>
 
-        <div className="calendar-actions">
-          <button className="btn outline small" type="button" onClick={() => setSelectedDate(todayStr)}>
-            Today
-          </button>
+        <div className="calendar-container">
+          <div className="calendar-head">
+            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+              <div className="cal-cell head" key={d}>
+                {d}
+              </div>
+            ))}
+          </div>
 
-          <button
-            className="btn primary small"
-            type="button"
-            disabled={todayLeavesCount === 0}
-            onClick={() => openLeaveModal(todayStr)}
-          >
-            Show all leaves today ({todayLeavesCount})
-          </button>
-        </div>
-      </div>
+          <div className="calendar-body">
+            {weeks.map((week, wIdx) => (
+              <React.Fragment key={wIdx}>
+                {week.map((d) => {
+                  const iso = toISODate(d);
+                  const inMonth = d.getMonth() === viewMonth;
+                  const leaves = monthLeaveMap[iso] || [];
+                  const visible = leaves.slice(0, 2);
+                  const hiddenCount = Math.max(0, leaves.length - 2);
 
-      <div className="calendar">
-        <div className="calendar-head">
-          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-            <div className="cal-cell head" key={d}>
-              {d}
-            </div>
-          ))}
-        </div>
-
-        <div className="calendar-body">
-          {weeks.map((week, wIdx) => (
-            <React.Fragment key={wIdx}>
-              {week.map((d) => {
-                const iso = toISODate(d);
-                const inMonth = d.getMonth() === viewMonth;
-                const leaves = monthLeaveMap[iso] || [];
-
-                const visible = leaves.slice(0, 2);
-                const hiddenCount = Math.max(0, leaves.length - 2);
-
-                return (
-                  <div
-                    key={iso}
-                    className={`cal-cell ${!inMonth ? "muted" : ""} ${iso === selectedDate ? "selected" : ""}`}
-                    onClick={() => {
-                      setSelectedDate(iso);
-                      if (leaves.length > 0) openLeaveModal(iso);
-                    }}
-                  >
-                    <div className="cal-date-row">
-                      <div className="cal-date">{d.getDate()}</div>
-                      {hiddenCount > 0 && <div className="more-badge">+{hiddenCount}</div>}
+                  return (
+                    <div
+                      key={iso}
+                      className={`cal-cell ${!inMonth ? "muted" : ""} ${
+                        iso === selectedDate ? "selected" : ""
+                      }`}
+                      onClick={() => setSelectedDate(iso)}
+                    >
+                      <div className="cal-date-row">
+                        <span className="cal-date">{d.getDate()}</span>
+                        {hiddenCount > 0 && (
+                          <span className="more-badge">+{hiddenCount}</span>
+                        )}
+                      </div>
+                      <div
+                        className="cal-leave-list"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedDate(iso);
+                          openLeaveModal(iso);
+                        }}
+                      >
+                        {visible.map((x, i) => (
+                          <div
+                            key={i}
+                            className={`leave-pill ${leaveTypeClass(
+                              x.typeName
+                            )}`}
+                            title={x.name}
+                          >
+                            {x.name}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-
-                    <div className="cal-leave-list">
-                      {visible.map((x, i) => (
-                        <div key={i} className={`leave-pill ${leaveTypeClass(x.typeName)}`} title={x.name}>
-                          {x.name}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </React.Fragment>
-          ))}
-        </div>
-      </div>
-
-      <section className="summary-row">
-        <div className="summary-card">
-          <h4>Present</h4>
-          <p className="big">{daySummary.totalPresent}</p>
-        </div>
-        <div className="summary-card">
-          <h4>Leave</h4>
-          <p className="big">{daySummary.totalLeave}</p>
-        </div>
-        <div className="summary-card">
-          <h4>Late</h4>
-          <p className="big">{daySummary.totalLate}</p>
+                  );
+                })}
+              </React.Fragment>
+            ))}
+          </div>
         </div>
       </section>
 
-      <section className="table-section">
-        <h2 className="section-title">Details for {moment(selectedDate).format("LL")}</h2>
-        <div className="table-wrap">
+      {/* 3. Analytics Section */}
+      <section className="dashboard-section analytics-section" style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '20px', marginBottom: '20px' }}>
+         <div className="summary-group" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <h3 style={{ margin: '0 0 10px', fontSize: '1.1rem' }}>Daily Summary ({moment(selectedDate).format("DD MMM")})</h3>
+            
+            <div className="summary-card-item" style={{ background: '#f0fdf4', padding: '15px', borderRadius: '8px', borderLeft: '4px solid #22c55e' }}>
+                <span style={{ color: '#166534', fontWeight: 600 }}>Present</span>
+                <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#15803d' }}>{daySummary.totalPresent}</div>
+            </div>
+            
+            <div className="summary-card-item" style={{ background: '#eff6ff', padding: '15px', borderRadius: '8px', borderLeft: '4px solid #3b82f6' }}>
+                <span style={{ color: '#1e40af', fontWeight: 600 }}>On Leave</span>
+                <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#1d4ed8' }}>{daySummary.totalLeave}</div>
+            </div>
+
+            <div className="summary-card-item" style={{ background: '#fef2f2', padding: '15px', borderRadius: '8px', borderLeft: '4px solid #ef4444' }}>
+                <span style={{ color: '#991b1b', fontWeight: 600 }}>Late Arrival</span>
+                <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#b91c1c' }}>{daySummary.totalLate}</div>
+            </div>
+         </div>
+
+         {/* ✅ ส่วนกราฟ + ปุ่ม Export (ย้ายมาตรงนี้แล้ว) */}
+         <div className="chart-container" style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '15px' }}>
+             
+             {/* Header ของกราฟ: จัดให้ชื่ออยู่ซ้าย ปุ่มอยู่ขวา */}
+             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#374151' }}>📉 Monthly Late Statistics</h3>
+                <button 
+                  className="btn outline small" 
+                  onClick={handleExport}
+                  style={{ 
+                    borderColor: '#10b981', 
+                    color: '#10b981', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '5px',
+                    padding: '4px 8px', // ปรับปุ่มให้เล็กหน่อยจะได้ไม่แย่งซีน
+                    fontSize: '0.85rem'
+                  }}
+                >
+                  📥 Export CSV
+                </button>
+             </div>
+
+             <div style={{ width: '100%', height: 250 }}>
+                <ResponsiveContainer>
+                    <BarChart data={chartData}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#6b7280'}} />
+                        <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#6b7280'}} allowDecimals={false} />
+                        <Tooltip 
+                          contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                          cursor={{ fill: 'transparent' }}
+                        />
+                        <Bar dataKey="count" fill="#ef4444" radius={[4, 4, 0, 0]} name="Late (Person)" barSize={30} />
+                    </BarChart>
+                </ResponsiveContainer>
+                {chartData.length === 0 && <p style={{textAlign: 'center', color: '#9ca3af', marginTop: '20px'}}>No late records this month 🎉</p>}
+             </div>
+         </div>
+      </section>
+
+      {/* 4. Daily Details Table */}
+      <section className="dashboard-section details-section">
+        <div className="section-header">
+          <h3>Employee List</h3>
+        </div>
+
+        <div className="table-container">
           {loading ? (
-            <div className="loading-box">Loading...</div>
+            <div className="loading-state">Loading data...</div>
           ) : (
             <table className="table">
               <thead>
                 <tr>
-                  <th>Name</th>
+                  <th>Employee</th>
                   <th>Role</th>
-                  <th>Check-in</th>
-                  <th>Check-out</th>
+                  <th>Time In</th>
+                  <th>Time Out</th>
                   <th>Status</th>
                 </tr>
               </thead>
               <tbody>
                 {dayRecords.length === 0 ? (
                   <tr>
-                    <td colSpan="5" className="empty">
-                      ไม่มีข้อมูลในวันนี้
+                    <td colSpan="5" className="empty-state">
+                      No records found for this date.
                     </td>
                   </tr>
                 ) : (
                   pagedDayRecords.map((r) => (
                     <tr key={r.id}>
-                      <td>{r.name}</td>
-                      <td>{r.role}</td>
+                      <td className="fw-500">{r.name}</td>
+                      <td className="text-muted">{r.role}</td>
                       <td>{r.checkIn}</td>
                       <td>{r.checkOut}</td>
                       <td>
+                        <span
+                          className={`status-dot ${
+                            r.status.includes("Leave")
+                              ? "dot-blue"
+                              : r.status === "Late"
+                              ? "dot-red"
+                              : "dot-green"
+                          }`}
+                        ></span>
                         <span
                           className={`badge ${
                             r.status.includes("Leave")
@@ -360,41 +492,66 @@ export default function HRDashboard() {
           )}
         </div>
 
-        {/* ✅ Pagination (เพิ่มเฉพาะส่วนนี้) */}
-        <Pagination
-          total={totalDay}
-          page={page}
-          pageSize={pageSize}
-          onPageChange={setPage}
-          onPageSizeChange={setPageSize}
-        />
+        {/* ส่วน Pagination ด้านล่าง (เอาปุ่ม Export ออกไปแล้ว) */}
+        <div className="pagination-wrapper" style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end' }}>
+          <Pagination
+            total={totalDay}
+            page={page}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+          />
+        </div>
       </section>
 
-      {/* ✅ Leave List Modal */}
+      {/* Modal */}
       {leaveModalOpen && (
-        <div className="leave-modal-backdrop" onClick={() => setLeaveModalOpen(false)}>
-          <div className="leave-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="leave-modal-head">
-              <h3>Leave List — {leaveModalDate}</h3>
-              <button className="x-btn" onClick={() => setLeaveModalOpen(false)} type="button">
+        <div
+          className="modal-backdrop"
+          onClick={() => setLeaveModalOpen(false)}
+        >
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <header className="modal-header">
+              <h3>Leave List</h3>
+              <span className="modal-date">
+                {moment(leaveModalDate).format("LL")}
+              </span>
+              <button
+                className="close-btn"
+                onClick={() => setLeaveModalOpen(false)}
+              >
                 ×
               </button>
+            </header>
+
+            <div className="modal-body scrollable">
+              {leaveModalItems.length === 0 ? (
+                <p className="text-center text-muted">No leaves on this day.</p>
+              ) : (
+                leaveModalItems.map((x, i) => (
+                  <div key={i} className="leave-row-item">
+                    <div className="avatar-placeholder">{x.name.charAt(0)}</div>
+                    <div className="leave-info">
+                      <div className="leave-name">{x.name}</div>
+                      <div
+                        className={`leave-tag ${leaveTypeClass(x.typeName)}`}
+                      >
+                        {x.typeName}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
 
-            <div className="leave-modal-list">
-              {leaveModalItems.map((x, i) => (
-                <div key={i} className="leave-modal-row">
-                  <div className="leave-modal-name">{x.name}</div>
-                  <span className={`leave-type ${leaveTypeClass(x.typeName)}`}>{x.typeName}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="leave-modal-actions">
-              <button className="btn primary" onClick={() => setLeaveModalOpen(false)} type="button">
+            <footer className="modal-footer">
+              <button
+                className="btn outline full-width"
+                onClick={() => setLeaveModalOpen(false)}
+              >
                 Close
               </button>
-            </div>
+            </footer>
           </div>
         </div>
       )}

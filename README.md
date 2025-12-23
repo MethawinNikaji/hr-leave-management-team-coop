@@ -17,6 +17,7 @@ pnpm install react-router-dom axios lucide-react
 pnpm install jwt-decode
 pnpm install axios react-router-dom jwt-decode lucide-react moment
 pnpm install tailwindcss @tailwindcss/vite
+pnpm install recharts
 ```
 ### Project Setup
 ```bash

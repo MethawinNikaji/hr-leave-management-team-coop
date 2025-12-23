@@ -1,47 +1,18 @@
-// backend/src/routes/timeRecord.route.js
-
 const express = require('express');
-const { query } = require('express-validator');
+const router = express.Router();
 const timeRecordController = require('../controllers/timeRecord.controller');
 const authenticateToken = require('../middlewares/auth.middleware');
-const { authorizeRole } = require('../middlewares/role.middleware');
-const { validate } = require('../middlewares/validation.middleware');
-const router = express.Router();
 
-router.use(authenticateToken); 
+// Routes เดิม
+router.post('/check-in', authenticateToken, timeRecordController.handleCheckIn);
+router.post('/check-out', authenticateToken, timeRecordController.handleCheckOut);
+router.get('/my', authenticateToken, timeRecordController.getMyTimeRecords);
+router.get('/all', authenticateToken, timeRecordController.getAllTimeRecords);
+router.get('/stats/summary', authenticateToken, timeRecordController.getMonthlyLateSummary);
 
-// POST /api/timerecord/checkin
-router.post('/checkin', authorizeRole(['Worker', 'HR']), timeRecordController.handleCheckIn);
-
-// POST /api/timerecord/checkout
-router.post('/checkout', authorizeRole(['Worker', 'HR']), timeRecordController.handleCheckOut);
-
-// GET /api/timerecord/late/summary (Worker/HR sees late status for the month)
-router.get('/late/summary', authorizeRole(['Worker', 'HR']), timeRecordController.getMonthlyLateSummary);
-
-// GET /api/timerecord/my - ดูประวัติลงเวลาของตัวเอง
-router.get(
-    '/my',
-    authorizeRole(['Worker', 'HR']),
-    [
-        query('startDate').optional().isISO8601().toDate().withMessage('Start date must be YYYY-MM-DD.'),
-        query('endDate').optional().isISO8601().toDate().withMessage('End date must be YYYY-MM-DD.'),
-        validate
-    ],
-    timeRecordController.getMyTimeRecords
-);
-
-// GET /api/timerecord/all - ดูประวัติลงเวลาของทุกคน (สำหรับ HR)
-router.get(
-    '/all',
-    authorizeRole(['HR']),
-    [
-        query('startDate').optional().isISO8601().toDate().withMessage('Start date must be YYYY-MM-DD.'),
-        query('endDate').optional().isISO8601().toDate().withMessage('End date must be YYYY-MM-DD.'),
-        query('employeeId').optional().isInt().withMessage('Employee ID must be an integer.'),
-        validate
-    ],
-    timeRecordController.getAllTimeRecords
-);
+// Routes ใหม่ (กราฟ + Export)
+router.get('/late/summary', authenticateToken, timeRecordController.getMonthlyLateSummary);
+router.get('/stats/late-monthly', authenticateToken, timeRecordController.getMonthlyLateStats);
+router.get('/export', authenticateToken, timeRecordController.exportAttendanceCSV);
 
 module.exports = router;
