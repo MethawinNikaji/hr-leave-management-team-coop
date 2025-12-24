@@ -1,17 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
-import axios from "axios";
-import { FiEdit2, FiSettings, FiRefreshCw, FiUserPlus } from "react-icons/fi";
+import { FiEdit2, FiSettings, FiRefreshCw, FiUserPlus, FiToggleLeft, FiToggleRight } from "react-icons/fi";
 import "./HREmployees.css";
-import { alertConfirm, alertError, alertSuccess, alertInfo } from "../utils/sweetAlert";
-
-const api = axios.create({ baseURL: "http://localhost:8000" });
-const authHeader = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } });
+import { alertConfirm, alertError, alertSuccess } from "../utils/sweetAlert";
+import axiosClient from "../api/axiosClient";
 
 export default function Employees() {
   const [employees, setEmployees] = useState([]);
   const [types, setTypes] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Phase 2 filters
   const [q, setQ] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [activeFilter, setActiveFilter] = useState("all");
 
   const [quotaOpen, setQuotaOpen] = useState(false);
   const [empModalOpen, setEmpModalOpen] = useState(false);
@@ -32,19 +33,21 @@ export default function Employees() {
 
   const fetchEmployees = async () => {
     try {
-      const res = await api.get("/api/admin/employees", authHeader());
+      const res = await axiosClient.get("/admin/employees");
       setEmployees(res.data.employees || []);
     } catch (err) {
       console.error("Fetch Employees Error:", err);
+      await alertError("Error", err.response?.data?.message || err.message);
     }
   };
 
   const fetchLeaveTypes = async () => {
     try {
-      const res = await api.get("/api/admin/hr/leave-types", authHeader());
+      const res = await axiosClient.get("/admin/hr/leave-types");
       setTypes(res.data.types || []);
     } catch (err) {
       console.error("Fetch Leave Types Error:", err);
+      await alertError("Error", err.response?.data?.message || err.message);
     }
   };
 
@@ -54,6 +57,7 @@ export default function Employees() {
       await Promise.all([fetchEmployees(), fetchLeaveTypes()]);
       setLoading(false);
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const openAddModal = () => {
@@ -95,28 +99,33 @@ export default function Employees() {
     e.preventDefault();
     try {
       if (isEditMode) {
-        await api.put(`/api/admin/employees/${activeEmp.employeeId}`, empForm, authHeader());
+        await axiosClient.put(`/admin/employees/${activeEmp.employeeId}`, empForm);
       } else {
-        await api.post("/api/admin/employees", empForm, authHeader());
+        await axiosClient.post("/admin/employees", empForm);
       }
       setEmpModalOpen(false);
       fetchEmployees();
-      await alertSuccess("สำเร็จ", `${isEditMode ? "อัปเดต" : "เพิ่ม"} พนักงานเรียบร้อยแล้ว`);
+      await alertSuccess("Done", `${isEditMode ? "Updated" : "Created"} employee successfully.`);
     } catch (err) {
-      await alertError("เกิดข้อผิดพลาด", (err.response?.data?.message || err.message));
+      await alertError("Error", err.response?.data?.message || err.message);
     }
   };
 
   const handleSyncQuotas = async () => {
-    if (!(await alertConfirm("ยืนยันการทำรายการ", "ต้องการอัปเดตโควต้าวันลาของพนักงานทุกคนตามค่าเริ่มต้นใช่หรือไม่?", "ยืนยัน"))) return;
+    const ok = await alertConfirm(
+      "Sync Default Quotas",
+      "Apply default leave quotas to all employees for the current year?",
+      "Sync"
+    );
+    if (!ok) return;
 
     try {
       setLoading(true);
-      await api.post("/api/admin/hr/sync-quotas", {}, authHeader());
-      await alertSuccess("สำเร็จ", "Sync โควต้ามาตรฐานให้พนักงานทุกคนสำเร็จ");
+      await axiosClient.post("/admin/hr/sync-quotas", {});
+      await alertSuccess("Done", "Default quotas have been synced.");
       fetchEmployees();
     } catch (err) {
-      await alertError("เกิดข้อผิดพลาด", "เกิดข้อผิดพลาดในการ Sync");
+      await alertError("Error", err.response?.data?.message || "Unable to sync.");
     } finally {
       setLoading(false);
     }
@@ -126,10 +135,10 @@ export default function Employees() {
     setActiveEmp(emp);
     setQuotaOpen(true);
     try {
-      const res = await api.get(`/api/admin/hr/leave-quota/${emp.employeeId}`, authHeader());
+      const res = await axiosClient.get(`/admin/hr/leave-quota/${emp.employeeId}`);
       const quotasData = res.data.quotas || [];
       const map = new Map(quotasData.map((x) => [x.leaveTypeId, x]));
-      
+
       const rows = types.map((t) => {
         const hit = map.get(t.leaveTypeId);
         return {
@@ -137,48 +146,77 @@ export default function Employees() {
           typeName: t.typeName,
           totalDays: hit ? Number(hit.totalDays) : 0,
           usedDays: hit ? Number(hit.usedDays) : 0,
-          carriedOverDays: hit ? Number(hit.carriedOverDays) : 0, // 🔥 เพิ่มฟิลด์ยอดทบ
-          canCarry: t.isCarryForward || t.maxCarryDays > 0
+          carriedOverDays: hit ? Number(hit.carriedOverDays) : 0,
+          canCarry: t.isCarryForward || t.maxCarryDays > 0,
         };
       });
       setQuotaRows(rows);
     } catch (err) {
       console.error("Fetch Quota Error:", err);
+      await alertError("Error", err.response?.data?.message || err.message);
     }
   };
 
   const saveQuota = async () => {
     try {
-      await api.put(
-        `/api/admin/hr/leave-quota/${activeEmp.employeeId}`,
-        { 
-          quotas: quotaRows.map((r) => ({ 
-            leaveTypeId: r.leaveTypeId, 
-            totalDays: r.totalDays,
-            carriedOverDays: r.carriedOverDays // 🔥 ส่งค่ายอดทบกลับไปด้วย
-          })) 
-        },
-        authHeader()
-      );
+      await axiosClient.put(`/admin/hr/leave-quota/${activeEmp.employeeId}`, {
+        quotas: quotaRows.map((r) => ({
+          leaveTypeId: r.leaveTypeId,
+          totalDays: r.totalDays,
+          carriedOverDays: r.carriedOverDays,
+        })),
+      });
       setQuotaOpen(false);
-      await alertSuccess("สำเร็จ", "อัปเดตโควต้าวันลาสำเร็จ");
+      await alertSuccess("Done", "Leave quota updated.");
     } catch (err) {
-      await alertError("เกิดข้อผิดพลาด", "ไม่สามารถอัปเดตได้");
+      await alertError("Error", err.response?.data?.message || "Unable to update quota.");
+    }
+  };
+
+  // Phase 3: quick deactivate/activate toggle (uses edit endpoint)
+  const toggleActive = async (emp) => {
+    const next = !emp.isActive;
+    const ok = await alertConfirm(
+      next ? "Activate Account" : "Deactivate Account",
+      next
+        ? "Allow this employee to access the system?"
+        : "Disable login for this employee? (Does not delete data)",
+      next ? "Activate" : "Deactivate"
+    );
+    if (!ok) return;
+
+    try {
+      await axiosClient.put(`/admin/employees/${emp.employeeId}`, {
+        ...emp,
+        password: "", // backend should ignore if empty (same behavior as your UI)
+        isActive: next,
+      });
+      await alertSuccess("Done", `Employee is now ${next ? "Active" : "Inactive"}.`);
+      fetchEmployees();
+    } catch (err) {
+      await alertError("Error", err.response?.data?.message || err.message);
     }
   };
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
-    if (!s) return employees;
-    return employees.filter((e) => `${e.firstName} ${e.lastName} ${e.email}`.toLowerCase().includes(s));
-  }, [employees, q]);
+    return employees.filter((e) => {
+      const hay = `${e.firstName} ${e.lastName} ${e.email} ${e.role}`.toLowerCase();
+      const okQ = !s || hay.includes(s);
+      const okRole = roleFilter === "all" || e.role === roleFilter;
+      const okActive =
+        activeFilter === "all" ||
+        (activeFilter === "active" ? !!e.isActive : !e.isActive);
+      return okQ && okRole && okActive;
+    });
+  }, [employees, q, roleFilter, activeFilter]);
 
   return (
     <div className="page-card emp">
       <div className="emp-head">
         <div>
           <h2 className="emp-title">Employees</h2>
-          <p className="emp-sub">จัดการข้อมูลพนักงานและโควต้าการลา</p>
+          <p className="emp-sub">Manage employees and leave quotas</p>
         </div>
 
         <div className="emp-tools">
@@ -186,8 +224,30 @@ export default function Employees() {
             className="emp-input"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search by name, email, or role..."
+            placeholder="Search name, email, role..."
           />
+
+          <select
+            className="emp-input"
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+            style={{ maxWidth: 150 }}
+          >
+            <option value="all">All roles</option>
+            <option value="HR">HR</option>
+            <option value="Worker">Worker</option>
+          </select>
+
+          <select
+            className="emp-input"
+            value={activeFilter}
+            onChange={(e) => setActiveFilter(e.target.value)}
+            style={{ maxWidth: 160 }}
+          >
+            <option value="all">All status</option>
+            <option value="active">Active only</option>
+            <option value="inactive">Inactive only</option>
+          </select>
 
           <button
             className="emp-btn emp-btn-outline warn"
@@ -216,20 +276,32 @@ export default function Employees() {
               <th style={{ width: 80 }}>ID</th>
               <th>Name</th>
               <th>Email / Role</th>
-              <th className="text-center" style={{ width: 240 }}>Actions</th>
+              <th className="text-center" style={{ width: 320 }}>
+                Actions
+              </th>
             </tr>
           </thead>
 
           <tbody>
             {loading ? (
-              <tr><td colSpan="4" className="empty">กำลังโหลดข้อมูล...</td></tr>
+              <tr>
+                <td colSpan="4" className="empty">
+                  Loading...
+                </td>
+              </tr>
             ) : filtered.length === 0 ? (
-              <tr><td colSpan="4" className="empty">ไม่พบรายชื่อพนักงาน</td></tr>
+              <tr>
+                <td colSpan="4" className="empty">
+                  No employees found.
+                </td>
+              </tr>
             ) : (
               filtered.map((emp) => (
                 <tr key={emp.employeeId}>
                   <td className="emp-mono emp-muted">{emp.employeeId}</td>
-                  <td className="emp-strong">{emp.firstName} {emp.lastName}</td>
+                  <td className="emp-strong">
+                    {emp.firstName} {emp.lastName}
+                  </td>
                   <td>
                     <div className="emp-muted mini">{emp.email}</div>
                     <span className={`badge ${emp.role === "HR" ? "badge-role-hr" : "badge-role-worker"}`}>
@@ -237,13 +309,24 @@ export default function Employees() {
                     </span>
                     {!emp.isActive && <span className="badge badge-danger">Inactive</span>}
                   </td>
+
                   <td className="action-column">
-                    <div className="btn-group-row">
+                    <div className="btn-group-row" style={{ justifyContent: "center", gap: 8 }}>
                       <button className="emp-btn emp-btn-outline small info" onClick={() => openEditModal(emp)}>
-                        <FiEdit2 /> Info
+                        <FiEdit2 /> Edit
                       </button>
+
                       <button className="emp-btn emp-btn-outline small quota" onClick={() => openQuota(emp)}>
                         <FiSettings /> Quota
+                      </button>
+
+                      <button
+                        className={`emp-btn emp-btn-outline small ${emp.isActive ? "warn" : "info"}`}
+                        onClick={() => toggleActive(emp)}
+                        title={emp.isActive ? "Deactivate" : "Activate"}
+                      >
+                        {emp.isActive ? <FiToggleLeft /> : <FiToggleRight />}
+                        {emp.isActive ? "Deactivate" : "Activate"}
                       </button>
                     </div>
                   </td>
@@ -260,12 +343,14 @@ export default function Employees() {
           <form className="emp-modal" onClick={(e) => e.stopPropagation()} onSubmit={handleSaveEmployee}>
             <div className="emp-modal-head">
               <div>
-                <div className="emp-modal-title">{isEditMode ? "Edit Employee Information" : "Add New Employee"}</div>
+                <div className="emp-modal-title">{isEditMode ? "Edit Employee" : "Add New Employee"}</div>
                 <div className="emp-modal-sub">
-                  {isEditMode ? `ID: #${activeEmp.employeeId}` : "กรอกข้อมูลเพื่อสร้างบัญชีพนักงานใหม่"}
+                  {isEditMode ? `ID: #${activeEmp.employeeId}` : "Fill in details to create a new account"}
                 </div>
               </div>
-              <button className="emp-x" type="button" onClick={() => setEmpModalOpen(false)}>×</button>
+              <button className="emp-x" type="button" onClick={() => setEmpModalOpen(false)}>
+                ×
+              </button>
             </div>
 
             <div className="emp-modal-body">
@@ -302,7 +387,7 @@ export default function Employees() {
               </div>
 
               <div className="form-col">
-                <label>Password {isEditMode && "(เว้นว่างไว้หากไม่ต้องการเปลี่ยน)"}</label>
+                <label>Password {isEditMode && "(leave blank to keep current)"}</label>
                 <input
                   className="quota-input w-full"
                   type="password"
@@ -343,7 +428,7 @@ export default function Employees() {
                   checked={empForm.isActive}
                   onChange={(e) => setEmpForm({ ...empForm, isActive: e.target.checked })}
                 />
-                Account Active (อนุญาตให้เข้าใช้งานระบบ)
+                Account Active (allow system access)
               </label>
             </div>
 
@@ -352,7 +437,7 @@ export default function Employees() {
                 Cancel
               </button>
               <button className="emp-btn emp-btn-primary" type="submit">
-                Save Changes
+                Save
               </button>
             </div>
           </form>
@@ -366,30 +451,57 @@ export default function Employees() {
             <div className="emp-modal-head">
               <div>
                 <div className="emp-modal-title">Set Leave Quota</div>
-                <div className="emp-modal-sub">{activeEmp?.firstName} {activeEmp?.lastName}</div>
+                <div className="emp-modal-sub">
+                  {activeEmp?.firstName} {activeEmp?.lastName}
+                </div>
               </div>
-              <button className="emp-x" onClick={() => setQuotaOpen(false)}>×</button>
+              <button className="emp-x" onClick={() => setQuotaOpen(false)}>
+                ×
+              </button>
             </div>
 
             <div className="emp-modal-body">
-              <div className="quota-header-row" style={{ display: 'flex', fontWeight: 'bold', paddingBottom: '8px', borderBottom: '1px solid #eee', marginBottom: '12px', fontSize: '13px' }}>
-                <div style={{ flex: 1 }}>ประเภทการลา / ใช้ไปแล้ว</div>
-                <div style={{ width: '85px', textAlign: 'center' }}>โควต้าปีนี้</div>
-                <div style={{ width: '85px', textAlign: 'center' }}>ยกยอดมา</div>
+              <div
+                className="quota-header-row"
+                style={{
+                  display: "flex",
+                  fontWeight: "bold",
+                  paddingBottom: 8,
+                  borderBottom: "1px solid #eee",
+                  marginBottom: 12,
+                  fontSize: 13,
+                }}
+              >
+                <div style={{ flex: 1 }}>Leave Type / Used</div>
+                <div style={{ width: 85, textAlign: "center" }}>This Year</div>
+                <div style={{ width: 85, textAlign: "center" }}>Carried</div>
               </div>
 
               {quotaRows.map((r) => (
-                <div className="quota-row" key={r.leaveTypeId} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: '1px solid #f9f9f9' }}>
+                <div
+                  className="quota-row"
+                  key={r.leaveTypeId}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "8px 0",
+                    borderBottom: "1px solid #f9f9f9",
+                  }}
+                >
                   <div className="quota-left" style={{ flex: 1 }}>
-                    <div className="quota-type" style={{ fontWeight: 'bold', fontSize: '14px' }}>{r.typeName}</div>
-                    <div className="quota-mini" style={{ fontSize: '12px', color: '#888' }}>Used: {r.usedDays} days</div>
+                    <div className="quota-type" style={{ fontWeight: "bold", fontSize: 14 }}>
+                      {r.typeName}
+                    </div>
+                    <div className="quota-mini" style={{ fontSize: 12, color: "#888" }}>
+                      Used: {r.usedDays} day(s)
+                    </div>
                   </div>
 
-                  {/* ช่องแก้โควต้าปกติ */}
                   <div className="quota-field">
                     <input
                       className="quota-input"
-                      style={{ width: '70px', textAlign: 'center' }}
+                      style={{ width: 70, textAlign: "center" }}
                       type="number"
                       min="0"
                       step="0.5"
@@ -397,20 +509,23 @@ export default function Employees() {
                       onChange={(e) =>
                         setQuotaRows((prev) =>
                           prev.map((row) =>
-                            row.leaveTypeId === r.leaveTypeId
-                              ? { ...row, totalDays: Number(e.target.value) }
-                              : row
+                            row.leaveTypeId === r.leaveTypeId ? { ...row, totalDays: Number(e.target.value) } : row
                           )
                         )
                       }
                     />
                   </div>
 
-                  {/* 🔥 ช่องแก้โควต้าทบยอด (Carried Over) */}
                   <div className="quota-field">
                     <input
                       className="quota-input highlight-carry"
-                      style={{ width: '70px', textAlign: 'center', backgroundColor: r.canCarry ? '#f0fdf4' : '#f1f5f9', borderColor: r.canCarry ? '#bbf7d0' : '#e2e8f0', cursor: r.canCarry ? 'text' : 'not-allowed' }}
+                      style={{
+                        width: 70,
+                        textAlign: "center",
+                        backgroundColor: r.canCarry ? "#f0fdf4" : "#f1f5f9",
+                        borderColor: r.canCarry ? "#bbf7d0" : "#e2e8f0",
+                        cursor: r.canCarry ? "text" : "not-allowed",
+                      }}
                       type="number"
                       min="0"
                       step="0.5"
@@ -429,8 +544,10 @@ export default function Employees() {
                   </div>
                 </div>
               ))}
-              <div style={{ marginTop: '12px', fontSize: '11px', color: '#666', fontStyle: 'italic' }}>
-                * ช่องสีเขียว = แก้ไขยอดทบได้ | ช่องสีเทา = ไม่อนุญาตให้ทบยอด (ตั้งค่าที่ Leave Settings)
+
+              <div style={{ marginTop: 12, fontSize: 11, color: "#666", fontStyle: "italic" }}>
+                * Green field = editable carried over days | Gray field = carry over not allowed (configure in Leave
+                Settings)
               </div>
             </div>
 

@@ -1,68 +1,94 @@
-import React, { createContext, useContext, useMemo, useState, useEffect } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import axiosClient from "../api/axiosClient";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  // 1. 🔥 จุดที่แก้: เริ่มต้น State ด้วยการอ่านจาก LocalStorage
+  const [isReady, setIsReady] = useState(false);
   const [user, setUser] = useState(() => {
-    try {
-      const storedUser = localStorage.getItem("user");
-      if (storedUser) {
-        const parsedUser = JSON.parse(storedUser);
-        // แปลงข้อมูลให้ตรงกับที่ Sidebar เรียกใช้
-        // Backend ส่งมาเป็น firstName แต่ Sidebar อยากได้ name
-        return {
-          ...parsedUser,
-          name: parsedUser.firstName + " " + (parsedUser.lastName || ""), // รวมชื่อ-นามสกุล
-          role: parsedUser.role
-        };
-      }
-    } catch (error) {
-      console.error("Failed to parse user from local storage:", error);
-    }
-    
-    // ถ้าไม่มีข้อมูล ให้เป็น Guest
-    return { name: "Guest", role: "Guest" };
+    const raw = localStorage.getItem("user");
+    return raw ? JSON.parse(raw) : null;
   });
 
-  // ฟังก์ชัน Login (เผื่อไว้ใช้ในอนาคตแทน window.location)
-  const login = (userData, token) => {
-    // Save ลง Storage
-    localStorage.setItem("token", token);
-    localStorage.setItem("user", JSON.stringify(userData));
-    
-    // Update State ทันที
-    setUser({
-      ...userData,
-      name: userData.firstName + " " + (userData.lastName || ""),
-      role: userData.role
-    });
+  const token = localStorage.getItem("token");
+  const isAuthenticated = !!token;
+
+  const persistUser = (u) => {
+    setUser(u);
+    if (u) localStorage.setItem("user", JSON.stringify(u));
+    else localStorage.removeItem("user");
   };
 
-  // ฟังก์ชัน Logout
   const logout = () => {
     localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    setUser({ name: "Guest", role: "Guest" });
-    // ย้ายไปหน้า Login
-    window.location.href = "/login";
+    persistUser(null);
   };
+
+  const fetchMe = async () => {
+    // ถ้า backend มี /auth/me หรือ /employees/me ให้ใช้
+    // ถ้าไม่มี ให้ข้าม (ยังใช้ user ที่เก็บไว้ได้)
+    try {
+      const res = await axiosClient.get("/auth/me");
+      persistUser(res.data?.user || res.data);
+    } catch {
+      // เงียบไว้ ไม่บังคับ
+    }
+  };
+
+  const login = async (email, password) => {
+    const res = await axiosClient.post("/auth/login", { email, password });
+    const data = res.data;
+
+    // รองรับรูปแบบ response หลายแบบ
+    const t = data?.token || data?.accessToken;
+    const u = data?.user || data?.employee || data?.data?.user;
+
+    if (!t) throw new Error("Token not found in response");
+
+    localStorage.setItem("token", t);
+    if (u) persistUser(u);
+    else await fetchMe();
+
+    return { token: t, user: u };
+  };
+
+  useEffect(() => {
+    const init = async () => {
+      try {
+        if (localStorage.getItem("token")) {
+          // ถ้ามี token แล้วลองดึง me เพื่อ sync user ให้ใหม่
+          await fetchMe();
+        }
+      } finally {
+        setIsReady(true);
+      }
+    };
+    init();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const onLogout = () => {
+      persistUser(null);
+      setIsReady(true);
+    };
+    window.addEventListener("auth:logout", onLogout);
+    return () => window.removeEventListener("auth:logout", onLogout);
+  }, []);
 
   const value = useMemo(
     () => ({
+      isReady,
       user,
-      login,  // ส่งฟังก์ชัน login ตัวจริงออกไป
-      logout, // ส่งฟังก์ชัน logout ตัวจริงออกไป
-      // Mock เดิมเอาออกได้เลย หรือจะเก็บไว้เทสก็ได้ แต่น่าจะไม่ได้ใช้แล้ว
+      isAuthenticated,
+      login,
+      logout,
+      setUser: persistUser,
     }),
-    [user]
+    [isReady, user, isAuthenticated]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
-  return ctx;
-}
+export const useAuth = () => useContext(AuthContext);

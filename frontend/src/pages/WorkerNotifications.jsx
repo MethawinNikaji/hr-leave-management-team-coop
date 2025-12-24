@@ -1,34 +1,51 @@
 import React, { useEffect, useMemo, useState } from "react";
-import axios from "axios";
 import {
   FiBell,
   FiTrash2,
   FiCheckCircle,
   FiRefreshCw,
-  FiXCircle,
+  FiAlertCircle,
   FiCheck,
   FiInfo,
 } from "react-icons/fi";
 import "./WorkerNotifications.css";
 import Pagination from "../components/Pagination";
-import { alertConfirm, alertError, alertSuccess, alertInfo } from "../utils/sweetAlert";
+import { alertConfirm, alertError, alertSuccess } from "../utils/sweetAlert";
+import axiosClient from "../api/axiosClient";
+import { useNotification } from "../context/NotificationContext";
 
-const api = axios.create({ baseURL: "http://localhost:8000" });
-const getAuthHeader = () => ({
-  headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-});
+const LAST_SEEN_KEY = "hr_notifications_last_seen";
 
-const LAST_SEEN_KEY = "worker_notifications_last_seen"; // ✅ แยกของ Worker
+async function tryCall(calls) {
+  // calls: [{ method, url, data }]
+  for (const c of calls) {
+    try {
+      if (c.method === "get") return await axiosClient.get(c.url);
+      if (c.method === "post") return await axiosClient.post(c.url, c.data || {});
+      if (c.method === "put") return await axiosClient.put(c.url, c.data || {});
+      if (c.method === "patch") return await axiosClient.patch(c.url, c.data || {});
+      if (c.method === "delete") return await axiosClient.delete(c.url);
+    } catch (err) {
+      // if endpoint not found, try next
+      if (err?.response?.status === 404) continue;
+      throw err;
+    }
+  }
+  throw new Error("No matching endpoint");
+}
 
-export default function WorkerNotifications() {
+export default function HRNotifications() {
+  const notiCtx = useNotification();
+
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Pagination
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
   const setSidebarUnreadZero = () => {
-    localStorage.setItem("worker_unread_notifications", "0");
+    localStorage.setItem("hr_unread_notifications", "0");
     window.dispatchEvent(new Event("storage"));
   };
 
@@ -39,26 +56,34 @@ export default function WorkerNotifications() {
       const lastSeenRaw = localStorage.getItem(LAST_SEEN_KEY);
       const lastSeen = lastSeenRaw ? Number(lastSeenRaw) : 0;
 
-      const res = await api.get("/api/notifications/my", getAuthHeader());
-      const fetched = res.data.notifications || [];
+      // support both routes (new + old)
+      const res = await tryCall([
+        { method: "get", url: "/notifications/my" },
+        { method: "get", url: "/notifications" }, // fallback if your backend uses different path
+      ]);
+
+      const fetched = res.data.notifications || res.data || [];
 
       const mapped = fetched.map((n) => {
         const createdMs = new Date(n.createdAt).getTime();
-        return {
-          ...n,
-          _isNewSinceLastSeen: createdMs > lastSeen,
-        };
+        return { ...n, _isNewSinceLastSeen: createdMs > lastSeen };
       });
 
       setNotifications(mapped);
 
-      // ✅ เข้าแล้วเลขที่ sidebar หาย
+      // entering page -> set sidebar to 0 + sync context
       setSidebarUnreadZero();
+      try {
+        await notiCtx?.refresh?.();
+      } catch {
+        // ignore
+      }
 
-      // ✅ อัปเดต lastSeen เพื่อให้เข้าอีกครั้ง NEW หาย
+      // update last seen time
       localStorage.setItem(LAST_SEEN_KEY, String(Date.now()));
     } catch (err) {
-      console.error("Failed to fetch notifications:", err);
+      console.error("Failed to fetch HR notifications:", err);
+      await alertError("Error", err?.response?.data?.message || err.message);
     } finally {
       setLoading(false);
     }
@@ -69,6 +94,10 @@ export default function WorkerNotifications() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    setPage(1);
+  }, [notifications.length]);
+
   const total = notifications.length;
   const startIdx = (page - 1) * pageSize;
   const pagedNotifications = useMemo(
@@ -78,77 +107,123 @@ export default function WorkerNotifications() {
 
   const markAsRead = async (id) => {
     try {
-      await api.put(`/api/notifications/${id}/read`, {}, getAuthHeader());
+      await tryCall([
+        { method: "patch", url: `/notifications/${id}/read` },
+        { method: "put", url: `/notifications/${id}/read` }, // fallback legacy
+      ]);
       setNotifications((prev) =>
         prev.map((n) => (n.notificationId === id ? { ...n, isRead: true } : n))
       );
+      try {
+        await notiCtx?.refresh?.();
+      } catch {
+        // ignore
+      }
     } catch (err) {
       console.error("Mark read failed:", err);
     }
   };
 
-  const handleMarkAllAsRead = async () => {
+  const markAllAsRead = async () => {
     try {
-      await api.put("/api/notifications/mark-all-read", {}, getAuthHeader());
+      await tryCall([
+        { method: "patch", url: "/notifications/read-all" },
+        { method: "put", url: "/notifications/mark-all-read" }, // fallback legacy
+      ]);
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      await alertSuccess("Done", "All notifications have been marked as read.");
+      try {
+        await notiCtx?.refresh?.();
+      } catch {
+        // ignore
+      }
     } catch (err) {
       console.error("Mark all read failed:", err);
+      await alertError("Error", err?.response?.data?.message || err.message);
     }
   };
 
   const deleteNoti = async (id) => {
-    if (!(await alertConfirm("ยืนยันการลบ", "คุณต้องการลบการแจ้งเตือนนี้ใช่หรือไม่?", "ลบ"))) return;
+    const ok = await alertConfirm("Confirm Delete", "Delete this notification?", "Delete");
+    if (!ok) return;
+
     try {
-      await api.delete(`/api/notifications/${id}`, getAuthHeader());
+      await tryCall([
+        { method: "delete", url: `/notifications/${id}` },
+      ]);
       setNotifications((prev) => prev.filter((n) => n.notificationId !== id));
       if (pagedNotifications.length === 1 && page > 1) setPage(page - 1);
+      try {
+        await notiCtx?.refresh?.();
+      } catch {
+        // ignore
+      }
     } catch (err) {
       console.error("Delete failed:", err);
+      await alertError("Error", "Unable to delete notification.");
     }
   };
 
   const handleClearAll = async () => {
-    if (!(await alertConfirm("ยืนยันการลบทั้งหมด", "คุณต้องการลบการแจ้งเตือนทั้งหมดใช่หรือไม่?", "ลบทั้งหมด"))) return;
+    const ok = await alertConfirm("Confirm Clear All", "Delete all notifications?", "Clear All");
+    if (!ok) return;
+
     try {
-      const res = await api.delete("/api/notifications/clear-all", getAuthHeader());
-      if (res.data.success) {
+      const res = await tryCall([
+        { method: "delete", url: "/notifications/clear-all" },
+      ]);
+      const success = res.data?.success ?? true;
+      if (success) {
         setNotifications([]);
         setPage(1);
+        await alertSuccess("Done", "All notifications cleared.");
+        try {
+          await notiCtx?.refresh?.();
+        } catch {
+          // ignore
+        }
       }
     } catch (err) {
       console.error("Clear all failed:", err);
+      await alertError("Error", "Unable to clear notifications.");
     }
   };
 
   const getNotificationIcon = (type) => {
     switch (type) {
+      case "NewRequest":
+        return <FiAlertCircle className="noti-ico danger" />;
       case "Approval":
+      case "Approved":
         return <FiCheckCircle className="noti-ico ok" />;
       case "Rejection":
-        return <FiXCircle className="noti-ico danger" />;
+      case "Rejected":
+        return <FiAlertCircle className="noti-ico danger" />;
       default:
         return <FiInfo className="noti-ico info" />;
     }
   };
 
   const getStatusClass = (type) => {
-    if (type === "Rejection") return "danger";
-    if (type === "Approval") return "ok";
+    if (type === "NewRequest") return "danger";
+    if (type === "Approval" || type === "Approved") return "ok";
+    if (type === "Rejection" || type === "Rejected") return "danger";
     return "info";
   };
 
   const getTitle = (type) => {
-    if (type === "Approval") return "คำขอลาได้รับการอนุมัติ";
-    if (type === "Rejection") return "คำขอลาถูกปฏิเสธ";
-    return "แจ้งเตือนระบบ";
+    if (type === "NewRequest") return "New Leave Request";
+    if (type === "Approval" || type === "Approved") return "Leave Approved";
+    if (type === "Rejection" || type === "Rejected") return "Leave Rejected";
+    return "Notification";
   };
 
   return (
     <div className="page-card wn">
       <div className="wn-head">
         <div>
-          <h2 className="wn-title">Notifications</h2>
-          <p className="wn-sub">แสดงรายการแจ้งเตือนสถานะคำขอลา (หน้า {page})</p>
+          <h2 className="wn-title">HR Notifications</h2>
+          <p className="wn-sub">Leave requests and activity updates (page {page})</p>
         </div>
 
         <div className="wn-actions">
@@ -166,7 +241,7 @@ export default function WorkerNotifications() {
 
           <button
             className="emp-btn emp-btn-primary small"
-            onClick={handleMarkAllAsRead}
+            onClick={markAllAsRead}
             disabled={notifications.length === 0}
           >
             <FiCheck /> Mark all read
@@ -178,12 +253,12 @@ export default function WorkerNotifications() {
         {loading ? (
           <div className="wn-empty">
             <FiRefreshCw className="spin" size={24} />
-            <p>กำลังโหลดข้อมูล...</p>
+            <p>Loading notifications...</p>
           </div>
         ) : pagedNotifications.length === 0 ? (
           <div className="wn-empty">
             <FiBell style={{ opacity: 0.5 }} size={32} />
-            <p>ยังไม่มีการแจ้งเตือนในขณะนี้</p>
+            <p>No notifications right now.</p>
           </div>
         ) : (
           pagedNotifications.map((n) => (

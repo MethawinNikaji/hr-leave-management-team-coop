@@ -26,6 +26,7 @@ const MENUS = {
       section: "MAIN MENU",
       items: [
         { to: "/worker/dashboard", label: "แดชบอร์ด", icon: <FiGrid /> },
+        { to: "/worker/attendance", label: "ประวัติการลงเวลา", icon: <FiCalendar /> },
         { to: "/worker/calendar", label: "ปฏิทินของฉัน", icon: <FiCalendar /> },
         { to: "/worker/leave", label: "ประวัติการลา", icon: <FiClipboard /> },
         { to: "/worker/notifications", label: "แจ้งเตือน", icon: <FiBell />, badgeKey: "worker_unread_notifications" },

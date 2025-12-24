@@ -1,3 +1,7 @@
+/* frontend/src/pages/HREmployees.css */
+/* ✅ ใช้ไฟล์เดิมของคุณได้เลย — เพิ่ม alias ปุ่มสำหรับใช้ร่วมกับหน้า HR อื่น */
+
+/* ---- (วางไฟล์เดิมของคุณทั้งหมดไว้เหมือนเดิม) ---- */
 /* Corporate Green/White theme for Employees + Modals (fix dark edit screens) */
 
 /* Page wrapper is handled by AppLayout; keep this light */
@@ -213,7 +217,7 @@
   border-color: rgba(239,68,68,.25);
 }
 
-/* ===== Modal (แก้ให้ไม่ดำ + เข้าธีม) ===== */
+/* ===== Modal ===== */
 .emp-modal-backdrop{
   position: fixed;
   inset: 0;
@@ -374,3 +378,6 @@
 /* Anim */
 .spin{ animation: spin 1s linear infinite; }
 @keyframes spin{ from{ transform: rotate(0deg);} to{ transform: rotate(360deg);} }
+
+/* ✅ OPTIONAL alias for HRDashboard.jsx buttons (ถ้าอยากใช้ class btn แบบเดียวกัน) */
+.btn{ border:none; }

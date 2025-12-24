@@ -463,3 +463,33 @@
     cursor: pointer;
     color: var(--muted);
 }
+
+/* History header (ล่าสุด + ลิงก์ดูทั้งหมด) */
+.history-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 12px;
+  margin: 14px 0 10px;
+}
+
+.history-head h2{
+  margin: 0;
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--text);
+}
+
+.history-link{
+  border: 1px solid rgba(22,163,74,.35);
+  background: rgba(22,163,74,.10);
+  color: rgba(22,101,52,.95);
+  font-weight: 900;
+  padding: 8px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.history-link:hover{
+  background: rgba(22,163,74,.16);
+}
+

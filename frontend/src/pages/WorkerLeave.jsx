@@ -1,10 +1,11 @@
 // src/pages/WorkerLeave.jsx
 import React, { useEffect, useMemo, useState } from "react";
-import axios from "axios";
 import moment from "moment";
 import "./WorkerLeave.css";
 import Pagination from "../components/Pagination";
 import { alertConfirm, alertError, alertSuccess, alertInfo } from "../utils/sweetAlert";
+import axiosClient from "../api/axiosClient";
+import { buildFileUrl } from "../utils/fileUrl";
 
 const normStatus = (s) => String(s || "").trim().toLowerCase();
 
@@ -23,16 +24,12 @@ export default function WorkerLeave() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  const getAuthHeader = () => ({
-    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-  });
-
   const fetchData = async () => {
     setLoading(true);
     try {
       const [quotaRes, historyRes] = await Promise.all([
-        axios.get("http://localhost:8000/api/leave/quota/my", getAuthHeader()),
-        axios.get("http://localhost:8000/api/leave/my", getAuthHeader()),
+        axiosClient.get("/leave/quota/my"),
+        axiosClient.get("/leave/my"),
       ]);
       setQuotas(quotaRes.data.quotas || []);
       setHistory(historyRes.data.requests || []);
@@ -51,11 +48,7 @@ export default function WorkerLeave() {
   const handleCancelLeave = async (requestId) => {
     if (!(await alertConfirm("ยืนยันการยกเลิก", "คุณมั่นใจหรือไม่ที่จะยกเลิกคำขอลาใบนี้?", "ยืนยัน"))) return;
     try {
-      const res = await axios.patch(
-        `http://localhost:8000/api/leave/${requestId}/cancel`,
-        {},
-        getAuthHeader()
-      );
+      const res = await axiosClient.patch(`/leave/${requestId}/cancel`, {});
       if (res.data.success) {
         await alertSuccess("สำเร็จ", "ยกเลิกคำขอลาเรียบร้อยแล้ว");
         fetchData(); 
@@ -218,13 +211,14 @@ export default function WorkerLeave() {
                   <th>Date Range</th>
                   <th>Days</th>
                   <th>Status</th>
+                  <th style={{ textAlign: "center" }}>Attachment</th>
                   <th style={{ textAlign: "center" }}>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {paged.length === 0 ? (
                   <tr>
-                    <td colSpan="5" className="wl-empty">No results.</td>
+                    <td colSpan="6" className="wl-empty">No results.</td>
                   </tr>
                 ) : (
                   paged.map((req) => (
@@ -236,6 +230,20 @@ export default function WorkerLeave() {
                       <td>{req.totalDaysRequested}</td>
                       <td>
                         <span className={`wl-badge wl-badge-${normStatus(req.status)}`}>{req.status}</span>
+                      </td>
+                      <td style={{ textAlign: "center" }}>
+                        {req.attachmentUrl ? (
+                          <a
+                            className="wl-link"
+                            href={buildFileUrl(req.attachmentUrl)}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            View
+                          </a>
+                        ) : (
+                          <span className="wl-muted">-</span>
+                        )}
                       </td>
                       <td style={{ textAlign: "center" }}>
                         {normStatus(req.status) === "pending" && (

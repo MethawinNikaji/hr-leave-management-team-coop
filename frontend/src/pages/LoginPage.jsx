@@ -1,26 +1,21 @@
+// frontend/src/pages/LoginPage.jsx
 import { useMemo, useState } from "react";
-import axios from 'axios';
+import { useNavigate, useLocation } from "react-router-dom";
 import "./LoginPage.css";
-import { alertConfirm, alertError, alertSuccess, alertInfo } from "../utils/sweetAlert";
+import { alertError, alertSuccess } from "../utils/sweetAlert";
+import { useAuth } from "../context/AuthContext";
+import { useNotification } from "../context/NotificationContext";
 
 export default function LoginPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const { login } = useAuth();
+  const noti = useNotification();
+
   const [form, setForm] = useState({ email: "", password: "", remember: false });
   const [showPw, setShowPw] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-
-  const syncNotifications = async (token, role) => {
-    try {
-        const res = await axios.get('http://localhost:8000/api/notifications/my', {
-            headers: { Authorization: `Bearer ${token}` }
-        });
-        const count = res.data.unreadCount || 0;
-        const key = role === "HR" ? "hr_unread_notifications" : "worker_unread_notifications";
-        localStorage.setItem(key, count.toString());
-        window.dispatchEvent(new Event("storage"));
-    } catch (err) {
-        console.error("Initial sync failed", err);
-    }
-  };
 
   const isValid = useMemo(() => {
     return form.email.trim() && form.password.trim();
@@ -31,45 +26,46 @@ export default function LoginPage() {
     setForm((p) => ({ ...p, [name]: type === "checkbox" ? checked : value }));
   };
 
+  const goAfterLogin = (role) => {
+    // ถ้ามี from (โดน guard เด้งมา) ให้กลับไปหน้าที่ขอ
+    const from = location.state?.from;
+    if (from) return navigate(from, { replace: true });
+
+    // ถ้าไม่มี from ให้ไปตาม role
+    return navigate(role === "HR" ? "/hr/dashboard" : "/worker/dashboard", { replace: true });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!isValid) return;
+    if (!isValid || submitting) return;
 
     try {
       setSubmitting(true);
 
-      // 1. ยิง API ไปที่ Backend
-      const response = await axios.post('http://localhost:8000/api/auth/login', {
-        email: form.email,
-        password: form.password
-      });
+      // ✅ ใช้ AuthContext.login (จะจัดการ token/user ให้เอง)
+      const { user } = await login(form.email, form.password);
 
-      const data = response.data;
-
-      // 2. ถ้าสำเร็จ (Backend ตอบ 200 OK)
-      if (data.success) {
-        // เก็บ Token และข้อมูล User
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-
-        // เรียกใช้การ Sync ก่อน Redirect
-        await syncNotifications(data.token, data.user.role);
-
-        // Alert บอกผู้ใช้
-        await alertSuccess("เข้าสู่ระบบสำเร็จ", `ยินดีต้อนรับ ${(data.user?.firstName || "User")}`);
-
-        // 3. --- 🔥 จุดที่แก้ไข: ย้ายหน้าตามที่ Backend บอก ---
-        // ใช้ data.redirectUrl ที่ backend ส่งมา (ถ้าไม่มีให้กันเหนียวไป worker)
-        window.location.href = data.redirectUrl || '/worker/dashboard'; 
+      // ✅ sync unread count (ดึงจาก API ผ่าน context ที่ทำไว้)
+      // ไม่พังถ้า provider ยังไม่ถูกครอบ (noti อาจเป็น null)
+      try {
+        await noti?.refresh?.();
+      } catch {
+        // ignore
       }
 
+      await alertSuccess("เข้าสู่ระบบสำเร็จ", `ยินดีต้อนรับ ${user?.firstName || "User"}`);
+
+      goAfterLogin(user?.role);
     } catch (err) {
       console.error("Login Error:", err);
-      
-      // ดึงข้อความ Error ที่ Backend ส่งมา
-      const errorMessage = err.response?.data?.message || "เชื่อมต่อ Server ไม่ได้ หรือรหัสผ่านผิด";
-      await alertError("เข้าสู่ระบบไม่สำเร็จ", errorMessage);
 
+      // รองรับรูปแบบ error หลายแบบ
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "เชื่อมต่อ Server ไม่ได้ หรืออีเมล/รหัสผ่านไม่ถูกต้อง";
+
+      await alertError("เข้าสู่ระบบไม่สำเร็จ", msg);
     } finally {
       setSubmitting(false);
     }
@@ -136,34 +132,27 @@ export default function LoginPage() {
           <button className="primary" type="submit" disabled={!isValid || submitting}>
             {submitting ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
           </button>
-
         </form>
-        {/* ===== Divider ===== */}
+
         <div className="divider" />
 
-        {/* ===== Test Accounts ===== */}
-       <div className="test-accounts">
+        <div className="test-accounts">
           <div className="title">บัญชีทดสอบ:</div>
-
           <div className="list">
             <div className="row">
               <span className="label">HR</span>
               <code>hr.manager@company.com</code>
             </div>
-
             <div className="row">
               <span className="label">Worker</span>
               <code>worker.a@company.com</code>
             </div>
-
             <div className="row">
               <span className="label">Pass</span>
               <code>Password123</code>
             </div>
           </div>
         </div>
-
-
       </div>
     </div>
   );
