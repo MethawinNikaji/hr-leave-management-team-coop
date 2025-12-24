@@ -1,3 +1,4 @@
+// HRDashboard.jsx
 import React, { useMemo, useState, useEffect } from "react";
 import axios from "axios";
 import moment from "moment";
@@ -20,7 +21,7 @@ const toISODate = (d) =>
 
 function getMonthMatrix(year, monthIndex) {
   const first = new Date(year, monthIndex, 1);
-  const startDay = first.getDay();
+  const startDay = first.getDay(); // 0 = Sun
   const start = new Date(year, monthIndex, 1 - startDay);
 
   const weeks = [];
@@ -37,7 +38,7 @@ function getMonthMatrix(year, monthIndex) {
 }
 
 const leaveTypeClass = (typeName = "") => {
-  const t = typeName.toLowerCase();
+  const t = String(typeName || "").toLowerCase();
   if (t.includes("sick")) return "leave-badge sick";
   if (t.includes("personal")) return "leave-badge personal";
   if (t.includes("vacation")) return "leave-badge vacation";
@@ -50,16 +51,16 @@ export default function HRDashboard() {
   const [viewMonth, setViewMonth] = useState(new Date().getMonth());
   const [selectedDate, setSelectedDate] = useState(toISODate(new Date()));
 
-  // Data States
+  // Data
   const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [leaveRequests, setLeaveRequests] = useState([]);
   const [monthLeaveMap, setMonthLeaveMap] = useState({});
   const [loading, setLoading] = useState(false);
-  
-  // Graph State
+
+  // Chart
   const [chartData, setChartData] = useState([]);
 
-  // Modal States
+  // Modal
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
   const [leaveModalDate, setLeaveModalDate] = useState(toISODate(new Date()));
   const [leaveModalItems, setLeaveModalItems] = useState([]);
@@ -78,7 +79,7 @@ export default function HRDashboard() {
     [viewYear, viewMonth]
   );
 
-  // Fetch Month Overview
+  // Fetch Month Leaves
   const fetchMonthLeaves = async () => {
     try {
       const startOfMonth = toISODate(new Date(viewYear, viewMonth, 1));
@@ -109,13 +110,14 @@ export default function HRDashboard() {
           current.add(1, "day");
         }
       });
+
       setMonthLeaveMap(mapping);
     } catch (err) {
       console.error("Fetch Month Leaves Error:", err);
     }
   };
 
-  // Fetch Daily Detail
+  // Fetch Daily Records
   const fetchDailyRecords = async () => {
     setLoading(true);
     try {
@@ -157,7 +159,7 @@ export default function HRDashboard() {
   // Export CSV
   const handleExport = () => {
     if (!window.confirm("Download attendance report as CSV?")) return;
-    
+
     axios
       .get("http://localhost:8000/api/timerecord/export", {
         ...getAuthHeader(),
@@ -167,7 +169,10 @@ export default function HRDashboard() {
         const url = window.URL.createObjectURL(new Blob([response.data]));
         const link = document.createElement("a");
         link.href = url;
-        link.setAttribute("download", `attendance_report_${moment().format("YYYY-MM-DD")}.csv`);
+        link.setAttribute(
+          "download",
+          `attendance_report_${moment().format("YYYY-MM-DD")}.csv`
+        );
         document.body.appendChild(link);
         link.click();
         link.remove();
@@ -181,11 +186,13 @@ export default function HRDashboard() {
   useEffect(() => {
     fetchMonthLeaves();
     fetchChartData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewYear, viewMonth]);
 
   useEffect(() => {
     fetchDailyRecords();
     setPage(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate]);
 
   // Prepare Table Data
@@ -227,6 +234,7 @@ export default function HRDashboard() {
       setViewYear((y) => y - 1);
     } else setViewMonth(m);
   };
+
   const goNextMonth = () => {
     const m = viewMonth + 1;
     if (m > 11) {
@@ -258,7 +266,7 @@ export default function HRDashboard() {
 
   return (
     <div className="page-card hr-dashboard">
-      {/* 1. Header Section */}
+      {/* Header */}
       <header className="hr-header">
         <div>
           <h1 className="hr-title">HR Overview</h1>
@@ -271,17 +279,18 @@ export default function HRDashboard() {
         </div>
       </header>
 
-      {/* 2. Calendar Section */}
+      {/* Calendar */}
       <section className="dashboard-section calendar-section">
         <div className="calendar-top">
+          {/* ✅ ปุ่ม + เดือน อยู่บรรทัดเดียวกัน */}
           <div className="calendar-title-group">
-            <button className="nav-btn" onClick={goPrevMonth}>
+            <button className="nav-btn" onClick={goPrevMonth} aria-label="Prev">
               ‹
             </button>
             <h2 className="month-label">
               {monthName} {viewYear}
             </h2>
-            <button className="nav-btn" onClick={goNextMonth}>
+            <button className="nav-btn" onClick={goNextMonth} aria-label="Next">
               ›
             </button>
           </div>
@@ -293,6 +302,7 @@ export default function HRDashboard() {
             >
               Go to Today
             </button>
+
             {todayLeavesCount > 0 && (
               <button
                 className="btn primary small"
@@ -304,7 +314,7 @@ export default function HRDashboard() {
           </div>
         </div>
 
-        <div className="calendar-container">
+        <div className="calendar">
           <div className="calendar-head">
             {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
               <div className="cal-cell head" key={d}>
@@ -319,6 +329,7 @@ export default function HRDashboard() {
                 {week.map((d) => {
                   const iso = toISODate(d);
                   const inMonth = d.getMonth() === viewMonth;
+
                   const leaves = monthLeaveMap[iso] || [];
                   const visible = leaves.slice(0, 2);
                   const hiddenCount = Math.max(0, leaves.length - 2);
@@ -337,6 +348,7 @@ export default function HRDashboard() {
                           <span className="more-badge">+{hiddenCount}</span>
                         )}
                       </div>
+
                       <div
                         className="cal-leave-list"
                         onClick={(e) => {
@@ -366,77 +378,186 @@ export default function HRDashboard() {
         </div>
       </section>
 
-      {/* 3. Analytics Section */}
-      <section className="dashboard-section analytics-section" style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '20px', marginBottom: '20px' }}>
-         <div className="summary-group" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <h3 style={{ margin: '0 0 10px', fontSize: '1.1rem' }}>Daily Summary ({moment(selectedDate).format("DD MMM")})</h3>
-            
-            <div className="summary-card-item" style={{ background: '#f0fdf4', padding: '15px', borderRadius: '8px', borderLeft: '4px solid #22c55e' }}>
-                <span style={{ color: '#166534', fontWeight: 600 }}>Present</span>
-                <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#15803d' }}>{daySummary.totalPresent}</div>
-            </div>
-            
-            <div className="summary-card-item" style={{ background: '#eff6ff', padding: '15px', borderRadius: '8px', borderLeft: '4px solid #3b82f6' }}>
-                <span style={{ color: '#1e40af', fontWeight: 600 }}>On Leave</span>
-                <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#1d4ed8' }}>{daySummary.totalLeave}</div>
-            </div>
+      {/* Analytics */}
+      <section
+        className="dashboard-section analytics-section"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 2fr",
+          gap: "20px",
+          marginBottom: "20px",
+        }}
+      >
+        <div
+          className="summary-group"
+          style={{ display: "flex", flexDirection: "column", gap: "10px" }}
+        >
+          <h3 style={{ margin: "0 0 10px", fontSize: "1.1rem" }}>
+            Daily Summary ({moment(selectedDate).format("DD MMM")})
+          </h3>
 
-            <div className="summary-card-item" style={{ background: '#fef2f2', padding: '15px', borderRadius: '8px', borderLeft: '4px solid #ef4444' }}>
-                <span style={{ color: '#991b1b', fontWeight: 600 }}>Late Arrival</span>
-                <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#b91c1c' }}>{daySummary.totalLate}</div>
+          <div
+            className="summary-card-item"
+            style={{
+              background: "#f0fdf4",
+              padding: "15px",
+              borderRadius: "8px",
+              borderLeft: "4px solid #22c55e",
+            }}
+          >
+            <span style={{ color: "#166534", fontWeight: 600 }}>Present</span>
+            <div
+              style={{
+                fontSize: "1.8rem",
+                fontWeight: "bold",
+                color: "#15803d",
+              }}
+            >
+              {daySummary.totalPresent}
             </div>
-         </div>
+          </div>
 
-         {/* ✅ ส่วนกราฟ + ปุ่ม Export (ย้ายมาตรงนี้แล้ว) */}
-         <div className="chart-container" style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '15px' }}>
-             
-             {/* Header ของกราฟ: จัดให้ชื่ออยู่ซ้าย ปุ่มอยู่ขวา */}
-             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#374151' }}>📉 Monthly Late Statistics</h3>
-                <button 
-                  className="btn outline small" 
-                  onClick={handleExport}
-                  style={{ 
-                    borderColor: '#10b981', 
-                    color: '#10b981', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '5px',
-                    padding: '4px 8px', // ปรับปุ่มให้เล็กหน่อยจะได้ไม่แย่งซีน
-                    fontSize: '0.85rem'
+          <div
+            className="summary-card-item"
+            style={{
+              background: "#eff6ff",
+              padding: "15px",
+              borderRadius: "8px",
+              borderLeft: "4px solid #3b82f6",
+            }}
+          >
+            <span style={{ color: "#1e40af", fontWeight: 600 }}>On Leave</span>
+            <div
+              style={{
+                fontSize: "1.8rem",
+                fontWeight: "bold",
+                color: "#1d4ed8",
+              }}
+            >
+              {daySummary.totalLeave}
+            </div>
+          </div>
+
+          <div
+            className="summary-card-item"
+            style={{
+              background: "#fef2f2",
+              padding: "15px",
+              borderRadius: "8px",
+              borderLeft: "4px solid #ef4444",
+            }}
+          >
+            <span style={{ color: "#991b1b", fontWeight: 600 }}>
+              Late Arrival
+            </span>
+            <div
+              style={{
+                fontSize: "1.8rem",
+                fontWeight: "bold",
+                color: "#b91c1c",
+              }}
+            >
+              {daySummary.totalLate}
+            </div>
+          </div>
+        </div>
+
+        <div
+          className="chart-container"
+          style={{
+            background: "#fff",
+            border: "1px solid #e5e7eb",
+            borderRadius: "8px",
+            padding: "15px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "15px",
+            }}
+          >
+            <h3 style={{ margin: 0, fontSize: "1.1rem", color: "#374151" }}>
+              📉 Monthly Late Statistics
+            </h3>
+
+            <button
+              className="btn outline small"
+              onClick={handleExport}
+              style={{
+                borderColor: "#10b981",
+                color: "#10b981",
+                display: "flex",
+                alignItems: "center",
+                gap: "5px",
+                padding: "4px 8px",
+                fontSize: "0.85rem",
+              }}
+            >
+              📥 Export CSV
+            </button>
+          </div>
+
+          <div style={{ width: "100%", height: 250 }}>
+            <ResponsiveContainer>
+              <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis
+                  dataKey="day"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 12, fill: "#6b7280" }}
+                />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 12, fill: "#6b7280" }}
+                  allowDecimals={false}
+                />
+                <Tooltip
+                  contentStyle={{
+                    borderRadius: "8px",
+                    border: "none",
+                    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
                   }}
-                >
-                  📥 Export CSV
-                </button>
-             </div>
+                  cursor={{ fill: "transparent" }}
+                />
+                <Bar
+                  dataKey="count"
+                  fill="#ef4444"
+                  radius={[4, 4, 0, 0]}
+                  name="Late (Person)"
+                  barSize={30}
+                />
+              </BarChart>
+            </ResponsiveContainer>
 
-             <div style={{ width: '100%', height: 250 }}>
-                <ResponsiveContainer>
-                    <BarChart data={chartData}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                        <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#6b7280'}} />
-                        <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#6b7280'}} allowDecimals={false} />
-                        <Tooltip 
-                          contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
-                          cursor={{ fill: 'transparent' }}
-                        />
-                        <Bar dataKey="count" fill="#ef4444" radius={[4, 4, 0, 0]} name="Late (Person)" barSize={30} />
-                    </BarChart>
-                </ResponsiveContainer>
-                {chartData.length === 0 && <p style={{textAlign: 'center', color: '#9ca3af', marginTop: '20px'}}>No late records this month 🎉</p>}
-             </div>
-         </div>
+            {chartData.length === 0 && (
+              <p
+                style={{
+                  textAlign: "center",
+                  color: "#9ca3af",
+                  marginTop: "20px",
+                }}
+              >
+                No late records this month 🎉
+              </p>
+            )}
+          </div>
+        </div>
       </section>
 
-      {/* 4. Daily Details Table */}
+      {/* Table */}
       <section className="dashboard-section details-section">
         <div className="section-header">
           <h3>Employee List</h3>
         </div>
 
-        <div className="table-container">
+        <div className="table-wrap">
           {loading ? (
-            <div className="loading-state">Loading data...</div>
+            <div className="loading-box">Loading data...</div>
           ) : (
             <table className="table">
               <thead>
@@ -448,10 +569,11 @@ export default function HRDashboard() {
                   <th>Status</th>
                 </tr>
               </thead>
+
               <tbody>
                 {dayRecords.length === 0 ? (
                   <tr>
-                    <td colSpan="5" className="empty-state">
+                    <td colSpan="5" className="empty">
                       No records found for this date.
                     </td>
                   </tr>
@@ -471,7 +593,7 @@ export default function HRDashboard() {
                               ? "dot-red"
                               : "dot-green"
                           }`}
-                        ></span>
+                        />
                         <span
                           className={`badge ${
                             r.status.includes("Leave")
@@ -492,8 +614,10 @@ export default function HRDashboard() {
           )}
         </div>
 
-        {/* ส่วน Pagination ด้านล่าง (เอาปุ่ม Export ออกไปแล้ว) */}
-        <div className="pagination-wrapper" style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end' }}>
+        <div
+          className="pagination-wrapper"
+          style={{ marginTop: "20px", display: "flex", justifyContent: "flex-end" }}
+        >
           <Pagination
             total={totalDay}
             page={page}
@@ -504,54 +628,46 @@ export default function HRDashboard() {
         </div>
       </section>
 
-      {/* Modal */}
+      {/* Leave Modal */}
       {leaveModalOpen && (
         <div
-          className="modal-backdrop"
+          className="leave-modal-backdrop"
           onClick={() => setLeaveModalOpen(false)}
         >
-          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-            <header className="modal-header">
+          <div className="leave-modal" onClick={(e) => e.stopPropagation()}>
+            <header className="leave-modal-head">
               <h3>Leave List</h3>
               <span className="modal-date">
                 {moment(leaveModalDate).format("LL")}
               </span>
-              <button
-                className="close-btn"
-                onClick={() => setLeaveModalOpen(false)}
-              >
+              <button className="x-btn" onClick={() => setLeaveModalOpen(false)}>
                 ×
               </button>
             </header>
 
-            <div className="modal-body scrollable">
+            <div className="leave-modal-list">
               {leaveModalItems.length === 0 ? (
                 <p className="text-center text-muted">No leaves on this day.</p>
               ) : (
                 leaveModalItems.map((x, i) => (
-                  <div key={i} className="leave-row-item">
-                    <div className="avatar-placeholder">{x.name.charAt(0)}</div>
-                    <div className="leave-info">
-                      <div className="leave-name">{x.name}</div>
-                      <div
-                        className={`leave-tag ${leaveTypeClass(x.typeName)}`}
-                      >
-                        {x.typeName}
-                      </div>
-                    </div>
+                  <div key={i} className="leave-modal-row">
+                    <span className="leave-modal-name">{x.name}</span>
+                    <span className={`leave-type ${leaveTypeClass(x.typeName)}`}>
+                      {x.typeName}
+                    </span>
                   </div>
                 ))
               )}
             </div>
 
-            <footer className="modal-footer">
+            <div className="leave-modal-actions">
               <button
-                className="btn outline full-width"
+                className="btn outline"
                 onClick={() => setLeaveModalOpen(false)}
               >
                 Close
               </button>
-            </footer>
+            </div>
           </div>
         </div>
       )}
