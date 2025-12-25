@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import axios from "axios";
 import {
   FiBell,
   FiTrash2,
@@ -11,32 +12,20 @@ import {
 import "./WorkerNotifications.css";
 import Pagination from "../components/Pagination";
 import { alertConfirm, alertError, alertSuccess } from "../utils/sweetAlert";
-import axiosClient from "../api/axiosClient";
-import { useNotification } from "../context/NotificationContext";
 
-const LAST_SEEN_KEY = "hr_notifications_last_seen";
+const api = axios.create({ baseURL: "http://localhost:8000" });
+const getAuthHeader = () => ({
+  headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+});
 
-async function tryCall(calls) {
-  // calls: [{ method, url, data }]
-  for (const c of calls) {
-    try {
-      if (c.method === "get") return await axiosClient.get(c.url);
-      if (c.method === "post") return await axiosClient.post(c.url, c.data || {});
-      if (c.method === "put") return await axiosClient.put(c.url, c.data || {});
-      if (c.method === "patch") return await axiosClient.patch(c.url, c.data || {});
-      if (c.method === "delete") return await axiosClient.delete(c.url);
-    } catch (err) {
-      // if endpoint not found, try next
-      if (err?.response?.status === 404) continue;
-      throw err;
-    }
-  }
-  throw new Error("No matching endpoint");
-}
+// ✅ แยก key ของ Worker
+const LAST_SEEN_KEY = "worker_notifications_last_seen";
+const SIDEBAR_UNREAD_KEY = "worker_unread_notifications";
+const stripIdFromMessage = (msg = "") =>
+  String(msg).replace(/\s*\(ID:\s*\d+\)\s*/gi, " ").replace(/\s{2,}/g, " ").trim();
 
-export default function HRNotifications() {
-  const notiCtx = useNotification();
 
+export default function WorkerNotifications() {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -45,7 +34,8 @@ export default function HRNotifications() {
   const [pageSize, setPageSize] = useState(10);
 
   const setSidebarUnreadZero = () => {
-    localStorage.setItem("hr_unread_notifications", "0");
+    localStorage.setItem(SIDEBAR_UNREAD_KEY, "0");
+    // ให้ sidebar ที่ฟัง storage รีเฟรชทันที
     window.dispatchEvent(new Event("storage"));
   };
 
@@ -56,13 +46,9 @@ export default function HRNotifications() {
       const lastSeenRaw = localStorage.getItem(LAST_SEEN_KEY);
       const lastSeen = lastSeenRaw ? Number(lastSeenRaw) : 0;
 
-      // support both routes (new + old)
-      const res = await tryCall([
-        { method: "get", url: "/notifications/my" },
-        { method: "get", url: "/notifications" }, // fallback if your backend uses different path
-      ]);
-
-      const fetched = res.data.notifications || res.data || [];
+      // ✅ endpoint เหมือน HR
+      const res = await api.get("/api/notifications/my", getAuthHeader());
+      const fetched = res.data.notifications || [];
 
       const mapped = fetched.map((n) => {
         const createdMs = new Date(n.createdAt).getTime();
@@ -71,32 +57,25 @@ export default function HRNotifications() {
 
       setNotifications(mapped);
 
-      // entering page -> set sidebar to 0 + sync context
+      // ✅ เข้าหน้าแล้วเลขที่ sidebar หายทันที
       setSidebarUnreadZero();
-      try {
-        await notiCtx?.refresh?.();
-      } catch {
-        // ignore
-      }
 
-      // update last seen time
+      // ✅ บันทึก lastSeen เพื่อให้ NEW แสดงแค่ครั้งแรก
       localStorage.setItem(LAST_SEEN_KEY, String(Date.now()));
     } catch (err) {
-      console.error("Failed to fetch HR notifications:", err);
-      await alertError("Error", err?.response?.data?.message || err.message);
+      console.error("Failed to fetch Worker notifications:", err);
+      await alertError("เกิดข้อผิดพลาด", "โหลดการแจ้งเตือนไม่สำเร็จ");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    // ✅ เคลียร์เลขทันทีตั้งแต่ mount (กันกรณี fetch ช้า)
+    setSidebarUnreadZero();
     fetchNotifications();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    setPage(1);
-  }, [notifications.length]);
 
   const total = notifications.length;
   const startIdx = (page - 1) * pageSize;
@@ -107,18 +86,10 @@ export default function HRNotifications() {
 
   const markAsRead = async (id) => {
     try {
-      await tryCall([
-        { method: "patch", url: `/notifications/${id}/read` },
-        { method: "put", url: `/notifications/${id}/read` }, // fallback legacy
-      ]);
+      await api.put(`/api/notifications/${id}/read`, {}, getAuthHeader());
       setNotifications((prev) =>
         prev.map((n) => (n.notificationId === id ? { ...n, isRead: true } : n))
       );
-      try {
-        await notiCtx?.refresh?.();
-      } catch {
-        // ignore
-      }
     } catch (err) {
       console.error("Mark read failed:", err);
     }
@@ -126,66 +97,52 @@ export default function HRNotifications() {
 
   const markAllAsRead = async () => {
     try {
-      await tryCall([
-        { method: "patch", url: "/notifications/read-all" },
-        { method: "put", url: "/notifications/mark-all-read" }, // fallback legacy
-      ]);
+      await api.put("/api/notifications/mark-all-read", {}, getAuthHeader());
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-      await alertSuccess("Done", "All notifications have been marked as read.");
-      try {
-        await notiCtx?.refresh?.();
-      } catch {
-        // ignore
-      }
+      await alertSuccess("สำเร็จ", "อ่านการแจ้งเตือนทั้งหมดเรียบร้อยแล้ว");
+
+      // ✅ กันเลขเด้งกลับ
+      setSidebarUnreadZero();
     } catch (err) {
       console.error("Mark all read failed:", err);
-      await alertError("Error", err?.response?.data?.message || err.message);
     }
   };
 
   const deleteNoti = async (id) => {
-    const ok = await alertConfirm("Confirm Delete", "Delete this notification?", "Delete");
-    if (!ok) return;
+    if (!(await alertConfirm("ยืนยันการลบ", "คุณต้องการลบการแจ้งเตือนนี้ใช่หรือไม่?", "ลบ")))
+      return;
 
     try {
-      await tryCall([
-        { method: "delete", url: `/notifications/${id}` },
-      ]);
+      await api.delete(`/api/notifications/${id}`, getAuthHeader());
       setNotifications((prev) => prev.filter((n) => n.notificationId !== id));
       if (pagedNotifications.length === 1 && page > 1) setPage(page - 1);
-      try {
-        await notiCtx?.refresh?.();
-      } catch {
-        // ignore
-      }
     } catch (err) {
       console.error("Delete failed:", err);
-      await alertError("Error", "Unable to delete notification.");
+      await alertError("ไม่สามารถลบได้", "ไม่สามารถลบการแจ้งเตือนได้");
     }
   };
 
   const handleClearAll = async () => {
-    const ok = await alertConfirm("Confirm Clear All", "Delete all notifications?", "Clear All");
-    if (!ok) return;
+    if (
+      !(await alertConfirm(
+        "ยืนยันการลบทั้งหมด",
+        "คุณต้องการลบการแจ้งเตือนทั้งหมดใช่หรือไม่?",
+        "ลบทั้งหมด"
+      ))
+    )
+      return;
 
     try {
-      const res = await tryCall([
-        { method: "delete", url: "/notifications/clear-all" },
-      ]);
-      const success = res.data?.success ?? true;
-      if (success) {
+      const res = await api.delete("/api/notifications/clear-all", getAuthHeader());
+      if (res.data.success) {
         setNotifications([]);
         setPage(1);
-        await alertSuccess("Done", "All notifications cleared.");
-        try {
-          await notiCtx?.refresh?.();
-        } catch {
-          // ignore
-        }
+        await alertSuccess("สำเร็จ", "ล้างการแจ้งเตือนทั้งหมดเรียบร้อยแล้ว");
+        setSidebarUnreadZero();
       }
     } catch (err) {
       console.error("Clear all failed:", err);
-      await alertError("Error", "Unable to clear notifications.");
+      await alertError("เกิดข้อผิดพลาด", "เกิดข้อผิดพลาดในการล้างข้อมูล");
     }
   };
 
@@ -193,12 +150,8 @@ export default function HRNotifications() {
     switch (type) {
       case "NewRequest":
         return <FiAlertCircle className="noti-ico danger" />;
-      case "Approval":
       case "Approved":
         return <FiCheckCircle className="noti-ico ok" />;
-      case "Rejection":
-      case "Rejected":
-        return <FiAlertCircle className="noti-ico danger" />;
       default:
         return <FiInfo className="noti-ico info" />;
     }
@@ -206,24 +159,22 @@ export default function HRNotifications() {
 
   const getStatusClass = (type) => {
     if (type === "NewRequest") return "danger";
-    if (type === "Approval" || type === "Approved") return "ok";
-    if (type === "Rejection" || type === "Rejected") return "danger";
+    if (type === "Approved") return "ok";
     return "info";
   };
 
   const getTitle = (type) => {
-    if (type === "NewRequest") return "New Leave Request";
-    if (type === "Approval" || type === "Approved") return "Leave Approved";
-    if (type === "Rejection" || type === "Rejected") return "Leave Rejected";
-    return "Notification";
+    if (type === "NewRequest") return "คำขอลาใหม่";
+    if (type === "Approved") return "คำขอลาอนุมัติแล้ว";
+    return "ระบบแจ้งเตือน";
   };
 
   return (
     <div className="page-card wn">
       <div className="wn-head">
         <div>
-          <h2 className="wn-title">HR Notifications</h2>
-          <p className="wn-sub">Leave requests and activity updates (page {page})</p>
+          <h2 className="wn-title">Worker Notifications</h2>
+          <p className="wn-sub">รายการแจ้งเตือนของคุณ (หน้า {page})</p>
         </div>
 
         <div className="wn-actions">
@@ -253,12 +204,12 @@ export default function HRNotifications() {
         {loading ? (
           <div className="wn-empty">
             <FiRefreshCw className="spin" size={24} />
-            <p>Loading notifications...</p>
+            <p>กำลังโหลดข้อมูลแจ้งเตือน...</p>
           </div>
         ) : pagedNotifications.length === 0 ? (
           <div className="wn-empty">
             <FiBell style={{ opacity: 0.5 }} size={32} />
-            <p>No notifications right now.</p>
+            <p>ไม่มีการแจ้งเตือนสำหรับคุณในขณะนี้</p>
           </div>
         ) : (
           pagedNotifications.map((n) => (
@@ -278,7 +229,8 @@ export default function HRNotifications() {
                     {n._isNewSinceLastSeen && <span className="badge-new">NEW</span>}
                   </div>
 
-                  <div className="wn-item-msg">{n.message}</div>
+                  <div className="wn-item-msg">{stripIdFromMessage(n.message)}</div>
+
 
                   <div className="wn-item-time">
                     {new Date(n.createdAt).toLocaleString("en-GB", {
