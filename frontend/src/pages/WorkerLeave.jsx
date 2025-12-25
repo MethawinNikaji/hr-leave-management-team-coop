@@ -14,6 +14,9 @@ export default function WorkerLeave() {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  // ✅ Detail modal (Phase 2.3)
+  const [active, setActive] = useState(null);
+
   // ✅ UI controls
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("all"); 
@@ -59,6 +62,25 @@ export default function WorkerLeave() {
       console.error("Cancel Leave Error:", err);
       await alertError("เกิดข้อผิดพลาด", "เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์");
     }
+  };
+
+  const getDeductedDays = (req) => {
+    // Backend may expose: deductedDays / totalDays / totalDaysRequested
+    const candidates = [req?.deductedDays, req?.totalDaysDeducted, req?.totalDays, req?.totalDaysRequested];
+    for (const v of candidates) {
+      const n = Number(v);
+      if (Number.isFinite(n) && n >= 0) return n;
+    }
+    return 0;
+  };
+
+  const getAttachmentMeta = (url) => {
+    if (!url) return { kind: "none", href: "" };
+    const href = buildFileUrl(url);
+    const lower = href.toLowerCase();
+    if (/(\.png|\.jpg|\.jpeg|\.gif|\.webp)$/.test(lower)) return { kind: "image", href };
+    if (lower.endsWith(".pdf")) return { kind: "pdf", href };
+    return { kind: "file", href };
   };
 
   const typeOptions = useMemo(() => {
@@ -222,12 +244,17 @@ export default function WorkerLeave() {
                   </tr>
                 ) : (
                   paged.map((req) => (
-                    <tr key={req.requestId}>
+                    <tr key={req.requestId} className="wl-row" onClick={() => setActive(req)}>
                       <td className="wl-strong">{req.leaveType?.typeName}</td>
                       <td className="wl-small">
                         {moment(req.startDate).format("DD MMM")} - {moment(req.endDate).format("DD MMM YYYY")}
                       </td>
-                      <td>{req.totalDaysRequested}</td>
+                      <td>
+                        <div className="wl-days">
+                          <span className="wl-days-main">{getDeductedDays(req)}</span>
+                          <span className="wl-days-sub">deducted</span>
+                        </div>
+                      </td>
                       <td>
                         <span className={`wl-badge wl-badge-${normStatus(req.status)}`}>{req.status}</span>
                       </td>
@@ -238,6 +265,7 @@ export default function WorkerLeave() {
                             href={buildFileUrl(req.attachmentUrl)}
                             target="_blank"
                             rel="noreferrer"
+                            onClick={(e) => e.stopPropagation()}
                           >
                             View
                           </a>
@@ -246,14 +274,20 @@ export default function WorkerLeave() {
                         )}
                       </td>
                       <td style={{ textAlign: "center" }}>
-                        {normStatus(req.status) === "pending" && (
-                          <button
-                            className="wl-btn-cancel"
-                            onClick={() => handleCancelLeave(req.requestId)}
-                          >
-                            Cancel
+                        <div className="wl-actions" onClick={(e) => e.stopPropagation()}>
+                          <button className="wl-btn-detail" type="button" onClick={() => setActive(req)}>
+                            Details
                           </button>
-                        )}
+                          {normStatus(req.status) === "pending" && (
+                            <button
+                              className="wl-btn-cancel"
+                              type="button"
+                              onClick={() => handleCancelLeave(req.requestId)}
+                            >
+                              Cancel
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -262,6 +296,96 @@ export default function WorkerLeave() {
             </table>
           )}
         </div>
+
+        {/* ✅ Detail Modal (Phase 2.3) */}
+        {active && (
+          <div className="wl-modal-backdrop" onClick={() => setActive(null)}>
+            <div className="wl-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="wl-modal-head">
+                <div>
+                  <div className="wl-modal-title">Leave Request Details</div>
+                  <div className="wl-modal-sub">
+                    {moment(active.startDate).format("DD MMM YYYY")} → {moment(active.endDate).format("DD MMM YYYY")}
+                  </div>
+                </div>
+                <button className="wl-modal-x" type="button" onClick={() => setActive(null)}>
+                  ✕
+                </button>
+              </div>
+
+              <div className="wl-modal-grid">
+                <div className="wl-modal-block">
+                  <div className="wl-kv">
+                    <div className="wl-k">Type</div>
+                    <div className="wl-v">{active.leaveType?.typeName || "-"}</div>
+                  </div>
+                  <div className="wl-kv">
+                    <div className="wl-k">Status</div>
+                    <div className="wl-v">
+                      <span className={`wl-badge wl-badge-${normStatus(active.status)}`}>{active.status}</span>
+                    </div>
+                  </div>
+                  <div className="wl-kv">
+                    <div className="wl-k">Days deducted</div>
+                    <div className="wl-v"><strong>{getDeductedDays(active)}</strong></div>
+                  </div>
+                  <div className="wl-kv wl-kv-full">
+                    <div className="wl-k">Reason</div>
+                    <div className="wl-v">{active.reason || "-"}</div>
+                  </div>
+
+                  <div className="wl-modal-actions">
+                    <button className="wl-btn-detail" type="button" onClick={() => setActive(null)}>
+                      Close
+                    </button>
+                    {normStatus(active.status) === "pending" && (
+                      <button
+                        className="wl-btn-cancel"
+                        type="button"
+                        onClick={async () => {
+                          await handleCancelLeave(active.requestId);
+                          setActive(null);
+                        }}
+                      >
+                        Cancel Request
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="wl-modal-block">
+                  <div className="wl-modal-block-title">Attachment</div>
+                  {active.attachmentUrl ? (() => {
+                    const meta = getAttachmentMeta(active.attachmentUrl);
+                    return (
+                      <>
+                        <div className="wl-attach-actions">
+                          <a className="wl-attach-btn" href={meta.href} target="_blank" rel="noreferrer">
+                            Open
+                          </a>
+                          <a className="wl-attach-btn" href={meta.href} download>
+                            Download
+                          </a>
+                        </div>
+                        <div className="wl-preview">
+                          {meta.kind === "image" ? (
+                            <img src={meta.href} alt="Attachment preview" />
+                          ) : meta.kind === "pdf" ? (
+                            <iframe title="PDF preview" src={meta.href} />
+                          ) : (
+                            <div className="wl-preview-empty">Preview not available for this file type.</div>
+                          )}
+                        </div>
+                      </>
+                    );
+                  })() : (
+                    <div className="wl-preview-empty">No attachment.</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <Pagination
           total={totalFiltered}

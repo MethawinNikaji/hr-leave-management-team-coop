@@ -11,9 +11,10 @@
 }
 
 .sb{
-  position: sticky;
-  top: 0;
-  height: 100vh;
+  /* Positioning is controlled by AppLayout (sticky + overlay on hover).
+     Keep sidebar itself size-aware. */
+  position: relative;
+  height: 100%;
   width: var(--sb-collapsed);
 
   display: flex;
@@ -170,7 +171,11 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  overflow: hidden;
+  /* ✅ allow scrolling when menu is long */
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex: 1 1 auto;
+  min-height: 0;
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
@@ -340,7 +345,8 @@
 /* ✅ Nav layout collapsed: center icons, remove extra padding/margins */
 .sb:not(:hover) .sb-nav{
   padding: 10px 8px 12px;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   align-items: center;
   gap: 14px;
 }

@@ -2,63 +2,43 @@ import React, { useEffect, useMemo, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import "./AppSidebar.css";
 
-// icons (mock)
-import {
-  FiGrid,
-  FiCalendar,
-  FiClipboard,
-  FiBell,
-  FiUser,
-  FiUsers,
-  FiCheckSquare,
-  FiLogOut,
-  FiMenu,
-  FiX,
-  FiSettings,
-} from "react-icons/fi";
+import { FiGrid, FiCalendar, FiClipboard, FiBell, FiUser, FiUsers, FiCheckSquare, FiLogOut, FiMenu, FiX, FiSettings } from "react-icons/fi";
 
-/* ===============================
-   Menu config (MATCH App.jsx)
-================================ */
 const MENUS = {
   Worker: [
     {
       section: "MAIN MENU",
       items: [
-        { to: "/worker/dashboard", label: "แดชบอร์ด", icon: <FiGrid /> },
-        { to: "/worker/attendance", label: "ประวัติการลงเวลา", icon: <FiCalendar /> },
-        { to: "/worker/calendar", label: "ปฏิทินของฉัน", icon: <FiCalendar /> },
-        { to: "/worker/leave", label: "ประวัติการลา", icon: <FiClipboard /> },
-        { to: "/worker/notifications", label: "แจ้งเตือน", icon: <FiBell />, badgeKey: "worker_unread_notifications" },
+        { to: "/worker/dashboard", label: "Dashboard", icon: <FiGrid /> },
+        { to: "/worker/attendance", label: "My Attendance", icon: <FiCalendar /> },
+        { to: "/worker/calendar", label: "My Calendar", icon: <FiCalendar /> },
+        { to: "/worker/leave", label: "My Leaves", icon: <FiClipboard /> },
+        { to: "/worker/notifications", label: "Notifications", icon: <FiBell />, badgeKey: "worker_unread_notifications" },
       ],
     },
-    {
-      section: "ACCOUNT",
-      items: [{ to: "/worker/profile", label: "โปรไฟล์", icon: <FiUser /> }],
-    },
+    { section: "ACCOUNT", items: [{ to: "/worker/profile", label: "Profile", icon: <FiUser /> }] },
   ],
-
   HR: [
     {
       section: "MAIN MENU",
       items: [
-        { to: "/hr/dashboard", label: "แดชบอร์ด", icon: <FiGrid /> },
-        { to: "/hr/attendance", label: "การลงเวลาพนักงาน", icon: <FiCalendar /> },
-        { to: "/hr/notifications", label: "แจ้งเตือน", icon: <FiBell />, badgeKey: "hr_unread_notifications" },
+        { to: "/hr/dashboard", label: "Dashboard", icon: <FiGrid /> },
+        { to: "/hr/attendance", label: "Employee Attendance", icon: <FiCalendar /> },
+        { to: "/hr/notifications", label: "Notifications", icon: <FiBell />, badgeKey: "hr_unread_notifications" },
       ],
     },
     {
       section: "HR MANAGEMENT",
       items: [
-        { to: "/hr/leave-approvals", label: "อนุมัติการลา", icon: <FiCheckSquare /> },
-        { to: "/hr/employees", label: "รายชื่อพนักงาน", icon: <FiUsers /> },
-        { to: "/hr/leave-settings", label: "ตั้งค่าโควต้าการลา", icon: <FiSettings /> },
+        { to: "/hr/leave-approvals", label: "Leave Approvals", icon: <FiCheckSquare /> },
+        { to: "/hr/employees", label: "Employees", icon: <FiUsers /> },
+        { to: "/hr/leave-settings", label: "Leave Quota Settings", icon: <FiSettings /> },
+        { to: "/hr/attendance-policy", label: "Attendance Settings", icon: <FiSettings /> },
       ],
     },
   ],
 };
 
-// helpers
 const safeJSON = (v, fallback = {}) => {
   try {
     return JSON.parse(v);
@@ -73,48 +53,35 @@ export default function AppSidebar() {
 
   const user = useMemo(() => safeJSON(localStorage.getItem("user") || "{}", {}), []);
   const role = user.role === "HR" ? "HR" : "Worker";
+  const sections = MENUS[role];
 
-  // ✅ Key ของ Notifications ตาม Role
   const notificationKey = role === "HR" ? "hr_unread_notifications" : "worker_unread_notifications";
-
   const fullName = `${user.firstName || user.first_name || "User"} ${user.lastName || user.last_name || ""}`.trim();
   const initials = (fullName || "U").charAt(0).toUpperCase();
 
-  const sections = MENUS[role];
+  // Mobile drawer
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  // unread badge
+  const [unread, setUnread] = useState(() => Number(localStorage.getItem(notificationKey) || "0") || 0);
   useEffect(() => {
-    if (mobileOpen) setMobileOpen(false);
-  }, [location.pathname]);
-
-  const [unread, setUnread] = useState(() => {
-    const n = Number(localStorage.getItem(notificationKey) || "0");
-    return Number.isFinite(n) ? n : 0;
-  });
-
-  useEffect(() => {
-    const onStorage = () => {
+    const tick = () => {
       const n = Number(localStorage.getItem(notificationKey) || "0");
       setUnread(Number.isFinite(n) ? n : 0);
     };
-    window.addEventListener("storage", onStorage);
-    const t = setInterval(onStorage, 1000);
+    const t = setInterval(tick, 700);
+    window.addEventListener("storage", tick);
     return () => {
-      window.removeEventListener("storage", onStorage);
       clearInterval(t);
+      window.removeEventListener("storage", tick);
     };
   }, [notificationKey]);
 
-  const lastKey = role === "HR" ? "last_route_hr" : "last_route_worker";
+  // close mobile drawer on route change
   useEffect(() => {
-    localStorage.setItem(lastKey, location.pathname);
-  }, [location.pathname, lastKey]);
-
-  const lastRoute = localStorage.getItem(lastKey) || "";
-  const canContinue =
-    lastRoute &&
-    lastRoute !== location.pathname &&
-    lastRoute.startsWith(role === "HR" ? "/hr/" : "/worker/");
+    if (mobileOpen) setMobileOpen(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
 
   const logout = () => {
     localStorage.removeItem("token");
@@ -122,43 +89,29 @@ export default function AppSidebar() {
     navigate("/login");
   };
 
-  const openMobile = () => setMobileOpen(true);
-  const closeMobile = () => setMobileOpen(false);
-  const sidebarClass = `sb ${mobileOpen ? "sb-mobile-open" : ""}`;
-
   return (
     <>
-      <button className="sb-mobile-toggle" type="button" onClick={mobileOpen ? closeMobile : openMobile}>
+      <button className="sb-mobile-toggle" type="button" onClick={() => setMobileOpen((v) => !v)} aria-label="Toggle sidebar">
         {mobileOpen ? <FiX /> : <FiMenu />}
       </button>
 
-      {mobileOpen && <div className="sb-overlay" onClick={closeMobile} />}
+      {mobileOpen && <div className="sb-overlay" onClick={() => setMobileOpen(false)} />}
 
-      <aside className={sidebarClass} aria-label="App Sidebar">
+      <aside className={`sb ${mobileOpen ? "sb-mobile-open" : ""}`} aria-label="App Sidebar">
         <div className="sb-top">
           <div className="sb-profile">
             <div className="sb-avatar">{initials}</div>
+
             <div className="sb-profile-info">
               <div className="sb-name">{fullName}</div>
               <div className="sb-role">{role}</div>
             </div>
 
-            <button
-              className="sb-bell"
-              type="button"
-              title="Notifications"
-              onClick={() => navigate(`/${role.toLowerCase()}/notifications`)}
-            >
+            <button className="sb-bell" type="button" title="Notifications" onClick={() => navigate(`/${role.toLowerCase()}/notifications`)}>
               <FiBell />
               {unread > 0 && <span className="sb-badge">{unread > 99 ? "99+" : unread}</span>}
             </button>
           </div>
-
-          {canContinue && (
-            <button className="sb-continue" type="button" onClick={() => navigate(lastRoute)}>
-              กลับไปหน้าล่าสุด
-            </button>
-          )}
         </div>
 
         <nav className="sb-nav">
@@ -171,16 +124,10 @@ export default function AppSidebar() {
                 const badgeCount = showBadge ? unread : 0;
 
                 return (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    className={({ isActive }) => `sb-item ${isActive ? "active" : ""}`}
-                  >
+                  <NavLink key={item.to} to={item.to} className={({ isActive }) => `sb-item ${isActive ? "active" : ""}`}>
                     <span className="sb-item-ico">
                       {item.icon}
-                      {badgeCount > 0 && (
-                        <span className="sb-item-badge">{badgeCount > 99 ? "99+" : badgeCount}</span>
-                      )}
+                      {badgeCount > 0 && <span className="sb-item-badge">{badgeCount > 99 ? "99+" : badgeCount}</span>}
                     </span>
                     <span className="sb-item-text">{item.label}</span>
                   </NavLink>
@@ -193,7 +140,7 @@ export default function AppSidebar() {
         <div className="sb-bottom">
           <button className="sb-logout" onClick={logout} type="button">
             <FiLogOut className="sb-logout-ico" />
-            <span className="sb-logout-text">ออกจากระบบ</span>
+            <span className="sb-logout-text">Logout</span>
           </button>
         </div>
       </aside>

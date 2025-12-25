@@ -3,11 +3,15 @@ import Pagination from "../components/Pagination";
 import { alertConfirm, alertError, alertSuccess } from "../utils/sweetAlert";
 import axiosClient from "../api/axiosClient";
 import { buildFileUrl } from "../utils/fileUrl";
+import "./HRLeaveApprovals.css";
 
 export default function HRLeaveApprovals() {
   const [leaveRequests, setLeaveRequests] = useState([]);
   const [selected, setSelected] = useState(new Set());
   const [isLoading, setIsLoading] = useState(false);
+
+  // ✅ Detail modal (Phase 2.3)
+  const [active, setActive] = useState(null);
 
   // Phase 2: filters
   const [q, setQ] = useState("");
@@ -16,6 +20,16 @@ export default function HRLeaveApprovals() {
   // Pagination
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+
+  // ✅ Days deducted (supports multiple possible backend field names)
+  const getDeductedDays = (r) => {
+    const candidates = [r?.deductedDays, r?.totalDaysDeducted, r?.totalDays, r?.totalDaysRequested];
+    for (const v of candidates) {
+      const n = Number(v);
+      if (Number.isFinite(n) && n >= 0) return n;
+    }
+    return 0;
+  };
 
   const fetchPendingRequests = async () => {
     try {
@@ -80,34 +94,32 @@ export default function HRLeaveApprovals() {
     return new Date(dateString).toLocaleDateString("en-GB");
   };
 
+  // ✅ Attachment meta (for preview)
+  const getAttachmentMeta = (url) => {
+    if (!url) return { kind: "none", href: "" };
+    const href = buildFileUrl(url);
+    const lower = href.toLowerCase();
+    if (/(\.png|\.jpg|\.jpeg|\.gif|\.webp)$/i.test(lower)) return { kind: "image", href };
+    if (lower.endsWith(".pdf")) return { kind: "pdf", href };
+    return { kind: "file", href };
+  };
+
   const renderAttachment = (fileName) => {
     if (!fileName) return <span style={{ color: "#9ca3af" }}>No file</span>;
 
-    const isImage = /\.(jpg|jpeg|png|gif)$/i.test(fileName);
-    const isPDF = fileName.toLowerCase().endsWith(".pdf");
-
-    const href = buildFileUrl(fileName.startsWith("/uploads") ? fileName : `/uploads/${fileName}`);
+    const href = buildFileUrl(fileName);
+    const lower = href.toLowerCase();
+    const isImage = /(\.png|\.jpg|\.jpeg|\.gif|\.webp)$/i.test(lower);
+    const isPDF = lower.endsWith(".pdf");
 
     return (
-      <a
-        href={href}
-        target="_blank"
-        rel="noopener noreferrer"
-        title="View Attachment"
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          color: "#2563eb",
-          textDecoration: "none",
-          fontWeight: 700,
-          fontSize: 13,
-        }}
-      >
+      <a className="hrla-link" href={href} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
         {isImage ? "🖼️ Image" : isPDF ? "📄 PDF" : "📁 File"}
       </a>
     );
   };
+
+  // (duplicate getAttachmentMeta removed)
 
   const leaveTypes = useMemo(() => {
     const set = new Set(leaveRequests.map((r) => r.leaveType?.typeName).filter(Boolean));
@@ -133,7 +145,7 @@ export default function HRLeaveApprovals() {
   const allChecked = filtered.length > 0 && selected.size === filtered.length;
 
   return (
-    <div className="page-card">
+    <div className="page-card hr-leave-approvals">
       <h1 style={{ margin: 0 }}>Leave Approvals</h1>
       <p style={{ marginTop: 6, color: "#4b5563" }}>
         Review and bulk approve/reject leave requests.
@@ -209,6 +221,7 @@ export default function HRLeaveApprovals() {
               <th>Employee</th>
               <th>Type</th>
               <th>Date</th>
+              <th style={{ width: 90 }}>Days</th>
               <th>Reason</th>
               <th>Attachment</th>
               <th>Status</th>
@@ -219,18 +232,19 @@ export default function HRLeaveApprovals() {
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan="9" style={{ textAlign: "center", padding: 20 }}>
+                <td colSpan="10" style={{ textAlign: "center", padding: 20 }}>
                   Loading...
                 </td>
               </tr>
             ) : paged.length > 0 ? (
               paged.map((r) => (
-                <tr key={r.requestId}>
+                <tr key={r.requestId} className="hrla-row" onClick={() => setActive(r)}>
                   <td>
                     <input
                       type="checkbox"
                       checked={selected.has(r.requestId)}
                       onChange={() => toggle(r.requestId)}
+                      onClick={(e) => e.stopPropagation()}
                     />
                   </td>
 
@@ -246,16 +260,28 @@ export default function HRLeaveApprovals() {
                     {formatDate(r.startDate)} → {formatDate(r.endDate)}
                   </td>
 
+                  <td>
+                    <div className="hrla-days">
+                      <div className="hrla-days-main">{getDeductedDays(r)}</div>
+                      <div className="hrla-days-sub">deducted</div>
+                    </div>
+                  </td>
+
                   <td>{r.reason || "-"}</td>
 
-                  <td>{renderAttachment(r.attachmentUrl)}</td>
+                  <td>
+                    <span onClick={(e) => e.stopPropagation()}>{renderAttachment(r.attachmentUrl)}</span>
+                  </td>
 
                   <td>
                     <span className="status pending">{r.status}</span>
                   </td>
 
                   <td style={{ textAlign: "right" }}>
-                    <div style={{ display: "inline-flex", gap: 8 }}>
+                    <div style={{ display: "inline-flex", gap: 8 }} onClick={(e) => e.stopPropagation()}>
+                      <button className="btn small outline" onClick={() => setActive(r)}>
+                        Details
+                      </button>
                       <button className="btn small outline" onClick={() => handleAction(r.requestId, "reject")}>
                         Reject
                       </button>
@@ -268,7 +294,7 @@ export default function HRLeaveApprovals() {
               ))
             ) : (
               <tr>
-                <td colSpan="9" style={{ textAlign: "center", padding: 20 }}>
+                <td colSpan="10" style={{ textAlign: "center", padding: 20 }}>
                   No pending requests.
                 </td>
               </tr>
@@ -284,6 +310,86 @@ export default function HRLeaveApprovals() {
           onPageSizeChange={setPageSize}
         />
       </div>
+
+      {/* ✅ Detail Modal (Phase 2.3) */}
+      {active && (
+        <div className="hrla-modal-backdrop" onClick={() => setActive(null)}>
+          <div className="hrla-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="hrla-modal-head">
+              <div>
+                <div className="hrla-modal-title">Leave Request Details</div>
+                <div className="hrla-modal-sub">
+                  {formatDate(active.startDate)} → {formatDate(active.endDate)}
+                </div>
+              </div>
+              <button className="hrla-x" type="button" onClick={() => setActive(null)}>
+                ✕
+              </button>
+            </div>
+
+            <div className="hrla-modal-grid">
+              <div className="hrla-block">
+                <div className="hrla-kv">
+                  <div className="hrla-k">Employee</div>
+                  <div className="hrla-v">
+                    {active.employee ? `${active.employee.firstName} ${active.employee.lastName || ""}` : `ID: ${active.employeeId}`}
+                  </div>
+                </div>
+                <div className="hrla-kv">
+                  <div className="hrla-k">Type</div>
+                  <div className="hrla-v">{active.leaveType?.typeName || "Leave"}</div>
+                </div>
+                <div className="hrla-kv">
+                  <div className="hrla-k">Days deducted</div>
+                  <div className="hrla-v"><strong>{getDeductedDays(active)}</strong></div>
+                </div>
+                <div className="hrla-kv hrla-kv-full">
+                  <div className="hrla-k">Reason</div>
+                  <div className="hrla-v">{active.reason || "-"}</div>
+                </div>
+
+                <div className="hrla-modal-actions">
+                  <button className="btn outline" type="button" onClick={() => setActive(null)}>
+                    Close
+                  </button>
+                  <button className="btn outline" type="button" onClick={() => handleAction(active.requestId, "reject")}>
+                    Reject
+                  </button>
+                  <button className="btn primary" type="button" onClick={() => handleAction(active.requestId, "approve")}>
+                    Approve
+                  </button>
+                </div>
+              </div>
+
+              <div className="hrla-block">
+                <div className="hrla-block-title">Attachment</div>
+                {active.attachmentUrl ? (() => {
+                  const meta = getAttachmentMeta(active.attachmentUrl);
+                  return (
+                    <>
+                      <div className="hrla-attach-actions">
+                        <a className="hrla-attach-btn" href={meta.href} target="_blank" rel="noreferrer">Open</a>
+                        <a className="hrla-attach-btn" href={meta.href} download>Download</a>
+                      </div>
+                      <div className="hrla-preview">
+                        {meta.kind === "image" ? (
+                          <img src={meta.href} alt="Attachment preview" />
+                        ) : meta.kind === "pdf" ? (
+                          <iframe title="PDF preview" src={meta.href} />
+                        ) : (
+                          <div className="hrla-preview-empty">Preview not available for this file type.</div>
+                        )}
+                      </div>
+                    </>
+                  );
+                })() : (
+                  <div className="hrla-preview-empty">No attachment.</div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

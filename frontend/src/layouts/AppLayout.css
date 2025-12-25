@@ -1,104 +1,57 @@
+/* =========================================================
+   AppLayout
+   - Reserve only collapsed sidebar width (78px)
+   - Sidebar expands OVER the content on hover (no layout shift)
+   - Keep existing page-card look
+   ========================================================= */
+
+:root{
+  --sb-expanded: 280px;
+  --sb-collapsed: 78px;
+}
+
+/*
+  ✅ FIX (Dec 2025)
+  Previous approach used `position:absolute` on .sb:hover to "float" over content.
+  In CSS Grid, a positioned item is removed from the grid flow, which can make
+  the <main> reflow into the first (collapsed) column and appear to "disappear".
+  Switching to a simple flex layout keeps both sidebar and content stable.
+*/
+
 .app-layout{
-  display:flex;
+  position: relative;
+  display: flex;
+  gap: 18px;
+
   min-height: 100vh;
-  width:100%;
+  width: 100%;
   background: transparent;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   color: var(--text);
+
+  padding: 16px;
+  box-sizing: border-box;
 }
 
-.app-sidebar{
-  width: 260px;
-  padding: 16px 10px;
-}
-
-.sidebar-inner{
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 22px;
-  padding: 14px 10px;
-  height: 100%;
-  display:flex;
-  flex-direction:column;
-  gap: 12px;
-  box-shadow: var(--shadow2);
-}
-
-.sidebar-topbox{
-  background: var(--card2);
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  padding: 12px 12px 14px;
-  display:flex;
-  flex-direction:column;
-  gap: 10px;
-}
-
-.brand-title{
-  font-weight: 900;
-  letter-spacing: .08em;
-  color: var(--text);
-  font-size: 14px;
-}
-
-.role-pill{
-  background: var(--tint);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 7px 10px;
-  font-size: 12px;
-  font-weight: 800;
-  width: fit-content;
-  color: var(--text);
-}
-
-.nav-list{
-  display:flex;
-  flex-direction:column;
-  gap: 10px;
-}
-
-.sidebar-item{
-  border: 1px solid transparent;
-  border-radius: 999px;
-  padding: 10px 14px;
-  background: var(--tint);
-  color: var(--text);
-  font-weight: 700;
-  cursor: pointer;
-  transition: transform .10s ease, background .15s ease, border-color .15s ease;
-}
-
-.sidebar-item:hover{
-  background: var(--tint2);
-  border-color: var(--border);
-}
-
-.sidebar-item.active{
-  background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
-  border-color: rgba(22,163,74,.40);
-  box-shadow: 0 12px 22px rgba(22,163,74,.16);
-  color: #fff;
-}
-
+/* Main */
 .app-main{
-  flex:1;
-  padding: 24px 24px 24px 0;
-  display:flex;
+  min-width: 0;
+  display: flex;
+  flex: 1 1 auto;
 }
 
 /* container card for each page */
 .page-card{
-  width:100%;
+  width: 100%;
   max-width: 1250px;
   margin: 0 auto;
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius:22px;
+  border-radius: 22px;
   padding: 22px 24px 26px;
   box-shadow: var(--shadow);
-  display:flex;
-  flex-direction:column;
+  display: flex;
+  flex-direction: column;
 }
 
 /* buttons shared (optional utility) */
@@ -120,3 +73,15 @@
   color: var(--text);
 }
 .btn.small{ padding: 8px 12px; font-size: 13px; }
+
+/* =========================================================
+   Sidebar overlay expansion (desktop)
+   - When sidebar expands on hover, it should float above content
+   ========================================================= */
+
+.app-layout > .sb{
+  position: sticky;
+  top: 16px;               /* align with app-layout padding */
+  height: calc(100vh - 32px);
+  z-index: 50;
+}

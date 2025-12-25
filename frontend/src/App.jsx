@@ -20,6 +20,7 @@ import HRLeaveApprovals from "./pages/HRLeaveApprovals";
 import HRNotifications from "./pages/HRNotifications";
 import Employees from "./pages/HREmployees";
 import LeaveSettings from "./pages/HRLeaveTypeSettings";
+import HRAttendancePolicy from "./pages/HRAttendancePolicy";
 
 import LoginPage from "./pages/LoginPage";
 
@@ -136,6 +137,16 @@ export default function App() {
           element={
             <RoleRoute allow={["HR"]}>
               <LeaveSettings />
+            </RoleRoute>
+          }
+        />
+
+        {/* HR Attendance Policy (Phase 2.2) */}
+        <Route
+          path="hr/attendance-policy"
+          element={
+            <RoleRoute allow={["HR"]}>
+              <HRAttendancePolicy />
             </RoleRoute>
           }
         />
