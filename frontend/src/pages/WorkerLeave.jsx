@@ -76,7 +76,7 @@ export default function WorkerLeave() {
 
   const getAttachmentMeta = (url) => {
     if (!url) return { kind: "none", href: "" };
-    const href = buildFileUrl(url);
+    const href = `http://localhost:8000/uploads/${url}`;
     const lower = href.toLowerCase();
     if (/(\.png|\.jpg|\.jpeg|\.gif|\.webp)$/.test(lower)) return { kind: "image", href };
     if (lower.endsWith(".pdf")) return { kind: "pdf", href };
@@ -369,7 +369,7 @@ export default function WorkerLeave() {
                         </div>
                         <div className="wl-preview">
                           {meta.kind === "image" ? (
-                            <img src={meta.href} alt="Attachment preview" />
+                            <img src={meta.href} alt="Attachment preview" crossOrigin="anonymous" />
                           ) : meta.kind === "pdf" ? (
                             <iframe title="PDF preview" src={meta.href} />
                           ) : (

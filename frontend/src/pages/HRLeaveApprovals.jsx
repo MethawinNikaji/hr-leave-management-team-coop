@@ -107,7 +107,7 @@ export default function HRLeaveApprovals() {
   const renderAttachment = (fileName) => {
     if (!fileName) return <span style={{ color: "#9ca3af" }}>No file</span>;
 
-    const href = buildFileUrl(fileName);
+    const href = `http://localhost:8000/uploads/${fileName}`;
     const lower = href.toLowerCase();
     const isImage = /(\.png|\.jpg|\.jpeg|\.gif|\.webp)$/i.test(lower);
     const isPDF = lower.endsWith(".pdf");
@@ -373,7 +373,7 @@ export default function HRLeaveApprovals() {
                       </div>
                       <div className="hrla-preview">
                         {meta.kind === "image" ? (
-                          <img src={meta.href} alt="Attachment preview" />
+                          <img src={meta.href} alt="Attachment preview" crossOrigin="anonymous" />
                         ) : meta.kind === "pdf" ? (
                           <iframe title="PDF preview" src={meta.href} />
                         ) : (
