@@ -58,4 +58,7 @@ router.put('/quota/:quotaId', [ param('quotaId').isInt(), body('totalDays').isFl
 router.post('/holiday', [ body('holidayDate').isISO8601().toDate(), body('holidayName').notEmpty(), validate ], adminController.createHoliday);
 router.delete('/holiday/:holidayId', [ param('holidayId').isInt(), validate ], adminController.deleteHoliday);
 
+router.get('/attendance-policy', adminController.getAttendancePolicy);
+router.put('/attendance-policy', adminController.updateAttendancePolicy);
+
 module.exports = router;

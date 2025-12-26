@@ -1,40 +1,47 @@
-// backend/src/services/timeRecord.service.js
-
 const prisma = require('../models/prisma');
 const CustomError = require('../utils/customError');
 const moment = require('moment-timezone');
-const { getCurrentTimeInTimezone, isLateCheckIn, formatDateOnly } = require('../utils/time.utils');
+// 🔥 ปรับ Import: เอา isLateCheckIn ออก และนำ checkIsLate เข้ามาแทน
+const { getCurrentTimeInTimezone, formatDateOnly, checkIsLate } = require('../utils/time.utils');
 
 /**
  * Handles the employee's check-in operation.
  */
 const checkIn = async (employeeId) => {
     const now = getCurrentTimeInTimezone().toDate();
-    const todayDateOnly = formatDateOnly(now); // ได้ค่าเป็น String เช่น "2025-12-16"
+    const todayDateOnly = formatDateOnly(now);
 
-    // 1. ตรวจสอบว่ามีการ Check-in ไปแล้วหรือยัง
+    // 1. ตรวจสอบว่าเช็คอินไปหรือยัง
     const existingRecord = await prisma.timeRecord.findUnique({
         where: {
             employeeId_workDate: {
                 employeeId: employeeId,
-                // 🔥 แก้ตรงนี้: แปลง String กลับเป็น Date Object
                 workDate: new Date(todayDateOnly), 
             },
         },
     });
 
     if (existingRecord) {
-        throw CustomError.conflict(`Employee ID ${employeeId} has already checked in today (${todayDateOnly}).`);
+        throw CustomError.conflict(`Employee ID ${employeeId} has already checked in today.`);
     }
 
-    // 2. คำนวณสถานะการมาสาย
-    const lateStatus = isLateCheckIn(now);
+    // 2. ดึงนโยบายการเข้างานจากฐานข้อมูล
+    let policy = await prisma.attendancePolicy.findFirst({
+        where: { policyId: 1 }
+    });
 
-    // 3. สร้าง TimeRecord
+    // ถ้าไม่มีนโยบายใน DB ให้ใช้ค่า Default (กันพัง)
+    if (!policy) {
+        policy = { startTime: "09:00", graceMinutes: 5 };
+    }
+
+    // ⚡ 3. คำนวณสถานะการมาสายโดยเรียกใช้ Utility (สะอาดกว่าเขียนเอง)
+    const lateStatus = checkIsLate(now, policy);
+
+    // 4. บันทึกลงฐานข้อมูล
     const newRecord = await prisma.timeRecord.create({
         data: {
             employeeId: employeeId,
-            // 🔥 แก้ตรงนี้: ต้องส่งเป็น Date Object เช่นกัน
             workDate: new Date(todayDateOnly), 
             checkInTime: now,
             isLate: lateStatus,
@@ -45,32 +52,55 @@ const checkIn = async (employeeId) => {
 };
 
 /**
- * Handles the employee's check-out operation.
+ * Handles the employee's check-out operation. (โค้ดส่วนนี้โอเคแล้วครับ)
  */
 const checkOut = async (employeeId) => {
     const now = getCurrentTimeInTimezone().toDate();
     const todayDateOnly = formatDateOnly(now);
 
-    // 1. ค้นหา Record ของวันนี้ที่ยังไม่ได้ Check-out
-    const existingRecord = await prisma.timeRecord.findUnique({
-        where: {
-            employeeId_workDate: {
-                employeeId: employeeId,
-                // 🔥 แก้ตรงนี้: แปลง String กลับเป็น Date Object
-                workDate: new Date(todayDateOnly),
+    // 1. ดึงข้อมูล Record ของวันนี้ และ Policy จาก DB พร้อมกันเพื่อความรวดเร็ว
+    const [existingRecord, policy] = await Promise.all([
+        prisma.timeRecord.findUnique({
+            where: {
+                employeeId_workDate: {
+                    employeeId: employeeId,
+                    workDate: new Date(todayDateOnly),
+                },
             },
-        },
-    });
+        }),
+        prisma.attendancePolicy.findFirst({
+            where: { policyId: 1 } // ดึงนโยบายหลักอันเดียว
+        })
+    ]);
 
+    // 2. ตรวจสอบเบื้องต้น: ต้องเช็คอินแล้ว และยังไม่ได้เช็คเอาท์
     if (!existingRecord || existingRecord.checkOutTime) {
-        throw CustomError.badRequest(existingRecord ? "Employee has already checked out today." : "Cannot check out: Employee has not checked in today.");
+        throw CustomError.badRequest(existingRecord ? "พนักงานเช็คเอาท์ไปแล้วในวันนี้" : "ไม่สามารถเช็คเอาท์ได้: พนักงานยังไม่ได้เช็คอิน");
+    }
+
+    // 3. 🔥 ตรวจสอบเวลาเลิกงานตามนโยบาย (Policy Check)
+    if (policy && policy.endTime) {
+        const [endHour, endMin] = policy.endTime.split(':').map(Number);
+        
+        // สร้างเวลา Deadline (เลิกงาน) ของวันนี้
+        const endDeadline = moment(now).tz("Asia/Bangkok")
+            .hour(endHour)
+            .minute(endMin)
+            .second(0)
+            .millisecond(0);
+
+        // ถ้าเวลาปัจจุบัน "ก่อน" เวลาเลิกงาน ให้ Error
+        if (moment(now).isBefore(endDeadline)) {
+            throw CustomError.badRequest(`ยังไม่ถึงเวลาเลิกงานตามนโยบาย (${policy.endTime} น.)`);
+        }
     }
     
+    // 4. ตรวจสอบความสมเหตุสมผล: เวลาออกต้องไม่ก่อนเวลาเข้า (เผื่อกรณีเซิร์ฟเวอร์เวลาเพี้ยน)
     if (moment(now).isBefore(existingRecord.checkInTime)) {
-        throw CustomError.badRequest("Check-out time cannot be earlier than check-in time.");
+        throw CustomError.badRequest("เวลาเช็คเอาท์ต้องไม่มาก่อนเวลาเช็คอิน");
     }
 
-    // 2. Update Record
+    // 5. บันทึกเวลาลงฐานข้อมูล
     const updatedRecord = await prisma.timeRecord.update({
         where: { recordId: existingRecord.recordId },
         data: { checkOutTime: now },

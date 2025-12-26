@@ -373,10 +373,48 @@ const updateEmployeeByAdmin = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+// เพิ่มไว้ท้ายไฟล์ก่อน module.exports
+const getAttendancePolicy = async (req, res, next) => {
+    try {
+        let policy = await prisma.attendancePolicy.findFirst();
+        
+        // 🔥 ถ้าใน DB ยังไม่มีข้อมูลเลย ให้สร้างอันแรกขึ้นมาด้วยค่า Default
+        if (!policy) {
+            policy = await prisma.attendancePolicy.create({
+                data: {
+                    policyId: 1,
+                    startTime: "09:00",
+                    endTime: "18:00",
+                    graceMinutes: 5,
+                    workingDays: "mon,tue,wed,thu,fri"
+                }
+            });
+        }
+        res.status(200).json({ success: true, policy });
+    } catch (error) {
+        // ถ้าเข้าตรงนี้แสดงว่าต่อ DB ไม่ติดจริงๆ ให้เช็ค .env
+        console.error("DB Connection Error:", error);
+        next(error);
+    }
+};
+
+const updateAttendancePolicy = async (req, res, next) => {
+    try {
+        const { startTime, endTime, graceMinutes, workingDays } = req.body;
+        const policy = await prisma.attendancePolicy.upsert({
+            where: { policyId: 1 },
+            update: { startTime, endTime, graceMinutes, workingDays },
+            create: { policyId: 1, startTime, endTime, graceMinutes, workingDays }
+        });
+        res.status(200).json({ success: true, message: "Policy updated", policy });
+    } catch (error) { next(error); }
+};
+
 module.exports = { 
     getAllEmployees, getEmployeeQuota, updateEmployeeQuotaBulk, // 🆕 เพิ่ม 3 ตัวนี้
     getLeaveTypes, createLeaveType, updateLeaveType, deleteLeaveType, 
     getQuotas, createQuota, updateQuota, 
     getHolidays, createHoliday, deleteHoliday,
-    syncAllEmployeesQuota, processYearEndCarryForward, createEmployee, updateEmployeeByAdmin
+    syncAllEmployeesQuota, processYearEndCarryForward, createEmployee, updateEmployeeByAdmin, 
+    getAttendancePolicy, updateAttendancePolicy
 };

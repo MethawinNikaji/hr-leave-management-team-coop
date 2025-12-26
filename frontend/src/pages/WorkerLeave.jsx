@@ -262,7 +262,7 @@ export default function WorkerLeave() {
                         {req.attachmentUrl ? (
                           <a
                             className="wl-link"
-                            href={buildFileUrl(req.attachmentUrl)}
+                            href={`http://localhost:8000/uploads/${req.attachmentUrl}`}
                             target="_blank"
                             rel="noreferrer"
                             onClick={(e) => e.stopPropagation()}

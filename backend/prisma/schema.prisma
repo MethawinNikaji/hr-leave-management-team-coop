@@ -141,3 +141,13 @@ model Holiday {
   holidayDate DateTime @unique @map("holiday_date") @db.Date
   holidayName String   @map("holiday_name") @db.VarChar(255)
 }
+
+// 8. Model: AttendancePolicy (นโยบายการเข้างาน)
+model AttendancePolicy {
+  policyId       Int      @id @default(1) // กำหนดให้มี ID เดียวเสมอ
+  startTime      String   @default("09:00")
+  endTime        String   @default("18:00")
+  graceMinutes   Int      @default(5)
+  workingDays    String   @default("mon,tue,wed,thu,fri") // เก็บเป็น String คั่นด้วย comma
+  updatedAt      DateTime @default(now()) @updatedAt
+}

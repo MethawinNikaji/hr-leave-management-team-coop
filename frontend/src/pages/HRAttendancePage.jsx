@@ -69,6 +69,14 @@ export default function HRAttendancePage() {
   const [leaveHistory, setLeaveHistory] = useState([]);
   const [quotas, setQuotas] = useState([]);
   const [lateSummary, setLateSummary] = useState({ lateCount: 0, lateLimit: 5 });
+  const [policy, setPolicy] = useState({ endTime: "18:00" });
+
+  const fetchPolicy = async () => {
+    try {
+      const res = await axios.get("http://localhost:8000/api/admin/attendance-policy", getAuthHeader());
+      if (res.data.policy) setPolicy(res.data.policy);
+    } catch (err) { console.error("Fetch policy error", err); }
+  };
 
   // Leave modal & Preview
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
@@ -153,6 +161,7 @@ export default function HRAttendancePage() {
   }, [leaveForm.startDate, leaveForm.endDate]);
 
   useEffect(() => {
+    fetchPolicy();
     fetchAttendanceData();
     fetchLeaveHistory();
     fetchQuotaData();
@@ -172,12 +181,32 @@ export default function HRAttendancePage() {
   };
 
   const handleCheckOut = async () => {
+    // 1. ตรวจสอบว่ามีข้อมูล policy หรือยัง (ดึงมาจาก DB แล้ว)
+    if (!policy || !policy.endTime) {
+      return alertError("ผิดพลาด", "ไม่สามารถโหลดนโยบายการเข้างานได้");
+    }
+
+    // 2. คำนวณเวลาเลิกงานจาก Policy ในวันนี้
+    const [pEndHour, pEndMin] = policy.endTime.split(':').map(Number);
+    const nowMoment = moment(); // เวลาปัจจุบัน
+    const endMoment = moment().hour(pEndHour).minute(pEndMin).second(0).millisecond(0);
+
+    // 3. 🔥 ตรวจสอบเงื่อนไข: ถ้าเวลาปัจจุบัน "ยังไม่ถึง" เวลาเลิกงาน
+    if (nowMoment.isBefore(endMoment)) {
+      return alertError(
+        "ยังไม่ถึงเวลาเลิกงาน", 
+        `นโยบายกำหนดให้ Check-out ได้ตั้งแต่เวลา ${policy.endTime} น. เป็นต้นไป`
+      );
+    }
+
+    // 4. ถ้าผ่านเงื่อนไข (ถึงเวลาแล้ว) ให้ยิง API ตามปกติ
     try {
-      // เดิม: /checkout -> แก้เป็น: /check-out
       await axios.post("http://localhost:8000/api/timerecord/check-out", {}, getAuthHeader());
       await alertSuccess("สำเร็จ", "Check Out สำเร็จ");
       fetchAttendanceData();
-    } catch (err) { alertError("Check Out ล้มเหลว", err.response?.data?.message); }
+    } catch (err) { 
+      alertError("Check Out ล้มเหลว", err.response?.data?.message || "เกิดข้อผิดพลาด"); 
+    }
   };
 
   const handleCancelLeave = async (requestId) => {
@@ -253,6 +282,8 @@ export default function HRAttendancePage() {
   const formatDate = (s) => s ? new Date(s).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "-";
   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
+  const isBeforeEndTime = moment().isBefore(moment().hour(policy.endTime.split(':')[0]).minute(policy.endTime.split(':')[1]));
+
   return (
     <div className="page-card">
       <header className="worker-header">
@@ -280,8 +311,8 @@ export default function HRAttendancePage() {
         <div className="action-card">
           <h3>Check Out</h3>
           <p className="action-time">{formatTime(checkedOutAt)}</p>
-          <button className="btn-checkout" onClick={handleCheckOut} disabled={!checkedInAt || !!checkedOutAt}>
-            Check Out
+          <button className="btn-checkout" onClick={handleCheckOut} disabled={!checkedInAt || !!checkedOutAt || isBeforeEndTime} style={isBeforeEndTime && checkedInAt && !checkedOutAt ? { opacity: 0.5, cursor: 'not-allowed' } : {}}>
+            {isBeforeEndTime && checkedInAt && !checkedOutAt ? `Wait until ${policy.endTime}` : "Check Out"}
           </button>
         </div>
         <div className="action-card">

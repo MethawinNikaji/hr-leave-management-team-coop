@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import "./HRAttendancePolicy.css";
 import { alertConfirm, alertSuccess, alertError } from "../utils/sweetAlert";
+import axiosClient from "../api/axiosClient";
 
-// ✅ Frontend-only policy settings (until backend policy/shift table & API is ready)
-// We keep it in localStorage so UI can be used immediately.
+// ✅ Frontend-only policy settings
 const STORAGE_KEY = "attendance_policy_v1";
 
 const DAYS = [
@@ -18,12 +18,13 @@ const DAYS = [
 
 const defaultPolicy = {
   startTime: "09:00",
+  endTime: "18:00", // 🔥 เพิ่มฟิลด์เวลาเลิกงานเริ่มต้น
   graceMinutes: 5,
   workingDays: { mon: true, tue: true, wed: true, thu: true, fri: true, sat: false, sun: false },
-  specialHolidays: [], // YYYY-MM-DD strings
-  shiftsEnabled: false, // Phase next
+  specialHolidays: [],
+  shiftsEnabled: false,
   shifts: [
-    { id: "day", name: "Day Shift", startTime: "09:00", graceMinutes: 5 },
+    { id: "day", name: "Day Shift", startTime: "09:00", endTime: "18:00", graceMinutes: 5 },
   ],
 };
 
@@ -48,17 +49,22 @@ export default function HRAttendancePolicy() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    const saved = safeParse(localStorage.getItem(STORAGE_KEY) || "", null);
-    if (saved) {
-      // merge defaults (forward-compatible)
-      setPolicy((prev) => ({
-        ...prev,
-        ...saved,
-        workingDays: { ...prev.workingDays, ...(saved.workingDays || {}) },
-        shifts: Array.isArray(saved.shifts) && saved.shifts.length ? saved.shifts : prev.shifts,
-        specialHolidays: Array.isArray(saved.specialHolidays) ? saved.specialHolidays : prev.specialHolidays,
-      }));
-    }
+    const fetchPolicy = async () => {
+      try {
+        const res = await axiosClient.get("/admin/attendance-policy");
+        const data = res.data.policy;
+        
+        // แปลง "mon,tue" จาก DB เป็น {mon: true, tue: true} เพื่อให้ Checkbox ติ๊กถูก
+        const daysArr = data.workingDays.split(",");
+        const daysObj = {};
+        DAYS.forEach(d => daysObj[d.key] = daysArr.includes(d.key));
+
+        setPolicy({ ...data, workingDays: daysObj });
+      } catch (err) {
+        console.error("Load policy error", err);
+      }
+    };
+    fetchPolicy();
   }, []);
 
   const workingSummary = useMemo(() => {
@@ -76,11 +82,22 @@ export default function HRAttendancePolicy() {
 
     try {
       setSaving(true);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(policy));
-      await alertSuccess("Saved", "Attendance policy saved successfully.");
+      // แปลง {mon: true, tue: true} เป็น "mon,tue" เพื่อเก็บลงฐานข้อมูล
+      const daysStr = Object.keys(policy.workingDays)
+        .filter(key => policy.workingDays[key])
+        .join(",");
+
+      await axiosClient.put("/admin/attendance-policy", {
+        startTime: policy.startTime,
+        endTime: policy.endTime,
+        graceMinutes: policy.graceMinutes,
+        workingDays: daysStr
+      });
+      
+      await alertSuccess("Saved", "Policy updated in database!");
     } catch (e) {
       console.error(e);
-      await alertError("Error", "Cannot save policy.");
+      await alertError("Error", "Failed to save to database.");
     } finally {
       setSaving(false);
     }
@@ -93,9 +110,17 @@ export default function HRAttendancePolicy() {
       "Reset"
     );
     if (!ok) return;
-    setPolicy(defaultPolicy);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultPolicy));
-    await alertSuccess("Reset", "Policy reset to default.");
+    try {
+      const daysStr = "mon,tue,wed,thu,fri"; // ค่าเริ่มต้น
+      await axiosClient.put("/admin/attendance-policy", {
+        ...defaultPolicy,
+        workingDays: daysStr
+      });
+      setPolicy(defaultPolicy);
+      await alertSuccess("Reset", "Policy reset to default in database.");
+    } catch (e) {
+      await alertError("Error", "Cannot reset policy.");
+    }
   };
 
   const addHoliday = () => {
@@ -119,7 +144,7 @@ export default function HRAttendancePolicy() {
         <div>
           <h1 className="hrp-title">Attendance Settings</h1>
           <p className="hrp-sub">
-            Configure work start time, late grace period, working days and special holidays.
+            Configure work start/end time, late grace period, working days and special holidays.
           </p>
         </div>
 
@@ -147,6 +172,18 @@ export default function HRAttendancePolicy() {
               />
             </div>
 
+            {/* 🔥 เพิ่มช่องกรอกเวลาเลิกงาน (End time) */}
+            <div className="hrp-field">
+              <label>End time (Check-out)</label>
+              <input
+                type="time"
+                value={policy.endTime}
+                onChange={(e) => setPolicy((p) => ({ ...p, endTime: e.target.value }))}
+              />
+            </div>
+          </div>
+
+          <div className="hrp-row">
             <div className="hrp-field">
               <label>Late after (grace minutes)</label>
               <input
@@ -156,6 +193,11 @@ export default function HRAttendancePolicy() {
                 value={policy.graceMinutes}
                 onChange={(e) => setPolicy((p) => ({ ...p, graceMinutes: clampInt(e.target.value, 0, 180) }))}
               />
+            </div>
+            {/* ช่องว่างเพื่อให้ layout ดูสมดุล */}
+            <div className="hrp-field" style={{ opacity: 0, pointerEvents: 'none' }}>
+               <label>Space</label>
+               <input type="text" readOnly />
             </div>
           </div>
 

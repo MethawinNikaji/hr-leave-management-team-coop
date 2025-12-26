@@ -53,6 +53,8 @@ Add column carried_over_days
 pnpx prisma@6 migrate dev --name add_carried_over_days
 Add column CrossingYearV3
 pnpx prisma@6 migrate dev --name add_Quota_type_Leave_Quota
+Add Polyci
+pnpx prisma@6 migrate dev --name add_attendance_policy
 ```
 ### To Run Project
 ```bash

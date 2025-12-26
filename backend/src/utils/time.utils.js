@@ -14,26 +14,32 @@ const getCurrentTimeInTimezone = () => {
 };
 
 /**
- * Checks if a given check-in time is considered late (later than 9:00:00).
- */
-const isLateCheckIn = (checkInTime) => {
-    const checkInMoment = moment(checkInTime).tz(TIMEZONE);
-    const standardCheckInMoment = checkInMoment.clone()
-        .set({ hour: 9, minute: 0, second: 0, millisecond: 0 });
-
-    return checkInMoment.isAfter(standardCheckInMoment, 'second');
-};
-
-/**
  * Formats a Date object to YYYY-MM-DD (Date only format for DB storage).
  */
 const formatDateOnly = (date) => {
     return moment(date).tz(TIMEZONE).format('YYYY-MM-DD');
 };
 
+// ฟังก์ชันสำหรับเช็คว่าสายหรือไม่ โดยเทียบกับนโยบายใน DB
+const checkIsLate = (checkInTime, policy) => {
+  const { startTime, graceMinutes } = policy;
+  
+  // แปลงเวลาเข้างานปัจจุบันเป็น Moment เพื่อดึงเฉพาะ ชั่วโมง:นาที
+  const now = moment(checkInTime).tz("Asia/Bangkok");
+  
+  // สร้างเวลาที่เป็นเส้นตาย (Deadline) ของวันนี้จาก Policy
+  const [hour, minute] = startTime.split(":").map(Number);
+  const deadline = moment(checkInTime).tz("Asia/Bangkok")
+    .hour(hour)
+    .minute(minute + graceMinutes) // รวมเวลาผ่อนผันแล้ว
+    .second(0);
+
+  return now.isAfter(deadline);
+};
+
 module.exports = {
     getCurrentTimeInTimezone,
-    isLateCheckIn,
     formatDateOnly,
+    checkIsLate,
     TIMEZONE
 };
