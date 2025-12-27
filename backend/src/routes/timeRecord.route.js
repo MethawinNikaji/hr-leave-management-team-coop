@@ -15,4 +15,7 @@ router.get('/late/summary', authenticateToken, timeRecordController.getMonthlyLa
 router.get('/stats/late-monthly', authenticateToken, timeRecordController.getMonthlyLateStats);
 router.get('/export', authenticateToken, timeRecordController.exportAttendanceCSV);
 
+// Ranking Late
+router.get('/stats/late-top', authenticateToken, timeRecordController.getTopLateEmployees);
+
 module.exports = router;

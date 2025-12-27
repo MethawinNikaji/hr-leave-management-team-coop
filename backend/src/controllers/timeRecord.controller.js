@@ -150,6 +150,39 @@ const exportAttendanceCSV = async (req, res, next) => {
     }
 };
 
+const getTopLateEmployees = async (req, res, next) => {
+    try {
+        const { month } = req.query; // เช่น "2025-12"
+        const startOfMonth = moment(month).startOf('month').toDate();
+        const endOfMonth = moment(month).endOf('month').toDate();
+
+        const lateStats = await prisma.timeRecord.groupBy({
+            by: ['employeeId'],
+            where: {
+                workDate: { gte: startOfMonth, lte: endOfMonth },
+                isLate: true
+            },
+            _count: { isLate: true },
+            orderBy: { _count: { isLate: 'desc' } },
+            take: 5
+        });
+
+        const result = await Promise.all(lateStats.map(async (item) => {
+            const emp = await prisma.employee.findUnique({
+                where: { employeeId: item.employeeId },
+                select: { firstName: true, lastName: true }
+            });
+            return {
+                employeeId: item.employeeId,
+                name: `${emp.firstName} ${emp.lastName}`,
+                lateCount: item._count.isLate
+            };
+        }));
+
+        res.json({ success: true, data: result });
+    } catch (error) { next(error); }
+};
+
 // 👇 บรรทัดนี้สำคัญมากครับ ต้องมีปิดท้ายไฟล์เสมอ ห้ามขาด!
 module.exports = { 
     handleCheckIn, 
@@ -158,5 +191,6 @@ module.exports = {
     getAllTimeRecords, 
     getMonthlyLateSummary, 
     getMonthlyLateStats, 
-    exportAttendanceCSV 
+    exportAttendanceCSV,
+    getTopLateEmployees
 };
