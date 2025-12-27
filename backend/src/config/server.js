@@ -26,7 +26,23 @@ const createApp = () => {
     app.get('/favicon.ico', (req, res) => res.status(204).end());
 
     // 1. Security & CORS
-    app.use(helmet()); 
+    app.use(helmet({
+        crossOriginResourcePolicy: false, // อนุญาตให้ดึงทรัพยากรข้ามแหล่งที่มา (รูปภาพ/PDF)
+        contentSecurityPolicy: {
+            directives: {
+                defaultSrc: ["'self'"],
+                scriptSrc: ["'self'", "'unsafe-inline'"],
+                styleSrc: ["'self'", "'unsafe-inline'"],
+                imgSrc: ["'self'", "data:", "blob:", "http://localhost:8000"],
+                // 🔥 เพิ่มส่วนนี้เพื่อให้ iframe ยอมรับ PDF จาก Backend
+                frameSrc: ["'self'", "http://localhost:8000"], 
+                connectSrc: ["'self'", "http://localhost:8000"],
+                objectSrc: ["'self'", "data:", "http://localhost:8000"], // สำหรับ <object> หรือ <embed>
+                "frame-ancestors": ["'self'", "http://localhost:5173"],
+            },
+        },
+        crossOriginEmbedderPolicy: false,
+    }));
     
     // 🔥 แก้จุดสำคัญ: ต้องระบุ URL Frontend ให้ชัดเจน (ห้ามใช้ *)
     app.use(cors({

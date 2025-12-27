@@ -97,11 +97,26 @@ export default function HRLeaveApprovals() {
   // ✅ Attachment meta (for preview)
   const getAttachmentMeta = (url) => {
     if (!url) return { kind: "none", href: "" };
-    const href = buildFileUrl(url);
-    const lower = href.toLowerCase();
-    if (/(\.png|\.jpg|\.jpeg|\.gif|\.webp)$/i.test(lower)) return { kind: "image", href };
-    if (lower.endsWith(".pdf")) return { kind: "pdf", href };
-    return { kind: "file", href };
+    
+    // สร้าง URL เต็มรูปแบบไปยัง Backend
+    const href = `http://localhost:8000/uploads/${url}`;
+    const lower = url.toLowerCase();
+
+    // ตรวจสอบประเภทไฟล์
+    if (/(\.png|\.jpg|\.jpeg|\.gif|\.webp)$/i.test(lower)) {
+      return { kind: "image", href, label: "🖼️ Image" };
+    }
+    if (lower.endsWith(".pdf")) {
+      return { kind: "pdf", href, label: "📄 PDF" };
+    }
+    if (lower.endsWith(".doc") || lower.endsWith(".docx")) {
+      return { kind: "word", href, label: "📝 Word Document" };
+    }
+    if (lower.endsWith(".zip")) {
+      return { kind: "zip", href, label: "📦 ZIP Archive" };
+    }
+    
+    return { kind: "file", href, label: "📁 File" };
   };
 
   const renderAttachment = (fileName) => {
@@ -375,9 +390,26 @@ export default function HRLeaveApprovals() {
                         {meta.kind === "image" ? (
                           <img src={meta.href} alt="Attachment preview" crossOrigin="anonymous" />
                         ) : meta.kind === "pdf" ? (
-                          <iframe title="PDF preview" src={meta.href} />
+                          /* 🔥 เปลี่ยนมาใช้ <embed> และระบุ type ให้ชัดเจน */
+                          <embed 
+                            src={`${meta.href}#toolbar=0&navpanes=0`} 
+                            type="application/pdf" 
+                            width="100%" 
+                            height="500px" 
+                            style={{ borderRadius: '8px' }}
+                          />
                         ) : (
-                          <div className="hrla-preview-empty">Preview not available for this file type.</div>
+                          /* สำหรับ Word, ZIP แสดงเป็น Icon ตามเดิม */
+                          <div className="hrla-preview-empty" style={{ flexDirection: 'column', gap: '10px' }}>
+                            <div style={{ fontSize: '48px' }}>
+                              {meta.kind === "word" ? "📝" : meta.kind === "zip" ? "📦" : "📁"}
+                            </div>
+                            <div style={{ fontWeight: 'bold' }}>ไฟล์ประเภท {meta.kind.toUpperCase()}</div>
+                            <div style={{ fontSize: '13px', color: '#6b7280', textAlign: 'center' }}>
+                              เบราว์เซอร์ไม่รองรับการแสดงตัวอย่างไฟล์ประเภทนี้ <br/> 
+                              กรุณากดปุ่ม <b>Download</b> หรือ <b>Open</b> ด้านบน
+                            </div>
+                          </div>
                         )}
                       </div>
                     </>
