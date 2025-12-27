@@ -14,7 +14,7 @@ exports.getMyNotifications = async (req, res, next) => {
             include: {
                 // Join ไปเอาข้อมูลใบลามาด้วย (ถ้ามี) เผื่อจะแสดงรายละเอียดเพิ่ม
                 relatedRequest: {
-                    select: { status: true, startDate: true, endDate: true, leaveType: true }
+                    select: { status: true, startDate: true, endDate: true, leaveType: true, attachmentUrl: true, reason: true }
                 }
             }
         });

@@ -12,6 +12,7 @@ import {
 import "./WorkerNotifications.css";
 import Pagination from "../components/Pagination";
 import { alertConfirm, alertError, alertSuccess, alertInfo } from "../utils/sweetAlert";
+import QuickActionModal from "../components/QuickActionModal";
 
 const api = axios.create({ baseURL: "http://localhost:8000" });
 const getAuthHeader = () => ({
@@ -27,6 +28,33 @@ export default function HRNotifications() {
   // Pagination
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState(null);
+
+  const handleNotiClick = (noti) => {
+    if (!noti.isRead) markAsRead(noti.notificationId);
+
+    if (noti.relatedRequestId && noti.relatedRequest) {
+      setSelectedRequest({
+        requestId: noti.relatedRequestId,
+        employeeName: noti.notificationType === "NewRequest" 
+          ? (noti.message.split('จากคุณ ')[1]?.split(' (')[0] || "พนักงาน")
+          : "คำขอของคุณ", 
+        leaveType: noti.relatedRequest.leaveType?.typeName || "ไม่ระบุประเภท",
+        startDate: noti.relatedRequest.startDate,
+        endDate: noti.relatedRequest.endDate,
+        reason: noti.relatedRequest?.reason || "ไม่มีเหตุผลระบุ",
+        status: noti.relatedRequest.status,
+        // 🔥 เพิ่มบรรทัดนี้ เพื่อส่งชื่อไฟล์แนบไปที่ Modal
+        attachmentUrl: noti.relatedRequest.attachmentUrl, 
+        isReadOnly: noti.relatedRequest.status !== "Pending" 
+      });
+      setIsModalOpen(true);
+    } else {
+      alertInfo("รายละเอียด", noti.message);
+    }
+  };
 
   const setSidebarUnreadZero = () => {
     localStorage.setItem("hr_unread_notifications", "0");
@@ -198,7 +226,7 @@ export default function HRNotifications() {
             <div
               key={n.notificationId}
               className={`wn-item ${getStatusClass(n.notificationType)} ${n.isRead ? "read" : "unread"}`}
-              onClick={() => !n.isRead && markAsRead(n.notificationId)}
+              onClick={() => handleNotiClick(n)}
               role="button"
               tabIndex={0}
             >
@@ -253,6 +281,13 @@ export default function HRNotifications() {
           />
         </div>
       )}
+
+      <QuickActionModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        requestData={selectedRequest}
+        onActionSuccess={fetchNotifications} 
+      />
     </div>
   );
 }
