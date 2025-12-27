@@ -21,4 +21,7 @@ router.get('/stats/late-top', authenticateToken, timeRecordController.getTopLate
 // Daily Details Functions
 router.get('/daily-detail', authenticateToken, timeRecordController.getDailyDetail);
 
+// Monthly select Reports
+router.get('/report/performance', authenticateToken, timeRecordController.getEmployeePerformanceReport);
+
 module.exports = router;

@@ -242,6 +242,62 @@ const getDailyDetail = async (req, res, next) => {
     }
 };
 
+const getEmployeePerformanceReport = async (req, res, next) => {
+    try {
+        const { startDate, endDate } = req.query;
+        const start = moment(startDate).startOf('day').toDate();
+        const end = moment(endDate).endOf('day').toDate();
+
+        // 1. ดึงพนักงานทุกคน (หรือเฉพาะ isActive: true)
+        const employees = await prisma.employee.findMany({
+            where: { isActive: true },
+            select: { employeeId: true, firstName: true, lastName: true, role: true }
+        });
+
+        // 2. ดึงข้อมูล Attendance และ Leave ทั้งหมดในช่วงวันที่เลือกมาประมวลผล
+        const [allAttendance, allLeaves] = await Promise.all([
+            prisma.timeRecord.findMany({
+                where: { workDate: { gte: start, lte: end } }
+            }),
+            prisma.leaveRequest.findMany({
+                where: {
+                    status: 'Approved',
+                    startDate: { lte: end },
+                    endDate: { gte: start }
+                },
+                include: { leaveType: true }
+            })
+        ]);
+
+        // 3. คำนวณสถิติรายบุคคล
+        const report = employees.map(emp => {
+            const myAttendance = allAttendance.filter(a => a.employeeId === emp.employeeId);
+            const myLeaves = allLeaves.filter(l => l.employeeId === emp.employeeId);
+
+            const presentCount = myAttendance.length;
+            const lateCount = myAttendance.filter(a => a.isLate).length;
+            
+            // นับจำนวนวันลาจริง (ใช้ Logic หักวันหยุดจาก Service ถ้าต้องการความเป๊ะ)
+            let totalLeaveDays = 0;
+            myLeaves.forEach(l => {
+                totalLeaveDays += parseFloat(l.totalDaysRequested);
+            });
+
+            return {
+                employeeId: emp.employeeId,
+                name: `${emp.firstName} ${emp.lastName}`,
+                role: emp.role,
+                presentCount,
+                lateCount,
+                leaveCount: totalLeaveDays,
+                lateRate: presentCount > 0 ? Math.round((lateCount / presentCount) * 100) : 0
+            };
+        });
+
+        res.status(200).json({ success: true, data: report });
+    } catch (error) { next(error); }
+};
+
 // 👇 บรรทัดนี้สำคัญมากครับ ต้องมีปิดท้ายไฟล์เสมอ ห้ามขาด!
 module.exports = { 
     handleCheckIn, 
@@ -252,5 +308,6 @@ module.exports = {
     getMonthlyLateStats, 
     exportAttendanceCSV,
     getTopLateEmployees,
-    getDailyDetail
+    getDailyDetail,
+    getEmployeePerformanceReport
 };

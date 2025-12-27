@@ -80,6 +80,9 @@ export default function HRDashboard() {
   const [dailyModalOpen, setDailyModalOpen] = useState(false);
   const [dailyData, setDailyData] = useState(null);
 
+  // Reports
+  const [employeeReport, setEmployeeReport] = useState([]);
+
   /* ===== API Calls ===== */
 
   // 1. ดึงข้อมูลการลาล่วงหน้าเพื่อแสดงบนปฏิทิน
@@ -154,6 +157,8 @@ export default function HRDashboard() {
       const month = moment(rangeStart).format("YYYY-MM");
       const top = await axiosClient.get(`/timerecord/stats/late-top?month=${month}`).catch(() => null);
       setTopLate(top?.data?.data || []);
+      const perfRes = await axiosClient.get(`/timerecord/report/performance?startDate=${rangeStart}&endDate=${rangeEnd}`);
+      setEmployeeReport(perfRes.data.data);
     } catch (err) { alertError("Error", "ไม่สามารถดึงรายงานได้");
     } finally { setLoading(true); setLoading(false); }
   };
@@ -392,6 +397,43 @@ export default function HRDashboard() {
               <Card title="Total" value={reportSummary.total} tone="gray" />
               <Card title="Late Rate" value={`${reportSummary.lateRate}%`} tone="amber" />
            </div>
+           <div className="table-wrap" style={{ marginTop: 20 }}>
+              <div style={{ padding: "12px", fontWeight: "bold", borderBottom: "1px solid #eee" }}>
+                ตารางสรุปผลงานพนักงานรายบุคคล
+              </div>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>พนักงาน</th>
+                    <th style={{ textAlign: "center" }}>มาทำงาน (วัน)</th>
+                    <th style={{ textAlign: "center" }}>มาสาย (ครั้ง)</th>
+                    <th style={{ textAlign: "center" }}>ลา (วัน)</th>
+                    <th style={{ textAlign: "center" }}>Late Rate</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {employeeReport.length === 0 ? (
+                    <tr><td colSpan="5" className="empty">กรุณากด Run Report เพื่อดูข้อมูล</td></tr>
+                  ) : (
+                    employeeReport.map(emp => (
+                      <tr key={emp.employeeId}>
+                        <td><strong>{emp.name}</strong><br/><small className="text-muted">{emp.role}</small></td>
+                        <td style={{ textAlign: "center" }}>{emp.presentCount}</td>
+                        <td style={{ textAlign: "center" }}>
+                            <span className={emp.lateCount > 0 ? "text-danger" : ""}>{emp.lateCount}</span>
+                        </td>
+                        <td style={{ textAlign: "center" }}>{emp.leaveCount}</td>
+                        <td style={{ textAlign: "center" }}>
+                            <span className={`badge ${emp.lateRate > 20 ? "badge-late" : "badge-ok"}`}>
+                                {emp.lateRate}%
+                            </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
         </section>
       )}
       <DailyDetailModal 
