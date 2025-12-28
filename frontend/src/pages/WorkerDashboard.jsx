@@ -391,8 +391,8 @@ export default function WorkerDashboard() {
 
       {/* Leave Modal */}
       {isLeaveModalOpen && (
-        <div className="modal-backdrop">
-          <div className="modal">
+        <div className="modal-backdrop" onClick={() => setIsLeaveModalOpen(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-head-row">
               <h3>Create Leave Request</h3>
               <button className="close-x" onClick={() => setIsLeaveModalOpen(false)}>

@@ -1,80 +1,82 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import {
-  FiBell,
-  FiTrash2,
-  FiCheckCircle,
-  FiRefreshCw,
-  FiAlertCircle,
-  FiCheck,
-  FiInfo,
+  FiBell, FiTrash2, FiCheckCircle, FiRefreshCw,
+  FiAlertCircle, FiCheck, FiInfo,
 } from "react-icons/fi";
 import "./WorkerNotifications.css";
 import Pagination from "../components/Pagination";
 import { alertConfirm, alertError, alertSuccess } from "../utils/sweetAlert";
+import QuickActionModal from "../components/QuickActionModal"; //
 
 const api = axios.create({ baseURL: "http://localhost:8000" });
 const getAuthHeader = () => ({
   headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
 });
 
-// ✅ แยก key ของ Worker
 const LAST_SEEN_KEY = "worker_notifications_last_seen";
 const SIDEBAR_UNREAD_KEY = "worker_unread_notifications";
-const stripIdFromMessage = (msg = "") =>
-  String(msg).replace(/\s*\(ID:\s*\d+\)\s*/gi, " ").replace(/\s{2,}/g, " ").trim();
-
 
 export default function WorkerNotifications() {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  // Pagination
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  
+  // Modal States
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState(null);
 
   const setSidebarUnreadZero = () => {
     localStorage.setItem(SIDEBAR_UNREAD_KEY, "0");
-    // ให้ sidebar ที่ฟัง storage รีเฟรชทันที
     window.dispatchEvent(new Event("storage"));
   };
 
   const fetchNotifications = async () => {
     try {
       setLoading(true);
-
-      const lastSeenRaw = localStorage.getItem(LAST_SEEN_KEY);
-      const lastSeen = lastSeenRaw ? Number(lastSeenRaw) : 0;
-
-      // ✅ endpoint เหมือน HR
+      const lastSeen = Number(localStorage.getItem(LAST_SEEN_KEY)) || 0;
       const res = await api.get("/api/notifications/my", getAuthHeader());
       const fetched = res.data.notifications || [];
 
-      const mapped = fetched.map((n) => {
-        const createdMs = new Date(n.createdAt).getTime();
-        return { ...n, _isNewSinceLastSeen: createdMs > lastSeen };
-      });
+      const mapped = fetched.map((n) => ({
+        ...n,
+        _isNewSinceLastSeen: new Date(n.createdAt).getTime() > lastSeen,
+      }));
 
       setNotifications(mapped);
-
-      // ✅ เข้าหน้าแล้วเลขที่ sidebar หายทันที
       setSidebarUnreadZero();
-
-      // ✅ บันทึก lastSeen เพื่อให้ NEW แสดงแค่ครั้งแรก
       localStorage.setItem(LAST_SEEN_KEY, String(Date.now()));
     } catch (err) {
-      console.error("Failed to fetch Worker notifications:", err);
-      await alertError("เกิดข้อผิดพลาด", "โหลดการแจ้งเตือนไม่สำเร็จ");
+      alertError("Error", "Failed to load notifications.");
     } finally {
       setLoading(false);
     }
   };
 
+  // Handle clicking a notification
+  const handleNotiClick = (noti) => {
+    if (!noti.isRead) markAsRead(noti.notificationId);
+
+    if (noti.relatedRequestId && noti.relatedRequest) {
+      setSelectedRequest({
+        requestId: noti.relatedRequestId,
+        employeeName: "Your Request",
+        leaveType: noti.relatedRequest.leaveType?.typeName || "Unknown",
+        startDate: noti.relatedRequest.startDate,
+        endDate: noti.relatedRequest.endDate,
+        reason: noti.relatedRequest?.reason || "No reason provided.",
+        status: noti.relatedRequest.status,
+        attachmentUrl: noti.relatedRequest.attachmentUrl,
+        isReadOnly: true // Always read-only for workers
+      });
+      setIsModalOpen(true);
+    }
+  };
+
   useEffect(() => {
-    // ✅ เคลียร์เลขทันทีตั้งแต่ mount (กันกรณี fetch ช้า)
     setSidebarUnreadZero();
     fetchNotifications();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const total = notifications.length;
@@ -87,173 +89,77 @@ export default function WorkerNotifications() {
   const markAsRead = async (id) => {
     try {
       await api.put(`/api/notifications/${id}/read`, {}, getAuthHeader());
-      setNotifications((prev) =>
-        prev.map((n) => (n.notificationId === id ? { ...n, isRead: true } : n))
-      );
-    } catch (err) {
-      console.error("Mark read failed:", err);
-    }
+      setNotifications(prev => prev.map(n => n.notificationId === id ? { ...n, isRead: true } : n));
+    } catch (err) { console.error(err); }
   };
 
   const markAllAsRead = async () => {
     try {
       await api.put("/api/notifications/mark-all-read", {}, getAuthHeader());
-      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-      await alertSuccess("สำเร็จ", "อ่านการแจ้งเตือนทั้งหมดเรียบร้อยแล้ว");
-
-      // ✅ กันเลขเด้งกลับ
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+      await alertSuccess("Success", "All notifications marked as read.");
       setSidebarUnreadZero();
-    } catch (err) {
-      console.error("Mark all read failed:", err);
-    }
+    } catch (err) { console.error(err); }
   };
 
   const deleteNoti = async (id) => {
-    if (!(await alertConfirm("ยืนยันการลบ", "คุณต้องการลบการแจ้งเตือนนี้ใช่หรือไม่?", "ลบ")))
-      return;
-
+    if (!(await alertConfirm("Delete Notification", "Are you sure you want to delete this?", "Delete"))) return;
     try {
       await api.delete(`/api/notifications/${id}`, getAuthHeader());
-      setNotifications((prev) => prev.filter((n) => n.notificationId !== id));
-      if (pagedNotifications.length === 1 && page > 1) setPage(page - 1);
-    } catch (err) {
-      console.error("Delete failed:", err);
-      await alertError("ไม่สามารถลบได้", "ไม่สามารถลบการแจ้งเตือนได้");
-    }
+      setNotifications(prev => prev.filter(n => n.notificationId !== id));
+    } catch (err) { alertError("Error", "Failed to delete notification."); }
   };
 
   const handleClearAll = async () => {
-    if (
-      !(await alertConfirm(
-        "ยืนยันการลบทั้งหมด",
-        "คุณต้องการลบการแจ้งเตือนทั้งหมดใช่หรือไม่?",
-        "ลบทั้งหมด"
-      ))
-    )
-      return;
-
+    if (!(await alertConfirm("Clear All", "Delete all notifications?", "Clear All"))) return;
     try {
-      const res = await api.delete("/api/notifications/clear-all", getAuthHeader());
-      if (res.data.success) {
-        setNotifications([]);
-        setPage(1);
-        await alertSuccess("สำเร็จ", "ล้างการแจ้งเตือนทั้งหมดเรียบร้อยแล้ว");
-        setSidebarUnreadZero();
-      }
-    } catch (err) {
-      console.error("Clear all failed:", err);
-      await alertError("เกิดข้อผิดพลาด", "เกิดข้อผิดพลาดในการล้างข้อมูล");
-    }
-  };
-
-  const getNotificationIcon = (type) => {
-    switch (type) {
-      case "NewRequest":
-        return <FiAlertCircle className="noti-ico danger" />;
-      case "Approved":
-        return <FiCheckCircle className="noti-ico ok" />;
-      default:
-        return <FiInfo className="noti-ico info" />;
-    }
-  };
-
-  const getStatusClass = (type) => {
-    if (type === "NewRequest") return "danger";
-    if (type === "Approved") return "ok";
-    return "info";
+      await api.delete("/api/notifications/clear-all", getAuthHeader());
+      setNotifications([]);
+      await alertSuccess("Success", "All notifications cleared.");
+      setSidebarUnreadZero();
+    } catch (err) { alertError("Error", "Failed to clear notifications."); }
   };
 
   const getTitle = (type) => {
-    if (type === "NewRequest") return "คำขอลาใหม่";
-    if (type === "Approved") return "คำขอลาอนุมัติแล้ว";
-    return "ระบบแจ้งเตือน";
+    if (type === "NewRequest") return "New Request Submitted";
+    if (type === "Approved") return "Leave Request Approved";
+    if (type === "Rejected") return "Leave Request Rejected";
+    return "System Notification";
   };
 
   return (
     <div className="page-card wn">
       <div className="wn-head">
         <div>
-          <h2 className="wn-title">Worker Notifications</h2>
-          <p className="wn-sub">รายการแจ้งเตือนของคุณ (หน้า {page})</p>
+          <h2 className="wn-title">Notifications</h2>
+          <p className="wn-sub">Your personal activity and leave updates (Page {page})</p>
         </div>
 
         <div className="wn-actions">
-          <button className="emp-btn emp-btn-outline small" onClick={fetchNotifications} title="Refresh">
-            <FiRefreshCw className={loading ? "spin" : ""} />
-          </button>
-
-          <button
-            className="emp-btn emp-btn-outline small"
-            onClick={handleClearAll}
-            disabled={notifications.length === 0}
-          >
-            <FiTrash2 /> Clear All
-          </button>
-
-          <button
-            className="emp-btn emp-btn-primary small"
-            onClick={markAllAsRead}
-            disabled={notifications.length === 0}
-          >
-            <FiCheck /> Mark all read
-          </button>
+          <button className="emp-btn emp-btn-outline small" onClick={fetchNotifications}><FiRefreshCw className={loading ? "spin" : ""} /></button>
+          <button className="emp-btn emp-btn-outline small" onClick={handleClearAll} disabled={notifications.length === 0}><FiTrash2 /> Clear All</button>
+          <button className="emp-btn emp-btn-primary small" onClick={markAllAsRead} disabled={notifications.length === 0}><FiCheck /> Mark all read</button>
         </div>
       </div>
 
       <div className="wn-list">
         {loading ? (
-          <div className="wn-empty">
-            <FiRefreshCw className="spin" size={24} />
-            <p>กำลังโหลดข้อมูลแจ้งเตือน...</p>
-          </div>
+          <div className="wn-empty"><FiRefreshCw className="spin" size={24} /><p>Loading...</p></div>
         ) : pagedNotifications.length === 0 ? (
-          <div className="wn-empty">
-            <FiBell style={{ opacity: 0.5 }} size={32} />
-            <p>ไม่มีการแจ้งเตือนสำหรับคุณในขณะนี้</p>
-          </div>
+          <div className="wn-empty"><FiBell style={{ opacity: 0.5 }} size={32} /><p>No notifications found.</p></div>
         ) : (
           pagedNotifications.map((n) => (
-            <div
-              key={n.notificationId}
-              className={`wn-item ${getStatusClass(n.notificationType)} ${n.isRead ? "read" : "unread"}`}
-              onClick={() => !n.isRead && markAsRead(n.notificationId)}
-              role="button"
-              tabIndex={0}
-            >
+            <div key={n.notificationId} className={`wn-item ${n.notificationType === "Approved" ? "ok" : n.notificationType === "Rejected" ? "danger" : "info"} ${n.isRead ? "read" : "unread"}`} onClick={() => handleNotiClick(n)}>
               <div className="wn-row">
-                <div className="noti-icon-box">{getNotificationIcon(n.notificationType)}</div>
-
-                <div className="wn-body">
-                  <div className="wn-item-title">
-                    {getTitle(n.notificationType)}
-                    {n._isNewSinceLastSeen && <span className="badge-new">NEW</span>}
-                  </div>
-
-                  <div className="wn-item-msg">{stripIdFromMessage(n.message)}</div>
-
-
-                  <div className="wn-item-time">
-                    {new Date(n.createdAt).toLocaleString("en-GB", {
-                      day: "2-digit",
-                      month: "short",
-                      year: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </div>
+                <div className="noti-icon-box">
+                  {n.notificationType === "Approved" ? <FiCheckCircle className="noti-ico ok" /> : n.notificationType === "Rejected" ? <FiAlertCircle className="noti-ico danger" /> : <FiInfo className="noti-ico info" />}
                 </div>
-
-                <button
-                  className="delete-btn-icon"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteNoti(n.notificationId);
-                  }}
-                  title="Delete"
-                  aria-label="Delete notification"
-                >
-                  <FiTrash2 size={16} />
-                </button>
+                <div className="wn-body">
+                  <div className="wn-item-title">{getTitle(n.notificationType)} {n._isNewSinceLastSeen && <span className="badge-new">NEW</span>}</div>
+                  <div className="wn-item-msg">{n.message}</div>
+                  <div className="wn-item-time">{new Date(n.createdAt).toLocaleString("en-GB")}</div>
+                </div>
+                <button className="delete-btn-icon" onClick={(e) => { e.stopPropagation(); deleteNoti(n.notificationId); }}><FiTrash2 size={16} /></button>
               </div>
             </div>
           ))
@@ -262,15 +168,16 @@ export default function WorkerNotifications() {
 
       {!loading && notifications.length > 0 && (
         <div className="wn-footer">
-          <Pagination
-            total={total}
-            page={page}
-            pageSize={pageSize}
-            onPageChange={setPage}
-            onPageSizeChange={setPageSize}
-          />
+          <Pagination total={total} page={page} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={setPageSize} />
         </div>
       )}
+
+      {/* Leave Detail Modal for Worker */}
+      <QuickActionModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        requestData={selectedRequest}
+      />
     </div>
   );
 }

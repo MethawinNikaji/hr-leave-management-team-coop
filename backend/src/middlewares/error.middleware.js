@@ -15,7 +15,7 @@ const errorMiddleware = (err, req, res, next) => {
         console.error('--------------------------------------');
     }
 
-    let statusCode = 500;
+    let statusCode = err.statusCode || 500;
     let message = 'Internal Server Error. Please try again later.';
 
     // 1. จัดการ CustomError
@@ -32,6 +32,16 @@ const errorMiddleware = (err, req, res, next) => {
             message = `Duplicate entry for ${field}. This record already exists.`;
         }
         // เพิ่มการจัดการ Prisma Error อื่นๆ ตามความจำเป็น
+    }
+
+    // 🔥 3. เพิ่มส่วนนี้: จัดการ Standard Error อื่นๆ (เช่น Error จาก Multer)
+    else if (err.message) {
+        // ถ้า err มี message ติดมา ให้ใช้ message นั้น (เช่น ข้อความภาษาไทยจาก fileFilter)
+        message = err.message;
+        // ถ้าเป็น Error จาก Multer มักจะเป็นเรื่องไฟล์ไม่ถูกต้อง ควรใช้ 400
+        if (err.name === 'MulterError' || statusCode === 500) {
+            statusCode = 400; 
+        }
     }
 
     // ส่ง Response กลับไปยัง Client

@@ -1,0 +1,229 @@
+/* QuickActionModal.css */
+.qa-modal {
+    background: #ffffff;
+    width: 100%;
+    max-width: 420px;
+    border-radius: 20px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.qa-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.qa-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.qa-icon-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: #f8fafc;
+    border-radius: 8px;
+    color: #64748b;
+}
+
+.qa-close-btn {
+    background: #f8fafc;
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #94a3b8;
+    transition: all 0.2s;
+}
+
+.qa-close-btn:hover {
+    background: #fee2e2;
+    color: #ef4444;
+}
+
+.qa-modal-body {
+    padding: 24px;
+}
+
+.qa-status-wrapper {
+    margin-bottom: 24px;
+    display: flex;
+    justify-content: center;
+}
+
+.qa-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 16px;
+    border-radius: 99px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.status-approved { background: #ecfdf5; color: #10b981; border: 1px solid #10b98133; }
+.status-rejected { background: #fef2f2; color: #ef4444; border: 1px solid #ef444433; }
+.status-pending { background: #fffbeb; color: #f59e0b; border: 1px solid #f59e0b33; }
+
+.qa-info-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.qa-info-row {
+    display: flex;
+    align-items: center;
+    font-size: 0.95rem;
+}
+
+.qa-row-icon {
+    color: #94a3b8;
+    margin-right: 12px;
+    font-size: 1rem;
+}
+
+.qa-label {
+    color: #64748b;
+    font-weight: 500;
+    width: 85px;
+}
+
+.qa-value {
+    color: #1e293b;
+    font-weight: 600;
+}
+
+.qa-reason-box {
+    margin-top: 20px;
+    padding: 16px;
+    background: #f8fafc;
+    border: 1px solid #f1f5f9;
+    border-radius: 12px;
+}
+
+.qa-reason-label {
+    display: block;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #94a3b8;
+    margin-bottom: 8px;
+    font-weight: 700;
+}
+
+.qa-reason-text {
+    margin: 0;
+    color: #334155;
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
+.qa-attachment-link {
+    margin-top: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    background: #f0f9ff;
+    color: #0284c7;
+    border: 1px dashed #0284c7;
+    border-radius: 12px;
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 600;
+    transition: background 0.2s;
+}
+
+.qa-attachment-link:hover {
+    background: #e0f2fe;
+}
+
+.qa-attachment-text {
+    flex: 1;
+}
+
+.qa-modal-footer {
+    padding: 0 24px 24px;
+}
+
+.qa-btn-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.qa-btn {
+    height: 46px;
+    border-radius: 12px;
+    border: none;
+    font-weight: 700;
+    font-size: 0.95rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s;
+}
+
+.qa-btn.full { width: 100%; }
+
+.qa-btn-outline {
+    background: #ffffff;
+    border: 1.5px solid #e2e8f0;
+    color: #64748b;
+}
+
+.qa-btn-outline:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+}
+
+.qa-btn-danger {
+    background: #ffffff;
+    border: 1.5px solid #fee2e2;
+    color: #ef4444;
+}
+
+.qa-btn-danger:hover {
+    background: #fef2f2;
+    transform: translateY(-1px);
+}
+
+.qa-btn-primary {
+    background: #10b981;
+    color: white;
+}
+
+.qa-btn-primary:hover {
+    background: #059669;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+    transform: translateY(-1px);
+}
+
+.qa-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none !important;
+}

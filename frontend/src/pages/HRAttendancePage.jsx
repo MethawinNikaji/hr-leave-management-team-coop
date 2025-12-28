@@ -403,9 +403,18 @@ export default function HRAttendancePage() {
 
       {/* 🔥 Modal: Request Leave (ปรับให้เหมือน Worker) */}
       {isLeaveModalOpen && (
-        <div className="modal-backdrop">
-          <div className="modal">
-            <h3>Request Leave</h3>
+        <div className="modal-backdrop" onClick={() => setIsLeaveModalOpen(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+              <h3 style={{ margin: 0 }}>Request Leave</h3>
+              <button 
+                type="button"
+                onClick={() => setIsLeaveModalOpen(false)} 
+                style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#666' }}
+              >
+                &times;
+              </button>
+            </div>
             <form onSubmit={handleSubmitLeave} className="leave-form">
               <label>Leave Type</label>
               <select name="leaveTypeId" value={leaveForm.leaveTypeId} onChange={handleLeaveChange} required>
