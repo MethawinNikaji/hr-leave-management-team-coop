@@ -171,7 +171,7 @@ export default function HRDashboard() {
     const newStart = e.target.value;
     setRangeStart(newStart);
     
-    // Auto End of Month: เมื่อเลือกวันเริ่ม ให้เซตวันจบเป็นสิ้นเดือนนั้น
+    // เมื่อเลือกวันเริ่ม ให้หาปฏิทินวันสุดท้ายของเดือนนั้นอัตโนมัติ
     const endOfMonth = moment(newStart).endOf('month').format("YYYY-MM-DD");
     setRangeEnd(endOfMonth);
   };
@@ -326,9 +326,24 @@ export default function HRDashboard() {
         <section className="dashboard-section">
            <div className="section-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "end" }}>
               <div><h3>HR Reports</h3><p>วิเคราะห์ผลงานและสถิติการเข้างานรายบุคคล</p></div>
-              <div style={{ display: "flex", gap: 10 }}>
-                <input type="date" value={rangeStart} onChange={e => setRangeStart(e.target.value)} />
-                <input type="date" value={rangeEnd} onChange={e => setRangeEnd(e.target.value)} />
+              <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <label style={{ fontSize: '12px', color: '#666' }}>เริ่ม:</label>
+                  <input 
+                    type="date" 
+                    value={rangeStart} 
+                    max={todayStr} // ล็อคไม่ให้เลือกวันในอนาคต
+                    onChange={handleStartDateChange} 
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <label style={{ fontSize: '12px', color: '#666' }}>สิ้นสุด:</label>
+                  <input 
+                    type="date" 
+                    value={rangeEnd} 
+                    onChange={e => setRangeEnd(e.target.value)} 
+                  />
+                </div>
                 <button className="btn primary small" onClick={fetchReport} disabled={loading}>Run Report</button>
                 <button className="btn outline small" onClick={handleExportPerformance} disabled={employeeReport.length === 0}>
                   <FiSave /> Export CSV

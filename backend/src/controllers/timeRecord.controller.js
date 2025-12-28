@@ -249,24 +249,33 @@ const getEmployeePerformanceReport = async (req, res, next) => {
         const end = moment(endDate).tz("Asia/Bangkok").endOf('day');
         const today = moment().tz("Asia/Bangkok").startOf('day');
 
-        // 1. ดึงพนักงานทุกคน
+        // 1. ดึงเฉพาะพนักงานที่ "เริ่มงานแล้ว" และ "ยังไม่ลาออก" ในช่วงที่เลือก
         const employees = await prisma.employee.findMany({
-            where: { isActive: true },
-            select: { employeeId: true, firstName: true, lastName: true, role: true }
+            where: {
+                joiningDate: { lte: end.toDate() }, 
+                OR: [
+                    { resignationDate: null }, 
+                    { resignationDate: { gte: start.toDate() } }
+                ]
+            },
+            select: { employeeId: true, firstName: true, lastName: true, role: true, joiningDate: true }
         });
 
-        // 2. ดึงข้อมูลวันทำงานจริง (จันทร์-ศุกร์) ในช่วงวันที่เลือก
-        let workDays = [];
+        // 2. กำหนดจุดสิ้นสุดการคำนวณวันทำงาน (ไม่ให้นับเกินวันปัจจุบัน)
+        const effectiveEnd = end.isAfter(today) ? today : end;
+
+        // 3. สร้างรายการวันทำงานมาตรฐาน (จันทร์-ศุกร์) ในช่วงที่เลือก
+        let workDaysList = [];
         let curr = start.clone();
-        while (curr.isSameOrBefore(end, 'day')) {
+        while (curr.isSameOrBefore(effectiveEnd, 'day')) {
             const dayOfWeek = curr.day();
-            if (dayOfWeek !== 0 && dayOfWeek !== 6 && curr.isSameOrBefore(today, 'day')) {
-                workDays.push(curr.format('YYYY-MM-DD'));
+            if (dayOfWeek !== 0 && dayOfWeek !== 6) { // ไม่นับเสาร์-อาทิตย์
+                workDaysList.push(curr.format('YYYY-MM-DD'));
             }
             curr.add(1, 'day');
         }
 
-        // 3. ดึง Attendance และ Approved Leaves
+        // 4. ดึงข้อมูล Attendance และ Leaves
         const [allAttendance, allLeaves] = await Promise.all([
             prisma.timeRecord.findMany({
                 where: { workDate: { gte: start.toDate(), lte: end.toDate() } }
@@ -281,7 +290,7 @@ const getEmployeePerformanceReport = async (req, res, next) => {
             })
         ]);
 
-        // --- 🆕 เพิ่มส่วนที่หายไป: สรุปประเภทการลาสำหรับ Pie Chart ---
+        // 5. สรุปประเภทการลาสำหรับ Pie Chart (ดึง Color จาก DB)
         const leaveSummaryByType = {};
         allLeaves.forEach(l => {
             const typeName = l.leaveType.typeName;
@@ -294,10 +303,7 @@ const getEmployeePerformanceReport = async (req, res, next) => {
             leaveSummaryByType[typeName].value += days;
         });
 
-        const leaveChartData = Object.values(leaveSummaryByType);
-        // -------------------------------------------------------
-
-        // 4. คำนวณสถิติรายบุคคล (รวม Absent)
+        // 6. คำนวณสถิติรายบุคคล
         const report = employees.map(emp => {
             const myAtts = allAttendance.filter(a => a.employeeId === emp.employeeId);
             const myLeaves = allLeaves.filter(l => l.employeeId === emp.employeeId);
@@ -306,16 +312,21 @@ const getEmployeePerformanceReport = async (req, res, next) => {
             const lateCount = myAtts.filter(a => a.isLate).length;
             const leaveCount = myLeaves.reduce((sum, l) => sum + parseFloat(l.totalDaysRequested), 0);
 
-            // คำนวณวันขาดงาน (Absent)
+            // คำนวณวันขาดงาน (Absent) โดยเริ่มนับจากวันเริ่มงาน (joiningDate)
             let absentCount = 0;
-            workDays.forEach(day => {
-                const hasAtt = myAtts.some(a => moment(a.workDate).format('YYYY-MM-DD') === day);
-                const hasLeave = myLeaves.some(l => {
-                    const lStart = moment(l.startDate).format('YYYY-MM-DD');
-                    const lEnd = moment(l.endDate).format('YYYY-MM-DD');
-                    return day >= lStart && day <= lEnd;
-                });
-                if (!hasAtt && !hasLeave) absentCount++;
+            const empJoiningDate = moment(emp.joiningDate).format('YYYY-MM-DD');
+
+            workDaysList.forEach(day => {
+                // ต้องเป็นวันที่ >= วันเริ่มงานของพนักงานคนนั้น
+                if (day >= empJoiningDate) {
+                    const hasAtt = myAtts.some(a => moment(a.workDate).format('YYYY-MM-DD') === day);
+                    const hasLeave = myLeaves.some(l => {
+                        const lStart = moment(l.startDate).format('YYYY-MM-DD');
+                        const lEnd = moment(l.endDate).format('YYYY-MM-DD');
+                        return day >= lStart && day <= lEnd;
+                    });
+                    if (!hasAtt && !hasLeave) absentCount++;
+                }
             });
 
             return {
@@ -330,7 +341,7 @@ const getEmployeePerformanceReport = async (req, res, next) => {
             };
         });
 
-        // 5. คัดเลือกพนักงานดีเด่น
+        // 7. คัดเลือกพนักงานดีเด่น
         const perfectEmployees = report.filter(emp => 
             emp.presentCount > 0 && emp.lateCount === 0 && emp.leaveCount === 0 && emp.absentCount === 0
         );
@@ -339,7 +350,7 @@ const getEmployeePerformanceReport = async (req, res, next) => {
             success: true, 
             data: {
                 individualReport: report,
-                leaveChartData: leaveChartData,
+                leaveChartData: Object.values(leaveSummaryByType),
                 perfectEmployees: perfectEmployees
             } 
         });
