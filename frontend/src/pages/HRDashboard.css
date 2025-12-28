@@ -177,6 +177,31 @@
   border-radius: 12px;
   padding: 24px;
   min-height: 350px; /* ✅ Ensures enough height for graphs */
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 10px 15px -3px rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s ease;
+}
+
+.report-card:hover {
+  transform: translateY(-2px);
+}
+
+.table-header-title {
+  padding: 20px 24px;
+  font-size: 18px;
+  font-weight: 800;
+  color: #0f172a;
+  border-bottom: 1px solid #f1f5f9;
+  background: #fff;
+}
+
+.performance-table-wrapper {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  overflow: hidden;
+  margin-top: 25px;
+  /* เพิ่มเงาให้ตารางแยกออกจากพื้นหลัง */
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 }
 
 .card-title { font-weight: 700; margin-bottom: 20px; color: #1e293b; font-size: 16px; }
