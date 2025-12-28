@@ -245,42 +245,76 @@ const getDailyDetail = async (req, res, next) => {
 const getEmployeePerformanceReport = async (req, res, next) => {
     try {
         const { startDate, endDate } = req.query;
-        const start = moment(startDate).startOf('day').toDate();
-        const end = moment(endDate).endOf('day').toDate();
+        const start = moment(startDate).tz("Asia/Bangkok").startOf('day');
+        const end = moment(endDate).tz("Asia/Bangkok").endOf('day');
 
-        // 1. ดึงพนักงานทุกคน (หรือเฉพาะ isActive: true)
+        // 1. ดึงพนักงานทุกคน
         const employees = await prisma.employee.findMany({
             where: { isActive: true },
             select: { employeeId: true, firstName: true, lastName: true, role: true }
         });
 
-        // 2. ดึงข้อมูล Attendance และ Leave ทั้งหมดในช่วงวันที่เลือกมาประมวลผล
+        // 2. ดึงข้อมูลวันทำงานจริง (จันทร์-ศุกร์) ในช่วงวันที่เลือก
+        let workDays = [];
+        let curr = start.clone();
+        while (curr.isSameOrBefore(end, 'day')) {
+            const dayOfWeek = curr.day();
+            if (dayOfWeek !== 0 && dayOfWeek !== 6) { // ไม่นับเสาร์-อาทิตย์
+                workDays.push(curr.format('YYYY-MM-DD'));
+            }
+            curr.add(1, 'day');
+        }
+
+        // 3. ดึง Attendance และ Approved Leaves
         const [allAttendance, allLeaves] = await Promise.all([
             prisma.timeRecord.findMany({
-                where: { workDate: { gte: start, lte: end } }
+                where: { workDate: { gte: start.toDate(), lte: end.toDate() } }
             }),
             prisma.leaveRequest.findMany({
                 where: {
                     status: 'Approved',
-                    startDate: { lte: end },
-                    endDate: { gte: start }
+                    startDate: { lte: end.toDate() },
+                    endDate: { gte: start.toDate() }
                 },
                 include: { leaveType: true }
             })
         ]);
 
-        // 3. คำนวณสถิติรายบุคคล
+        // --- 🆕 เพิ่มส่วนที่หายไป: สรุปประเภทการลาสำหรับ Pie Chart ---
+        const leaveSummaryByType = {};
+        allLeaves.forEach(l => {
+            const typeName = l.leaveType.typeName;
+            const color = l.leaveType.colorCode || "#3b82f6";
+            const days = parseFloat(l.totalDaysRequested);
+
+            if (!leaveSummaryByType[typeName]) {
+                leaveSummaryByType[typeName] = { name: typeName, value: 0, color: color };
+            }
+            leaveSummaryByType[typeName].value += days;
+        });
+
+        const leaveChartData = Object.values(leaveSummaryByType);
+        // -------------------------------------------------------
+
+        // 4. คำนวณสถิติรายบุคคล (รวม Absent)
         const report = employees.map(emp => {
-            const myAttendance = allAttendance.filter(a => a.employeeId === emp.employeeId);
+            const myAtts = allAttendance.filter(a => a.employeeId === emp.employeeId);
             const myLeaves = allLeaves.filter(l => l.employeeId === emp.employeeId);
 
-            const presentCount = myAttendance.length;
-            const lateCount = myAttendance.filter(a => a.isLate).length;
-            
-            // นับจำนวนวันลาจริง (ใช้ Logic หักวันหยุดจาก Service ถ้าต้องการความเป๊ะ)
-            let totalLeaveDays = 0;
-            myLeaves.forEach(l => {
-                totalLeaveDays += parseFloat(l.totalDaysRequested);
+            const presentCount = myAtts.length;
+            const lateCount = myAtts.filter(a => a.isLate).length;
+            const leaveCount = myLeaves.reduce((sum, l) => sum + parseFloat(l.totalDaysRequested), 0);
+
+            // คำนวณวันขาดงาน (Absent)
+            let absentCount = 0;
+            workDays.forEach(day => {
+                const hasAtt = myAtts.some(a => moment(a.workDate).format('YYYY-MM-DD') === day);
+                const hasLeave = myLeaves.some(l => {
+                    const lStart = moment(l.startDate).format('YYYY-MM-DD');
+                    const lEnd = moment(l.endDate).format('YYYY-MM-DD');
+                    return day >= lStart && day <= lEnd;
+                });
+                if (!hasAtt && !hasLeave) absentCount++;
             });
 
             return {
@@ -289,32 +323,15 @@ const getEmployeePerformanceReport = async (req, res, next) => {
                 role: emp.role,
                 presentCount,
                 lateCount,
-                leaveCount: totalLeaveDays,
+                leaveCount,
+                absentCount,
                 lateRate: presentCount > 0 ? Math.round((lateCount / presentCount) * 100) : 0
             };
         });
 
-        // 4. สรุปประเภทการลา (สำหรับทำกราฟ Pie Chart)
-        const leaveSummaryByType = {};
-        allLeaves.forEach(l => {
-            const typeName = l.leaveType.typeName;
-            const days = parseFloat(l.totalDaysRequested);
-            if (leaveSummaryByType[typeName]) {
-                leaveSummaryByType[typeName] += days;
-            } else {
-                leaveSummaryByType[typeName] = days;
-            }
-        });
-
-        // แปลงเป็น Array เพื่อให้ Frontend ใช้ง่าย
-        const leaveChartData = Object.keys(leaveSummaryByType).map(name => ({
-            name,
-            value: leaveSummaryByType[name]
-        }));
-
-        // 5. คัดเลือกพนักงานดีเด่น (ไม่สาย ไม่ลา และมีวันมาทำงาน > 0)
+        // 5. คัดเลือกพนักงานดีเด่น
         const perfectEmployees = report.filter(emp => 
-            emp.presentCount > 0 && emp.lateCount === 0 && emp.leaveCount === 0
+            emp.presentCount > 0 && emp.lateCount === 0 && emp.leaveCount === 0 && emp.absentCount === 0
         );
 
         res.status(200).json({ 
@@ -325,7 +342,10 @@ const getEmployeePerformanceReport = async (req, res, next) => {
                 perfectEmployees: perfectEmployees
             } 
         });
-    } catch (error) { next(error); }
+    } catch (error) { 
+        console.error("Report Error:", error);
+        next(error); 
+    }
 };
 
 // 👇 บรรทัดนี้สำคัญมากครับ ต้องมีปิดท้ายไฟล์เสมอ ห้ามขาด!

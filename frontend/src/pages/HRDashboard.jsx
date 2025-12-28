@@ -1,15 +1,10 @@
 import React, { useMemo, useState, useEffect } from "react";
 import moment from "moment";
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell
 } from "recharts";
+import { FiPlus, FiSave, FiRefreshCw, FiCalendar } from "react-icons/fi";
 import "./HRDashboard.css";
 import DailyDetailModal from "../components/DailyDetailModal";
 import Pagination from "../components/Pagination";
@@ -42,7 +37,6 @@ const leaveTypeClass = (typeName = "") => {
   if (t.includes("sick")) return "leave-badge sick";
   if (t.includes("personal")) return "leave-badge personal";
   if (t.includes("vacation")) return "leave-badge vacation";
-  if (t.includes("paid")) return "leave-badge paid";
   return "leave-badge";
 };
 
@@ -62,33 +56,24 @@ export default function HRDashboard() {
   // Reports States
   const [rangeStart, setRangeStart] = useState(toISODate(new Date(viewYear, viewMonth, 1)));
   const [rangeEnd, setRangeEnd] = useState(toISODate(new Date(viewYear, viewMonth + 1, 0)));
-  const [reportSummary, setReportSummary] = useState({ present: 0, leave: 0, late: 0, total: 0, lateRate: 0 });
-  const [topLate, setTopLate] = useState([]);
-
-  // Audit States
-  const [auditLoading, setAuditLoading] = useState(false);
-  const [auditItems, setAuditItems] = useState([]);
-  const [auditQuery, setAuditQuery] = useState("");
-
-  // Pagination
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-
-  const weeks = useMemo(() => getMonthMatrix(viewYear, viewMonth), [viewYear, viewMonth]);
-  const todayStr = toISODate(new Date());
-
-  // Daily Modal
-  const [dailyModalOpen, setDailyModalOpen] = useState(false);
-  const [dailyData, setDailyData] = useState(null);
-
-  // Reports
+  const [reportSummary, setReportSummary] = useState({ present: 0, leave: 0, late: 0, absent: 0, total: 0, lateRate: 0 });
+  
+  // Reports Data
   const [employeeReport, setEmployeeReport] = useState([]);
   const [leaveChartData, setLeaveChartData] = useState([]);
   const [perfectEmployees, setPerfectEmployees] = useState([]);
 
+  // Pagination & Modals
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [dailyModalOpen, setDailyModalOpen] = useState(false);
+  const [dailyData, setDailyData] = useState(null);
+
+  const weeks = useMemo(() => getMonthMatrix(viewYear, viewMonth), [viewYear, viewMonth]);
+  const todayStr = toISODate(new Date());
+
   /* ===== API Calls ===== */
 
-  // 1. ดึงข้อมูลการลาล่วงหน้าเพื่อแสดงบนปฏิทิน
   const fetchMonthLeaves = async () => {
     try {
       const start = toISODate(new Date(viewYear, viewMonth, 1));
@@ -114,7 +99,6 @@ export default function HRDashboard() {
     } catch (err) { console.error("Month Leaves Error:", err); }
   };
 
-  // 2. ดึงข้อมูลรายวัน (ตารางด้านล่าง) - แก้ไขตามที่สั่ง: คลิกแล้วแค่อัปเดตข้อมูล ไม่เปิด Modal
   const fetchDailyRecords = async () => {
     setLoading(true);
     try {
@@ -128,7 +112,6 @@ export default function HRDashboard() {
     } finally { setLoading(false); }
   };
 
-  // 3. ดึงสถิติกราฟ
   const fetchChartData = async () => {
     try {
       const res = await axiosClient.get("/timerecord/stats/late-monthly");
@@ -136,79 +119,64 @@ export default function HRDashboard() {
     } catch (err) { console.error("Stats Error:", err); }
   };
 
-  // 4. รายงาน (Tab Reports)
   const fetchReport = async () => {
     setLoading(true);
     try {
       const res = await axiosClient.get(`/timerecord/report/performance?startDate=${rangeStart}&endDate=${rangeEnd}`);
-      
-      // 1. ดึงข้อมูลที่ได้จาก Backend
       const { individualReport, leaveChartData, perfectEmployees } = res.data.data;
 
-      // 2. คำนวณสรุปยอดรวม (Summary) จากข้อมูลรายบุคคลที่ได้มา
-      const totalPresent = individualReport.reduce((sum, emp) => sum + emp.presentCount, 0);
-      const totalLate = individualReport.reduce((sum, emp) => sum + emp.lateCount, 0);
-      const totalLeave = individualReport.reduce((sum, emp) => sum + emp.leaveCount, 0);
-      const totalItems = totalPresent + totalLeave; // ยอดรวมรายการทั้งหมด
-      const avgLateRate = totalPresent > 0 ? Math.round((totalLate / totalPresent) * 100) : 0;
+      // Calculate Totals for Summary Cards
+      const summary = individualReport.reduce((acc, emp) => ({
+        present: acc.present + emp.presentCount,
+        late: acc.late + emp.lateCount,
+        leave: acc.leave + emp.leaveCount,
+        absent: acc.absent + emp.absentCount
+      }), { present: 0, late: 0, leave: 0, absent: 0 });
 
-      // 3. อัปเดต State สรุปยอดรวม (เพื่อให้ตัวเลขด้านบนไม่เป็น 0)
       setReportSummary({
-        present: totalPresent,
-        leave: totalLeave,
-        late: totalLate,
-        total: totalItems,
-        lateRate: avgLateRate
+        ...summary,
+        total: summary.present + summary.leave + summary.absent,
+        lateRate: summary.present > 0 ? Math.round((summary.late / summary.present) * 100) : 0
       });
 
-      // 4. อัปเดต State ข้อมูลส่วนอื่นๆ
       setEmployeeReport(individualReport);
       setLeaveChartData(leaveChartData);
       setPerfectEmployees(perfectEmployees);
-
     } catch (err) {
-      console.error("Fetch Report Error:", err);
       alertError("Error", "ไม่สามารถดึงข้อมูลรายงานได้");
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
-  const handleExport = async () => {
-    if (!(await alertConfirm("ยืนยันการส่งออก", "ดาวน์โหลดรายงานเป็น CSV?", "Export"))) return;
-    try {
-      const res = await axiosClient.get("/timerecord/export", { responseType: "blob" });
-      const url = window.URL.createObjectURL(new Blob([res.data]));
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", `report_${moment().format("YYYY-MM-DD")}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    } catch (err) { alertError("Error", "Export ล้มเหลว"); }
+  /* ===== Handlers ===== */
+
+  const handleExportPerformance = () => {
+    if (employeeReport.length === 0) return alertError("Error", "ไม่มีข้อมูลสำหรับ Export");
+    
+    let csv = 'Employee Name,Present (Days),Late (Times),Leave (Days),Absent (Days),Late Rate\n';
+    employeeReport.forEach(emp => {
+      csv += `"${emp.name}",${emp.presentCount},${emp.lateCount},${emp.leaveCount},${emp.absentCount},${emp.lateRate}%\n`;
+    });
+
+    const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `performance_report_${rangeStart}_to_${rangeEnd}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
   };
 
-  // Daily Details
   const openDailyDetail = async (dateStr) => {
     try {
       setLoading(true);
-      // 1. เรียก API เส้นใหม่ที่เราสร้างไว้ใน Backend
       const res = await axiosClient.get(`/timerecord/daily-detail?date=${dateStr}`);
-      
-      // 2. เก็บข้อมูลที่ได้ลง State
       setDailyData(res.data.data);
-      
-      // 3. อัปเดตวันที่เลือกเพื่อให้ตารางด้านล่างอัปเดตด้วย (รักษาฟังก์ชันเดิม)
       setSelectedDate(dateStr);
-      
-      // 4. สั่งเปิด Modal สรุปยอด
       setDailyModalOpen(true);
     } catch (err) {
-      console.error("Fetch Daily Detail Error:", err);
-      alertError("ผิดพลาด", "ไม่สามารถดึงข้อมูลรายละเอียดรายวันได้");
-    } finally {
-      setLoading(false);
-    }
+      alertError("ผิดพลาด", "ไม่สามารถดึงข้อมูลได้");
+    } finally { setLoading(false); }
   };
 
   /* ===== Effects ===== */
@@ -222,7 +190,6 @@ export default function HRDashboard() {
     setPage(1);
   }, [selectedDate]);
 
-  /* ===== Computed Data ===== */
   const dayRecords = useMemo(() => {
     const att = attendanceRecords.map((r) => ({
       id: `att-${r.recordId}`,
@@ -241,24 +208,6 @@ export default function HRDashboard() {
     }));
     return [...att, ...leave];
   }, [attendanceRecords, leaveRequests]);
-
-  const daySummary = useMemo(() => ({
-    totalPresent: attendanceRecords.length,
-    totalLeave: leaveRequests.length,
-    totalLate: attendanceRecords.filter((r) => r.isLate).length,
-  }), [attendanceRecords, leaveRequests]);
-
-  const pagedDayRecords = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    return dayRecords.slice(start, start + pageSize);
-  }, [dayRecords, page, pageSize]);
-
-  /* ===== Handlers ===== */
-  const changeMonth = (offset) => {
-    const newDate = moment(new Date(viewYear, viewMonth, 1)).add(offset, "months");
-    setViewMonth(newDate.month());
-    setViewYear(newDate.year());
-  };
 
   return (
     <div className="page-card hr-dashboard">
@@ -285,13 +234,11 @@ export default function HRDashboard() {
           <section className="dashboard-section calendar-section">
             <div className="calendar-top">
               <div className="calendar-title-group">
-                <button className="nav-btn" onClick={() => changeMonth(-1)}>‹</button>
+                <button className="nav-btn" onClick={() => setViewMonth(prev => prev === 0 ? 11 : prev - 1)}>‹</button>
                 <h2 className="month-label">{moment(new Date(viewYear, viewMonth, 1)).format("MMMM YYYY")}</h2>
-                <button className="nav-btn" onClick={() => changeMonth(1)}>›</button>
+                <button className="nav-btn" onClick={() => setViewMonth(prev => prev === 11 ? 0 : prev + 1)}>›</button>
               </div>
-              <div className="calendar-actions">
-                <button className="btn outline small" onClick={() => setSelectedDate(todayStr)}>Go to Today</button>
-              </div>
+              <button className="btn outline small" onClick={() => setSelectedDate(todayStr)}>Go to Today</button>
             </div>
 
             <div className="calendar">
@@ -308,7 +255,7 @@ export default function HRDashboard() {
                         <div
                           key={iso}
                           className={`cal-cell ${d.getMonth() !== viewMonth ? "muted" : ""} ${iso === selectedDate ? "selected" : ""}`}
-                          onClick={() => openDailyDetail(iso)} // 🔥 เปลี่ยนเป็นแค่อัปเดตวันที่ ข้อมูลจะโหลดลงตารางอัตโนมัติ
+                          onClick={() => openDailyDetail(iso)}
                         >
                           <div className="cal-date-row">
                             <span className="cal-date">{d.getDate()}</span>
@@ -328,33 +275,8 @@ export default function HRDashboard() {
             </div>
           </section>
 
-          <section className="dashboard-section analytics-section" style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "20px" }}>
-            <div className="summary-group">
-              <h3>สรุปรายวัน ({moment(selectedDate).format("DD MMM")})</h3>
-              <SummaryCard title="Present" value={daySummary.totalPresent} color="#22c55e" bg="#f0fdf4" />
-              <SummaryCard title="On Leave" value={daySummary.totalLeave} color="#3b82f6" bg="#eff6ff" />
-              <SummaryCard title="Late" value={daySummary.totalLate} color="#ef4444" bg="#fef2f2" />
-            </div>
-
-            <div className="chart-container" style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "12px", padding: "15px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "15px" }}>
-                <h3 style={{ margin: 0 }}>Monthly Late Statistics</h3>
-                <button className="btn outline small" onClick={handleExport}>Export CSV</button>
-              </div>
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="day" axisLine={false} tickLine={false} />
-                  <YAxis axisLine={false} tickLine={false} allowDecimals={false} />
-                  <Tooltip cursor={{ fill: "transparent" }} />
-                  <Bar dataKey="count" fill="#ef4444" radius={[4, 4, 0, 0]} barSize={30} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </section>
-
           <section className="dashboard-section details-section">
-            <div className="section-header" style={{ display: "flex", justifyContent: "space-between" }}>
+            <div className="section-header">
               <h3>บันทึกพนักงานประจำวัน</h3>
               <button className="btn outline small" onClick={fetchDailyRecords} disabled={loading}>Refresh</button>
             </div>
@@ -367,7 +289,7 @@ export default function HRDashboard() {
                   {dayRecords.length === 0 ? (
                     <tr><td colSpan="5" className="empty">ไม่พบข้อมูลสำหรับวันนี้</td></tr>
                   ) : (
-                    pagedDayRecords.map((r) => (
+                    dayRecords.slice((page-1)*pageSize, page*pageSize).map((r) => (
                       <tr key={r.id}>
                         <td className="fw-500">{r.name}</td>
                         <td className="text-muted">{r.role}</td>
@@ -394,22 +316,27 @@ export default function HRDashboard() {
       {tab === "reports" && (
         <section className="dashboard-section">
            <div className="section-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "end" }}>
-              <div><h3>HR Reports</h3><p>สรุปการเข้างานและอันดับคนมาสาย</p></div>
+              <div><h3>HR Reports</h3><p>วิเคราะห์ผลงานและสถิติการเข้างานรายบุคคล</p></div>
               <div style={{ display: "flex", gap: 10 }}>
                 <input type="date" value={rangeStart} onChange={e => setRangeStart(e.target.value)} />
                 <input type="date" value={rangeEnd} onChange={e => setRangeEnd(e.target.value)} />
-                <button className="btn primary small" onClick={fetchReport}>Run</button>
+                <button className="btn primary small" onClick={fetchReport} disabled={loading}>Run Report</button>
+                <button className="btn outline small" onClick={handleExportPerformance} disabled={employeeReport.length === 0}>
+                  <FiSave /> Export CSV
+                </button>
               </div>
            </div>
-           <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10, marginTop: 15 }}>
+
+           <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginTop: 20 }}>
               <Card title="Present" value={reportSummary.present} tone="green" />
               <Card title="On Leave" value={reportSummary.leave} tone="blue" />
               <Card title="Late" value={reportSummary.late} tone="red" />
-              <Card title="Total" value={reportSummary.total} tone="gray" />
+              <Card title="Absent" value={reportSummary.absent} tone="gray" />
               <Card title="Late Rate" value={`${reportSummary.lateRate}%`} tone="amber" />
            </div>
-           <div className="table-wrap" style={{ marginTop: 20 }}>
-              <div style={{ padding: "12px", fontWeight: "bold", borderBottom: "1px solid #eee" }}>
+
+           <div className="table-wrap" style={{ marginTop: 25 }}>
+              <div style={{ padding: "15px", fontWeight: "bold", borderBottom: "1px solid #eee", background: "#fafafa" }}>
                 ตารางสรุปผลงานพนักงานรายบุคคล
               </div>
               <table className="table">
@@ -419,117 +346,86 @@ export default function HRDashboard() {
                     <th style={{ textAlign: "center" }}>มาทำงาน (วัน)</th>
                     <th style={{ textAlign: "center" }}>มาสาย (ครั้ง)</th>
                     <th style={{ textAlign: "center" }}>ลา (วัน)</th>
+                    <th style={{ textAlign: "center" }}>ขาดงาน (วัน)</th>
                     <th style={{ textAlign: "center" }}>Late Rate</th>
                   </tr>
                 </thead>
                 <tbody>
                   {employeeReport.length === 0 ? (
-                    <tr><td colSpan="5" className="empty">กรุณากด Run Report เพื่อดูข้อมูล</td></tr>
+                    <tr><td colSpan="6" className="empty">กรุณากด Run Report เพื่อดูข้อมูล</td></tr>
                   ) : (
                     employeeReport.map(emp => (
                       <tr key={emp.employeeId}>
-                        <td><strong>{emp.name}</strong><br/><small className="text-muted">{emp.role}</small></td>
+                        <td><strong>{emp.name}</strong></td>
                         <td style={{ textAlign: "center" }}>{emp.presentCount}</td>
-                        <td style={{ textAlign: "center" }}>
-                            <span className={emp.lateCount > 0 ? "text-danger" : ""}>{emp.lateCount}</span>
-                        </td>
+                        <td style={{ textAlign: "center" }} className={emp.lateCount > 0 ? "text-danger" : ""}>{emp.lateCount}</td>
                         <td style={{ textAlign: "center" }}>{emp.leaveCount}</td>
+                        <td style={{ textAlign: "center" }} className={emp.absentCount > 0 ? "text-danger" : ""}>{emp.absentCount}</td>
                         <td style={{ textAlign: "center" }}>
-                            <span className={`badge ${emp.lateRate > 20 ? "badge-late" : "badge-ok"}`}>
-                                {emp.lateRate}%
-                            </span>
+                            <span className={`badge ${emp.lateRate > 20 ? "badge-late" : "badge-ok"}`}>{emp.lateRate}%</span>
                         </td>
                       </tr>
                     ))
                   )}
                 </tbody>
               </table>
-            </div>
-            {/* --- ส่วนที่ 1: พนักงานดีเด่น & กราฟการลา --- */}
-            <div style={{ 
-              display: "grid", 
-              gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", 
-              gap: "20px", 
-              marginTop: "25px" 
-            }}>
-              
-              {/* ฝั่งซ้าย: พนักงานดีเด่น */}
-              <div className="card-custom" style={{ padding: "20px", border: "1px solid #e5e7eb" }}>
-                <h5 style={{ color: "#16a34a", marginBottom: "15px" }}>🏆 พนักงานดีเด่น (Perfect Attendance)</h5>
-                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+           </div>
+
+           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(350px, 1fr))", gap: 20, marginTop: 25 }}>
+              {/* พนักงานดีเด่น */}
+              <div className="card-custom" style={{ padding: 20, border: "1px solid #e5e7eb" }}>
+                <h5 style={{ color: "#16a34a", marginBottom: 15 }}>🏆 พนักงานดีเด่น (Perfect Attendance)</h5>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {perfectEmployees.length > 0 ? perfectEmployees.map(emp => (
                     <div key={emp.employeeId} className="d-flex justify-content-between p-2 bg-light rounded shadow-sm">
                       <span className="fw-500">{emp.name}</span>
                       <span className="badge bg-success">ดีเยี่ยม</span>
                     </div>
-                  )) : <p className="text-center text-muted py-4">ไม่มีข้อมูลพนักงานดีเด่นในช่วงนี้</p>}
+                  )) : <p className="text-center text-muted py-4">ไม่มีข้อมูลในช่วงนี้</p>}
                 </div>
               </div>
 
-              {/* ฝั่งขวา: สรุปสัดส่วนการลา (Pie Chart Version) */}
-              <div className="card-custom" style={{ padding: "20px", border: "1px solid #e5e7eb" }}>
-                <h5 style={{ marginBottom: "15px" }}>📊 สัดส่วนประเภทการลา</h5>
-                <div style={{ width: "100%", height: "250px" }}>
+              {/* กราฟสัดส่วนการลา */}
+              <div className="card-custom" style={{ padding: 20, border: "1px solid #e5e7eb" }}>
+                <h5 style={{ marginBottom: 15 }}>📊 สัดส่วนประเภทการลา</h5>
+                <div style={{ width: "100%", height: 250 }}>
                   {leaveChartData.length > 0 ? (
                     <ResponsiveContainer>
                       <PieChart>
-                        <Pie
-                          data={leaveChartData}
-                          dataKey="value"
-                          nameKey="name"
-                          cx="50%"
-                          cy="50%"
-                          outerRadius={80}
-                          label={(entry) => `${entry.name}: ${entry.value}วัน`}
-                        >
-                          {/* กำหนดสีแยกตามประเภทการลา */}
+                        <Pie data={leaveChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
                           {leaveChartData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={index === 0 ? "#3b82f6" : index === 1 ? "#10b981" : "#f59e0b"} />
+                            <Cell key={`cell-${index}`} fill={entry.color || "#3b82f6"} />
                           ))}
                         </Pie>
                         <Tooltip />
                       </PieChart>
                     </ResponsiveContainer>
-                  ) : (
-                    <p className="text-center text-muted py-5">ไม่มีข้อมูลการลา</p>
-                  )}
+                  ) : <p className="text-center text-muted py-5">ไม่มีข้อมูลการลา</p>}
                 </div>
               </div>
-            </div>
+           </div>
         </section>
       )}
-      <DailyDetailModal 
-        isOpen={dailyModalOpen} 
-        onClose={() => setDailyModalOpen(false)} 
-        date={selectedDate} 
-        data={dailyData} 
-      />
+
+      <DailyDetailModal isOpen={dailyModalOpen} onClose={() => setDailyModalOpen(false)} date={selectedDate} data={dailyData} />
     </div>
   );
 }
 
-/* Sub-components (Cleaned up) */
-function SummaryCard({ title, value, color, bg }) {
-  return (
-    <div style={{ background: bg, padding: "12px", borderRadius: "10px", borderLeft: `4px solid ${color}`, marginBottom: "8px" }}>
-      <span style={{ color, fontWeight: 600, fontSize: "0.85rem" }}>{title}</span>
-      <div style={{ fontSize: "1.6rem", fontWeight: "bold", color }}>{value}</div>
-    </div>
-  );
-}
-
+/* --- Sub-components --- */
 function Card({ title, value, tone }) {
-  const p = {
+  const themes = {
     green: { bg: "#f0fdf4", border: "#22c55e", fg: "#166534" },
     blue: { bg: "#eff6ff", border: "#3b82f6", fg: "#1e40af" },
     red: { bg: "#fef2f2", border: "#ef4444", fg: "#991b1b" },
     amber: { bg: "#fffbeb", border: "#f59e0b", fg: "#92400e" },
     gray: { bg: "#f8fafc", border: "#e2e8f0", fg: "#334155" },
-  }[tone];
+  };
+  const p = themes[tone];
   return (
-    <div style={{ background: p.bg, borderLeft: `4px solid ${p.border}`, borderRadius: 12, padding: 12 }}>
-      <div style={{ color: p.fg, fontWeight: 700, fontSize: 12 }}>{title}</div>
-      <div style={{ color: p.fg, fontWeight: 900, fontSize: 22 }}>{value}</div>
+    <div style={{ background: p.bg, borderLeft: `4px solid ${p.border}`, borderRadius: 12, padding: 15 }}>
+      <div style={{ color: p.fg, fontWeight: 700, fontSize: 13 }}>{title}</div>
+      <div style={{ color: p.fg, fontWeight: 900, fontSize: 24 }}>{value}</div>
     </div>
   );
 }
