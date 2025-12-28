@@ -109,7 +109,16 @@ export default function DailyDetailModal({ isOpen, onClose, date, data }) {
                   {leaves.map(l => (
                     <tr key={l.requestId}>
                       <td style={tableCellStyle}><strong>{l.employee.firstName} {l.employee.lastName}</strong></td>
-                      <td style={tableCellStyle}><span className="badge-leave" style={{ fontSize: '0.75rem' }}>{l.leaveType.typeName}</span></td>
+                      <td style={tableCellStyle}>
+                        <span style={{ 
+                          fontSize: '0.75rem', padding: '4px 10px', borderRadius: '20px', fontWeight: '800',
+                          backgroundColor: `${l.leaveType.colorCode || '#3b82f6'}15`, 
+                          color: l.leaveType.colorCode || '#3b82f6',
+                          border: `1px solid ${l.leaveType.colorCode || '#3b82f6'}30`
+                        }}>
+                          {l.leaveType.typeName}
+                        </span>
+                      </td>
                       <td style={tableCellStyle}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.85rem', color: '#64748b' }}>
                           <FiCheck size={14} color="#10b981" /> {l.approvedByHR?.firstName || "System"}

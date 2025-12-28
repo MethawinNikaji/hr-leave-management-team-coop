@@ -90,6 +90,7 @@ export default function HRDashboard() {
           mapping[ds].push({
             name: `${leave.employee.firstName} ${leave.employee.lastName}`,
             typeName: leave.leaveType?.typeName || "Leave",
+            colorCode: leave.leaveType?.colorCode || "#3b82f6",
           });
           curr.add(1, "day");
         }
@@ -265,7 +266,7 @@ export default function HRDashboard() {
                           </div>
                           <div className="cal-leave-list">
                             {leaves.slice(0, 2).map((x, i) => (
-                              <div key={i} className={`leave-pill ${leaveTypeClass(x.typeName)}`} title={x.name}>{x.name}</div>
+                              <div key={i} className="leave-pill" style={{ backgroundColor: x.colorCode, color: '#fff', borderLeft: '3px solid rgba(0,0,0,0.1)' }} title={x.name}>{x.name}</div>
                             ))}
                           </div>
                         </div>
