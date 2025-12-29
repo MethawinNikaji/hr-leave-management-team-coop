@@ -13,6 +13,8 @@ const adminRoute = require('../routes/admin.route');
 const timeRecordRoute = require('../routes/timeRecord.route');
 const leaveRequestRoute = require('../routes/leaveRequest.route');
 const notificationRoute = require('../routes/notification.route');
+const auditRoute = require("../routes/audit.route");
+
 
 const createApp = () => {
     const app = express();
@@ -68,6 +70,8 @@ const createApp = () => {
     app.use('/api/leave', leaveRequestRoute);
     app.use('/api/notifications', notificationRoute);
     app.use('/uploads', express.static(uploadDir));
+    app.use('/api/audit', auditRoute);
+
 
     // 5. 404 Handler
     app.use((req, res, next) => {

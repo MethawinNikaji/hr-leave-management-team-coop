@@ -1,124 +1,161 @@
+// backend/src/controllers/notification.controller.js
 const prisma = require('../models/prisma');
-const CustomError = require('../utils/customError'); // ถ้า Boss ไม่มีไฟล์นี้ ให้เปลี่ยนเป็น throw new Error(...) แทนได้ครับ
+const CustomError = require('../utils/customError');
+
+// ✅ AUDIT
+const { logAudit } = require("../utils/auditLogger");
+const safeAudit = async (payload) => {
+  try { await logAudit(payload); } catch (e) { console.error("AUDIT_LOG_FAIL:", e?.message || e); }
+};
 
 // 1. ดึงการแจ้งเตือนของฉัน
 exports.getMyNotifications = async (req, res, next) => {
-    try {
-        // ดึง employeeId จาก Token (ผ่าน Middleware Auth)
-        const myId = req.user.employeeId; 
+  try {
+    const myId = req.user.employeeId;
 
-        const notifications = await prisma.notification.findMany({
-            where: { employeeId: myId },
-            orderBy: { createdAt: 'desc' }, // เอาอันใหม่สุดขึ้นก่อน
-            take: 50, // ดึงมาสูงสุด 50 อัน (กันหน้าเว็บอืด)
-            include: {
-                // Join ไปเอาข้อมูลใบลามาด้วย (ถ้ามี) เผื่อจะแสดงรายละเอียดเพิ่ม
-                relatedRequest: {
-                    select: { status: true, startDate: true, endDate: true, leaveType: true, attachmentUrl: true, reason: true }
-                }
-            }
-        });
+    const notifications = await prisma.notification.findMany({
+      where: { employeeId: myId },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+      include: {
+        relatedRequest: {
+          select: { status: true, startDate: true, endDate: true, leaveType: true, attachmentUrl: true, reason: true }
+        }
+      }
+    });
 
-        // นับจำนวนที่ยังไม่อ่าน
-        const unreadCount = await prisma.notification.count({
-            where: { 
-                employeeId: myId,
-                isRead: false 
-            }
-        });
+    const unreadCount = await prisma.notification.count({
+      where: {
+        employeeId: myId,
+        isRead: false
+      }
+    });
 
-        res.json({ success: true, notifications, unreadCount });
-    } catch (error) {
-        next(error);
-    }
+    res.json({ success: true, notifications, unreadCount });
+  } catch (error) {
+    next(error);
+  }
 };
 
 // 2. กดอ่าน (Mark as Read)
 exports.markAsRead = async (req, res, next) => {
-    try {
-        const targetId = parseInt(req.params.id);
-        const myId = req.user.employeeId;
+  try {
+    const targetId = parseInt(req.params.id);
+    const myId = Number(req.user.employeeId);
 
-        // เช็คก่อนว่าเป็นของคนนี้จริงๆ ไหม (Security)
-        const noti = await prisma.notification.findUnique({
-            where: { notificationId: targetId }
-        });
+    const noti = await prisma.notification.findUnique({
+      where: { notificationId: targetId }
+    });
 
-        if (!noti) throw CustomError.notFound('Notification not found');
-        
-        // ป้องกันไม่ให้ไปกดอ่านของคนอื่น
-        if (noti.employeeId !== myId) throw CustomError.forbidden('Not your notification');
+    if (!noti) throw CustomError.notFound('Notification not found');
+    if (Number(noti.employeeId) !== myId) throw CustomError.forbidden('Not your notification');
 
-        // อัปเดตสถานะเป็น "อ่านแล้ว"
-        await prisma.notification.update({
-            where: { notificationId: targetId },
-            data: { isRead: true }
-        });
+    await prisma.notification.update({
+      where: { notificationId: targetId },
+      data: { isRead: true }
+    });
 
-        res.json({ success: true, message: 'Marked as read' });
-    } catch (error) {
-        next(error);
-    }
+    await safeAudit({
+      action: "NOTIFICATION_MARK_READ",
+      entity: "Notification",
+      entityKey: `Notification:${targetId}`,
+      oldValue: { isRead: false },
+      newValue: { isRead: true },
+      performedByEmployeeId: myId,
+      ipAddress: req.ip,
+    });
+
+    res.json({ success: true, message: 'Marked as read' });
+  } catch (error) {
+    next(error);
+  }
 };
 
 // ฟังก์ชันสำหรับกดอ่านทั้งหมด
 exports.markAllAsRead = async (req, res, next) => {
-    try {
-        const myId = req.user.employeeId;
+  try {
+    const myId = Number(req.user.employeeId);
 
-        // อัปเดตการแจ้งเตือนทั้งหมดของ User นี้ที่ยังไม่ได้อ่าน ให้เป็นอ่านแล้ว
-        await prisma.notification.updateMany({
-            where: {
-                employeeId: myId,
-                isRead: false
-            },
-            data: {
-                isRead: true
-            }
-        });
+    await prisma.notification.updateMany({
+      where: {
+        employeeId: myId,
+        isRead: false
+      },
+      data: {
+        isRead: true
+      }
+    });
 
-        res.json({ success: true, message: 'อ่านการแจ้งเตือนทั้งหมดแล้ว' });
-    } catch (error) {
-        next(error);
-    }
+    await safeAudit({
+      action: "NOTIFICATION_MARK_ALL_READ",
+      entity: "Notification",
+      entityKey: `Employee:${myId}`,
+      oldValue: null,
+      newValue: { employeeId: myId },
+      performedByEmployeeId: myId,
+      ipAddress: req.ip,
+    });
+
+    res.json({ success: true, message: 'อ่านการแจ้งเตือนทั้งหมดแล้ว' });
+  } catch (error) {
+    next(error);
+  }
 };
 
 // 3. ลบแจ้งเตือนทั้งหมด (Clear All)
 exports.clearAll = async (req, res, next) => {
-    try {
-        const myId = req.user.employeeId;
-        
-        // ลบเฉพาะของตัวเองเท่านั้น
-        await prisma.notification.deleteMany({
-            where: { employeeId: myId }
-        });
-        
-        res.json({ success: true, message: 'All notifications cleared' });
-    } catch (error) {
-        next(error);
-    }
+  try {
+    const myId = Number(req.user.employeeId);
+
+    await prisma.notification.deleteMany({
+      where: { employeeId: myId }
+    });
+
+    await safeAudit({
+      action: "NOTIFICATION_CLEAR_ALL",
+      entity: "Notification",
+      entityKey: `Employee:${myId}`,
+      oldValue: null,
+      newValue: { employeeId: myId },
+      performedByEmployeeId: myId,
+      ipAddress: req.ip,
+    });
+
+    res.json({ success: true, message: 'All notifications cleared' });
+  } catch (error) {
+    next(error);
+  }
 };
 
 // 4. ลบแจ้งเตือนแบบเลือก
 exports.deleteNoti = async (req, res, next) => {
-    try {
-        const targetId = parseInt(req.params.id);
-        const myId = req.user.employeeId;
+  try {
+    const targetId = parseInt(req.params.id);
+    const myId = Number(req.user.employeeId);
 
-        // ลบโดยเช็คเงื่อนไข employeeId เพื่อความปลอดภัย (ลบได้เฉพาะของตัวเอง)
-        const result = await prisma.notification.deleteMany({
-            where: {
-                notificationId: targetId,
-                employeeId: myId
-            }
-        });
+    const result = await prisma.notification.deleteMany({
+      where: {
+        notificationId: targetId,
+        employeeId: myId
+      }
+    });
 
-        if (result.count === 0) {
-            return res.status(404).json({ success: false, message: "ไม่พบการแจ้งเตือน หรือไม่มีสิทธิ์ลบ" });
-        }
-
-        res.json({ success: true, message: 'ลบการแจ้งเตือนสำเร็จ' });
-    } catch (error) {
-        next(error);
+    if (result.count === 0) {
+      return res.status(404).json({ success: false, message: "ไม่พบการแจ้งเตือน หรือไม่มีสิทธิ์ลบ" });
     }
+
+    await safeAudit({
+      action: "NOTIFICATION_DELETE_ONE",
+      entity: "Notification",
+      entityKey: `Notification:${targetId}`,
+      oldValue: null,
+      newValue: null,
+      performedByEmployeeId: myId,
+      ipAddress: req.ip,
+    });
+
+    res.json({ success: true, message: 'ลบการแจ้งเตือนสำเร็จ' });
+  } catch (error) {
+    next(error);
+  }
 };

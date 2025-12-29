@@ -1,129 +1,140 @@
 // backend/src/controllers/auth.controller.js
-
 const prisma = require('../models/prisma');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const authModel = require('../models/auth.model');
 const CustomError = require('../utils/customError');
 
-const SALT_ROUNDS = 10; // จำนวนรอบในการ Hashing
-
-/**
- * Generates a JWT token for the authenticated user.
- * @param {object} employee - Employee object (must contain employeeId and role).
- * @returns {string} The generated JWT token.
- */
-const generateToken = (employee) => {
-    const payload = {
-        employeeId: employee.employeeId,
-        role: employee.role,
-        // เพิ่มข้อมูลอื่นๆ ที่จำเป็น
-    };
-
-    return jwt.sign(payload, process.env.JWT_SECRET, {
-        expiresIn: process.env.JWT_EXPIRES_IN || '7d', // 7 วัน หรือตาม .env
-    });
+// ✅ AUDIT
+const { logAudit } = require("../utils/auditLogger");
+const safeAudit = async (payload) => {
+  try { await logAudit(payload); } catch (e) { console.error("AUDIT_LOG_FAIL:", e?.message || e); }
 };
 
+const SALT_ROUNDS = 10;
+
+const generateToken = (employee) => {
+  const payload = {
+    employeeId: employee.employeeId,
+    role: employee.role,
+  };
+
+  return jwt.sign(payload, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+  });
+};
 
 // --- Controller for Registration ---
 const register = async (req, res, next) => {
-    try {
-        const { email, password, firstName, lastName, joiningDate, role } = req.body;
+  try {
+    const { email, password, firstName, lastName, joiningDate, role } = req.body;
 
-        // 1. Hashing Password
-        const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
-        // 2. สร้าง Employee
-        const newEmployeeData = {
-            email,
-            passwordHash,
-            firstName,
-            lastName,
-            // ในขั้นตอน Register นี้ เราจะตั้ง role เป็น Worker เสมอ 
-            // HR จะต้องถูกสร้างโดย HR อีกคน หรือโดย seed data
-            role: role === 'HR' ? 'HR' : 'Worker', 
-            joiningDate: new Date(joiningDate), // แปลง string เป็น Date Object
-        };
+    const newEmployeeData = {
+      email,
+      passwordHash,
+      firstName,
+      lastName,
+      role: role === 'HR' ? 'HR' : 'Worker',
+      joiningDate: new Date(joiningDate),
+    };
 
-        const employee = await authModel.registerEmployee(newEmployeeData);
+    const employee = await authModel.registerEmployee(newEmployeeData);
 
-        // 3. สร้าง JWT Token และส่งกลับ
-        const token = generateToken(employee);
+    const token = generateToken(employee);
 
-        res.status(201).json({
-            success: true,
-            message: 'Registration successful.',
-            token,
-            user: {
-                employeeId: employee.employeeId,
-                email: employee.email,
-                role: employee.role,
-                firstName: employee.firstName,
-                lastName: employee.lastName,
-            }
-        });
+    // ✅ AUDIT: register
+    await safeAudit({
+      action: "REGISTER",
+      entity: "Employee",
+      entityKey: `Employee:${employee.employeeId}`,
+      oldValue: null,
+      newValue: {
+        employeeId: employee.employeeId,
+        email: employee.email,
+        role: employee.role,
+        firstName: employee.firstName,
+        lastName: employee.lastName,
+      },
+      performedByEmployeeId: employee.employeeId,
+      ipAddress: req.ip,
+    });
 
-    } catch (error) {
-        // ส่ง Error ไปที่ Global Error Handler (เช่น Prisma Unique Conflict 409)
-        next(error); 
-    }
+    res.status(201).json({
+      success: true,
+      message: 'Registration successful.',
+      token,
+      user: {
+        employeeId: employee.employeeId,
+        email: employee.email,
+        role: employee.role,
+        firstName: employee.firstName,
+        lastName: employee.lastName,
+      }
+    });
+
+  } catch (error) {
+    next(error);
+  }
 };
 
 // --- Controller for Login ---
 const login = async (req, res, next) => {
-    try {
-        const { email, password } = req.body;
+  try {
+    const { email, password } = req.body;
 
-        // 1. ค้นหา Employee
-        const employee = await authModel.findEmployeeByEmail(email);
+    const employee = await authModel.findEmployeeByEmail(email);
 
-        if (!employee) {
-            // ใช้ Unauthorized เพื่อซ่อนว่าเป็นการไม่พบ Email หรือ Password ผิด
-            throw CustomError.unauthorized('Invalid credentials.');
-        }
-
-        // 2. ตรวจสอบสถานะ isActive
-        if (!employee.isActive) {
-            throw CustomError.forbidden('Your account is currently inactive.');
-        }
-
-        // 3. เปรียบเทียบ Password
-        const isMatch = await bcrypt.compare(password, employee.passwordHash);
-
-        if (!isMatch) {
-            throw CustomError.unauthorized('Invalid credentials.');
-        }
-
-        // 4. สร้าง JWT Token
-        const token = generateToken(employee);
-
-        // --- 🔥 [เพิ่มใหม่] กำหนด Redirect URL ตาม Role ---
-        let redirectUrl = '/worker/dashboard'; // ค่าเริ่มต้นให้เป็น Worker
-        
-        if (employee.role === 'HR') {
-            redirectUrl = '/hr/dashboard'; // ถ้าเป็น HR ให้ไปหน้า HR Dashboard
-        }
-        // -----------------------------------------------
-
-        // 5. ส่ง Response
-        res.status(200).json({
-            success: true,
-            message: 'Login successful.',
-            token,
-            redirectUrl, // <--- ส่ง path ปลายทางกลับไปให้ Frontend
-            user: {
-                employeeId: employee.employeeId,
-                email: employee.email,
-                role: employee.role,
-                firstName: employee.firstName,
-                lastName: employee.lastName,
-            }
-        });
-
-    } catch (error) {
-        next(error);
+    if (!employee) {
+      throw CustomError.unauthorized('Invalid credentials.');
     }
+
+    if (!employee.isActive) {
+      throw CustomError.forbidden('Your account is currently inactive.');
+    }
+
+    const isMatch = await bcrypt.compare(password, employee.passwordHash);
+
+    if (!isMatch) {
+      throw CustomError.unauthorized('Invalid credentials.');
+    }
+
+    const token = generateToken(employee);
+
+    let redirectUrl = '/worker/dashboard';
+    if (employee.role === 'HR') {
+      redirectUrl = '/hr/dashboard';
+    }
+
+    // ✅ AUDIT: login success
+    await safeAudit({
+      action: "LOGIN_SUCCESS",
+      entity: "Employee",
+      entityKey: `Employee:${employee.employeeId}`,
+      oldValue: null,
+      newValue: { role: employee.role },
+      performedByEmployeeId: employee.employeeId,
+      ipAddress: req.ip,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Login successful.',
+      token,
+      redirectUrl,
+      user: {
+        employeeId: employee.employeeId,
+        email: employee.email,
+        role: employee.role,
+        firstName: employee.firstName,
+        lastName: employee.lastName,
+      }
+    });
+
+  } catch (error) {
+    next(error);
+  }
 };
 
 const getMe = async (req, res, next) => {
@@ -149,51 +160,67 @@ const getMe = async (req, res, next) => {
 };
 
 const updateProfile = async (req, res, next) => {
-    try {
-        const employeeId = req.user.employeeId;
-        const { firstName, lastName, currentPassword, newPassword } = req.body;
+  try {
+    const employeeId = Number(req.user.employeeId);
+    const { firstName, lastName, currentPassword, newPassword } = req.body;
 
-        // 1. เตรียมข้อมูลสำหรับอัปเดตชื่อ-นามสกุล
-        let updateData = {
-            firstName,
-            lastName
-        };
+    const oldUser = await prisma.employee.findUnique({
+      where: { employeeId },
+      select: { employeeId: true, firstName: true, lastName: true }
+    });
 
-        // 2. ถ้ามีการขอเปลี่ยนรหัสผ่าน
-        if (newPassword) {
-            const user = await prisma.employee.findUnique({ where: { employeeId } });
-            
-            // ตรวจสอบรหัสผ่านเดิมก่อนเปลี่ยน
-            const isMatch = await bcrypt.compare(currentPassword, user.passwordHash);
-            if (!isMatch) {
-                return res.status(400).json({ success: false, message: "รหัสผ่านเดิมไม่ถูกต้อง" });
-            }
+    let updateData = { firstName, lastName };
 
-            // Hash รหัสผ่านใหม่
-            updateData.passwordHash = await bcrypt.hash(newPassword, 10);
-        }
+    let passwordChanged = false;
+    if (newPassword) {
+      const user = await prisma.employee.findUnique({ where: { employeeId } });
 
-        const updatedUser = await prisma.employee.update({
-            where: { employeeId },
-            data: updateData,
-            select: {
-                employeeId: true,
-                firstName: true,
-                lastName: true,
-                email: true,
-                role: true
-            }
-        });
+      const isMatch = await bcrypt.compare(currentPassword, user.passwordHash);
+      if (!isMatch) {
+        return res.status(400).json({ success: false, message: "รหัสผ่านเดิมไม่ถูกต้อง" });
+      }
 
-        res.status(200).json({ success: true, message: "อัปเดตข้อมูลสำเร็จ", user: updatedUser });
-    } catch (error) {
-        next(error);
+      updateData.passwordHash = await bcrypt.hash(newPassword, 10);
+      passwordChanged = true;
     }
+
+    const updatedUser = await prisma.employee.update({
+      where: { employeeId },
+      data: updateData,
+      select: {
+        employeeId: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        role: true
+      }
+    });
+
+    // ✅ AUDIT: profile update
+    await safeAudit({
+      action: "PROFILE_UPDATE",
+      entity: "Employee",
+      entityKey: `Employee:${employeeId}`,
+      oldValue: oldUser,
+      newValue: {
+        employeeId,
+        firstName: updatedUser.firstName,
+        lastName: updatedUser.lastName,
+        passwordChanged,
+      },
+      performedByEmployeeId: employeeId,
+      ipAddress: req.ip,
+    });
+
+    res.status(200).json({ success: true, message: "อัปเดตข้อมูลสำเร็จ", user: updatedUser });
+  } catch (error) {
+    next(error);
+  }
 };
 
 module.exports = {
-    register,
-    login,
-    getMe,
-    updateProfile,
+  register,
+  login,
+  getMe,
+  updateProfile,
 };

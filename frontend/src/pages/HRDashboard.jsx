@@ -9,7 +9,8 @@ import "./HRDashboard.css";
 import DailyDetailModal from "../components/DailyDetailModal";
 import Pagination from "../components/Pagination";
 import axiosClient from "../api/axiosClient";
-import { alertError } from "../utils/sweetAlert";
+import { alertConfirm, alertError } from "../utils/sweetAlert";
+import AuditLogPanel from "../components/AuditLogPanel";
 
 /* ===== Helpers ===== */
 const pad2 = (n) => String(n).padStart(2, "0");
@@ -221,13 +222,18 @@ export default function HRDashboard() {
         </div>
       </header>
 
-      <div className="hr-tabs">
-        {["overview", "reports"].map((t) => (
-          <button key={t} className={`btn small ${tab === t ? "primary" : "outline"}`} onClick={() => setTab(t)}>
-            {t === "overview" ? "Overview" : "Performance Reports"}
-          </button>
-        ))}
-      </div>
+          <div className="hr-tabs">
+      {["overview", "reports", "audit"].map((t) => (
+        <button
+          key={t}
+          className={`btn small ${tab === t ? "primary" : "outline"}`}
+          onClick={() => setTab(t)}
+        >
+          {t === "overview" ? "Overview" : t === "reports" ? "Performance Reports" : "Audit Log"}
+        </button>
+      ))}
+    </div>
+
 
       {tab === "overview" && (
         <>
@@ -424,6 +430,9 @@ export default function HRDashboard() {
             </div>
         </section>
       )}
+
+      {tab === "audit" && <AuditLogPanel />}
+
 
       <DailyDetailModal isOpen={dailyModalOpen} onClose={() => setDailyModalOpen(false)} date={selectedDate} data={dailyData} />
     </div>
