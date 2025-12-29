@@ -93,6 +93,7 @@ export default function WorkerCalendar() {
           map[key].push({
             type: "leave", // ระบุ type ให้ชัดเจนสำหรับ Modal
             leaveType: l.leaveType?.typeName || "Leave",
+            colorCode: l.leaveType?.colorCode || "#3b82f6",
             status: l.status,
             reason: l.reason || "-",
             // เพิ่ม Start/End จริงของ Request เพื่อไปโชว์ใน Modal
@@ -209,14 +210,30 @@ export default function WorkerCalendar() {
                 </div>
 
                 <div className="wc-tags">
+                  {/* ส่วนของ Attendance (คงเดิม) */}
                   {att && (
                     <span className={`wc-tag ${att.isLate ? "late" : "ok"}`}>
                       {att.isLate ? "Late" : "Present"}
                     </span>
                   )}
-                  {lvs.length > 0 && (
-                    <span className="wc-tag leave">Leave {lvs.length}</span>
-                  )}
+
+                  {/* ส่วนของ Leave ที่ปรับใหม่ */}
+                  {lvs.map((lv, idx) => (
+                    <span 
+                      key={idx} 
+                      className="wc-tag leave" 
+                      style={{ 
+                        backgroundColor: lv.colorCode, // ใช้สีจาก DB
+                        color: '#fff', 
+                        fontSize: '10px',
+                        padding: '2px 4px',
+                        display: 'block', // ทำให้แสดงผลเป็นบรรทัดใหม่ถ้ามีการลาซ้อน
+                        marginTop: '2px'
+                      }}
+                    >
+                      {lv.leaveType}
+                    </span>
+                  ))}
                 </div>
               </div>
             );
