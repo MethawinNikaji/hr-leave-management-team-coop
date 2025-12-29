@@ -1,12 +1,11 @@
 import React from 'react';
 import moment from 'moment';
-import { FiX, FiInfo, FiCalendar, FiClock, FiActivity, FiUser } from 'react-icons/fi';
-import './WorkerModal.css'; // อย่าลืมสร้างไฟล์ CSS นี้นะคะ
+import { FiX, FiInfo, FiCalendar, FiClock, FiActivity, FiUser, FiCheckCircle } from 'react-icons/fi';
+import './WorkerModal.css';
 
 const WorkerDateModal = ({ isOpen, onClose, date, data }) => {
   if (!isOpen) return null;
 
-  // Helper: เลือกสีของ Badge ตามสถานะ
   const getStatusColor = (status) => {
     const s = String(status || "").toLowerCase();
     if (s.includes("approved") || s.includes("normal") || s.includes("present")) return "status-success";
@@ -15,8 +14,21 @@ const WorkerDateModal = ({ isOpen, onClose, date, data }) => {
     return "status-default";
   };
 
-  // Helper: ตัดสินใจว่าจะโชว์ข้อมูลแบบ Leave หรือ Time Record
   const isLeave = data?.type === 'leave';
+
+  // ✅ ดึงชื่อคนอนุมัติจากหลายรูปแบบที่อาจส่งมา
+  const approvedByName =
+    data?.approvedByName ||
+    data?.approvedBy ||
+    (data?.approvedByHR
+      ? `${data.approvedByHR.firstName || ""} ${data.approvedByHR.lastName || ""}`.trim()
+      : "") ||
+    (data?.approvedByHr
+      ? `${data.approvedByHr.firstName || ""} ${data.approvedByHr.lastName || ""}`.trim()
+      : "") ||
+    "";
+
+  const showApproverRow = isLeave && !!approvedByName;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -30,7 +42,7 @@ const WorkerDateModal = ({ isOpen, onClose, date, data }) => {
           <button className="close-btn-icon" onClick={onClose}><FiX /></button>
         </div>
 
-        {/* Status Badge (Centered like reference) */}
+        {/* Status Badge */}
         <div className="status-section">
           <span className={`status-pill ${getStatusColor(data?.status)}`}>
             {data?.status || "No Data"}
@@ -39,14 +51,13 @@ const WorkerDateModal = ({ isOpen, onClose, date, data }) => {
 
         {/* Content Body */}
         <div className="modal-body">
-          {/* ข้อมูลพื้นฐาน */}
+          {/* Employee */}
           <div className="detail-row">
             <div className="detail-icon"><FiUser /></div>
             <div className="detail-label">Employee:</div>
             <div className="detail-value">{data?.employeeName || "You"}</div>
           </div>
 
-          {/* กรณีเป็นวันลา (Leave) */}
           {isLeave ? (
             <>
               <div className="detail-row">
@@ -54,22 +65,43 @@ const WorkerDateModal = ({ isOpen, onClose, date, data }) => {
                 <div className="detail-label">Type:</div>
                 <div className="detail-value">{data?.leaveType || "-"}</div>
               </div>
+
               <div className="detail-row">
                 <div className="detail-icon"><FiCalendar /></div>
                 <div className="detail-label">Period:</div>
                 <div className="detail-value">
-                   {moment(data?.startDate).format("DD MMM")} - {moment(data?.endDate).format("DD MMM YYYY")}
+                  {moment(data?.startDate).format("DD MMM")} - {moment(data?.endDate).format("DD MMM YYYY")}
                 </div>
               </div>
+
+              {/* ✅ Approved by */}
+              {showApproverRow && (
+                <div className="detail-row">
+                  <div className="detail-icon"><FiCheckCircle /></div>
+                  <div className="detail-label">Approved by:</div>
+                  <div className="detail-value">{approvedByName}</div>
+                </div>
+              )}
+
+              {/* ✅ Approved at */}
+              {isLeave && data?.approvalDate && (
+                <div className="detail-row">
+                  <div className="detail-icon"><FiClock /></div>
+                  <div className="detail-label">Decision at:</div>
+                  <div className="detail-value">
+                    {moment(data.approvalDate).format("DD MMM YYYY, HH:mm")}
+                  </div>
+                </div>
+              )}
             </>
           ) : (
-            /* กรณีเป็นวันทำงาน (Attendance) */
             <>
-               <div className="detail-row">
+              <div className="detail-row">
                 <div className="detail-icon"><FiClock /></div>
                 <div className="detail-label">Check In:</div>
                 <div className="detail-value">{data?.checkIn ? moment(data.checkIn).format("HH:mm") : "--:--"}</div>
               </div>
+
               <div className="detail-row">
                 <div className="detail-icon"><FiClock /></div>
                 <div className="detail-label">Check Out:</div>
@@ -78,7 +110,7 @@ const WorkerDateModal = ({ isOpen, onClose, date, data }) => {
             </>
           )}
 
-          {/* Reason Box (ตามแบบในรูป) */}
+          {/* Reason Box */}
           <div className="reason-box">
             <label className="reason-label">NOTE / REASON</label>
             <p className="reason-text">

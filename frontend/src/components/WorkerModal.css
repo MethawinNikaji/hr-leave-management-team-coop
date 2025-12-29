@@ -126,3 +126,7 @@
   background-color: #f9fafb;
   border-color: #d1d5db;
 }
+/* optional: make approver row nicer */
+.detail-row .detail-value {
+  word-break: break-word;
+}

@@ -3,11 +3,11 @@ import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import moment from "moment";
 import "./WorkerCalendar.css";
-// import Pagination from "../components/Pagination"; // ไม่ได้ใช้แล้วค่ะ
-import WorkerDateModal from "../components/WorkerModal"; // ชื่อไฟล์ใหม่
+import WorkerDateModal from "../components/WorkerModal";
 
 const pad2 = (n) => String(n).padStart(2, "0");
-const toISODate = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const toISODate = (d) =>
+  `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 
 function getMonthMatrix(year, monthIndex) {
   const first = new Date(year, monthIndex, 1);
@@ -39,7 +39,10 @@ export default function WorkerCalendar() {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedDailyData, setSelectedDailyData] = useState(null);
 
-  const weeks = useMemo(() => getMonthMatrix(viewYear, viewMonth), [viewYear, viewMonth]);
+  const weeks = useMemo(
+    () => getMonthMatrix(viewYear, viewMonth),
+    [viewYear, viewMonth]
+  );
 
   const getAuthHeader = () => {
     const token = localStorage.getItem("token");
@@ -78,7 +81,7 @@ export default function WorkerCalendar() {
     return map;
   }, [attendance]);
 
-  // map leaves by date range
+  // map leaves by date range (✅ เพิ่ม approvedBy/approvalDate)
   const leaveByDate = useMemo(() => {
     const map = {};
     leaves
@@ -90,23 +93,35 @@ export default function WorkerCalendar() {
         while (cur.isSameOrBefore(end, "day")) {
           const key = cur.format("YYYY-MM-DD");
           if (!map[key]) map[key] = [];
+
+          const approvedByName = l?.approvedByHR
+            ? `${l.approvedByHR.firstName || ""} ${l.approvedByHR.lastName || ""}`.trim()
+            : "";
+
           map[key].push({
-            type: "leave", // ระบุ type ให้ชัดเจนสำหรับ Modal
+            type: "leave",
             leaveType: l.leaveType?.typeName || "Leave",
             colorCode: l.leaveType?.colorCode || "#3b82f6",
             status: l.status,
             reason: l.reason || "-",
-            // เพิ่ม Start/End จริงของ Request เพื่อไปโชว์ใน Modal
             startDate: l.startDate,
-            endDate: l.endDate
+            endDate: l.endDate,
+
+            // ✅ NEW: ใครอนุมัติ + เวลาอนุมัติ (ต้องให้ backend ส่ง approvedByHR มาด้วย)
+            approvedByHR: l.approvedByHR || null,
+            approvedByName,
+            approvalDate: l.approvalDate || null,
           });
+
           cur.add(1, "day");
         }
       });
     return map;
   }, [leaves]);
 
-  const monthName = new Date(viewYear, viewMonth, 1).toLocaleString("en-US", { month: "long" });
+  const monthName = new Date(viewYear, viewMonth, 1).toLocaleString("en-US", {
+    month: "long",
+  });
 
   const goPrevMonth = () => {
     const m = viewMonth - 1;
@@ -126,41 +141,46 @@ export default function WorkerCalendar() {
   // Function จัดการเมื่อกดวันที่
   const handleDateClick = (isoDate) => {
     setSelectedDate(isoDate);
-    
+
     const att = attByDate[isoDate];
     const lvs = leaveByDate[isoDate] || [];
-    const leave = lvs.length > 0 ? lvs[0] : null; // ดึงรายการลาแรก (ถ้ามี)
+    const leave = lvs.length > 0 ? lvs[0] : null;
 
     let modalData = null;
 
     if (leave) {
-      // กรณีวันลา
+      // ✅ leave
       modalData = {
-        type: 'leave',
+        type: "leave",
         status: leave.status,
-        employeeName: "You", // หรือดึงชื่อจาก Context/Profile ถ้ามี
+        employeeName: "You",
         leaveType: leave.leaveType,
         startDate: leave.startDate,
         endDate: leave.endDate,
-        reason: leave.reason
+        reason: leave.reason,
+
+        // ✅ NEW
+        approvedByName: leave.approvedByName || "",
+        approvedByHR: leave.approvedByHR || null,
+        approvalDate: leave.approvalDate || null,
       };
     } else if (att) {
-      // กรณีวันทำงานปกติ
+      // attendance
       modalData = {
-        type: 'attendance',
-        status: att.isLate ? 'Late' : 'Normal',
+        type: "attendance",
+        status: att.isLate ? "Late" : "Normal",
         employeeName: "You",
         checkIn: att.checkInTime,
         checkOut: att.checkOutTime,
-        reason: "-"
+        reason: "-",
       };
     } else {
-      // กรณีไม่มีข้อมูล
+      // no data
       modalData = {
-        type: 'nodata',
-        status: 'No Data',
+        type: "nodata",
+        status: "No Data",
         employeeName: "You",
-        reason: "-"
+        reason: "-",
       };
     }
 
@@ -173,13 +193,25 @@ export default function WorkerCalendar() {
       <header className="wc-head">
         <div>
           <h1 className="wc-title">My Calendar</h1>
-          <p className="wc-sub">Attendance + Leave (monthly view)</p>
+          <p className="wc-sub">
+            Attendance + Leave (monthly view){loading ? " • Loading..." : ""}
+          </p>
         </div>
         <div className="wc-top-actions">
-          <button className="nav-btn" onClick={goPrevMonth} type="button">‹</button>
-          <div className="month-label">{monthName} {viewYear}</div>
-          <button className="nav-btn" onClick={goNextMonth} type="button">›</button>
-          <button className="btn outline small" onClick={() => handleDateClick(toISODate(new Date()))} type="button">
+          <button className="nav-btn" onClick={goPrevMonth} type="button">
+            ‹
+          </button>
+          <div className="month-label">
+            {monthName} {viewYear}
+          </div>
+          <button className="nav-btn" onClick={goNextMonth} type="button">
+            ›
+          </button>
+          <button
+            className="btn outline small"
+            onClick={() => handleDateClick(toISODate(new Date()))}
+            type="button"
+          >
             Today
           </button>
         </div>
@@ -188,7 +220,9 @@ export default function WorkerCalendar() {
       <div className="calendar">
         <div className="calendar-head">
           {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-            <div className="cal-cell head" key={d}>{d}</div>
+            <div className="cal-cell head" key={d}>
+              {d}
+            </div>
           ))}
         </div>
 
@@ -202,33 +236,33 @@ export default function WorkerCalendar() {
             return (
               <div
                 key={iso}
-                className={`cal-cell ${!inMonth ? "muted" : ""} ${iso === selectedDate ? "selected" : ""}`}
-                onClick={() => handleDateClick(iso)} // เปลี่ยนมาใช้ฟังก์ชันใหม่
+                className={`cal-cell ${!inMonth ? "muted" : ""} ${
+                  iso === selectedDate ? "selected" : ""
+                }`}
+                onClick={() => handleDateClick(iso)}
               >
                 <div className="cal-date-row">
                   <div className="cal-date">{d.getDate()}</div>
                 </div>
 
                 <div className="wc-tags">
-                  {/* ส่วนของ Attendance (คงเดิม) */}
                   {att && (
                     <span className={`wc-tag ${att.isLate ? "late" : "ok"}`}>
                       {att.isLate ? "Late" : "Present"}
                     </span>
                   )}
 
-                  {/* ส่วนของ Leave ที่ปรับใหม่ */}
                   {lvs.map((lv, idx) => (
-                    <span 
-                      key={idx} 
-                      className="wc-tag leave" 
-                      style={{ 
-                        backgroundColor: lv.colorCode, // ใช้สีจาก DB
-                        color: '#fff', 
-                        fontSize: '10px',
-                        padding: '2px 4px',
-                        display: 'block', // ทำให้แสดงผลเป็นบรรทัดใหม่ถ้ามีการลาซ้อน
-                        marginTop: '2px'
+                    <span
+                      key={idx}
+                      className="wc-tag leave"
+                      style={{
+                        backgroundColor: lv.colorCode,
+                        color: "#fff",
+                        fontSize: "10px",
+                        padding: "2px 4px",
+                        display: "block",
+                        marginTop: "2px",
                       }}
                     >
                       {lv.leaveType}
@@ -241,14 +275,12 @@ export default function WorkerCalendar() {
         </div>
       </div>
 
-      {/* เรียกใช้ Modal แทน Section Detail เดิม */}
-      <WorkerDateModal 
-        isOpen={modalOpen} 
-        onClose={() => setModalOpen(false)} 
+      <WorkerDateModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
         date={selectedDate}
         data={selectedDailyData}
       />
-      
     </div>
   );
 }

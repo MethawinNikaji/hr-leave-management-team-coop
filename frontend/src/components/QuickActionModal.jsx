@@ -1,134 +1,140 @@
-import React, { useState } from "react";
-import { 
-  FiX, FiCheck, FiXCircle, FiCalendar, FiUser, 
-  FiFileText, FiInfo, FiPaperclip, FiExternalLink, FiClock 
-} from "react-icons/fi";
+import React from "react";
 import moment from "moment";
-import axiosClient from "../api/axiosClient";
-import { alertSuccess, alertError } from "../utils/sweetAlert";
-import "./QuickActionModal.css"; //
+import {
+  FiX,
+  FiInfo,
+  FiCalendar,
+  FiClock,
+  FiUser,
+  FiCheckCircle,
+  FiXCircle,
+  FiFileText,
+} from "react-icons/fi";
 
-const STATUS_CONFIG = {
-  Approved: { label: 'Approved', className: 'status-approved', icon: <FiCheck /> },
-  Rejected: { label: 'Rejected', className: 'status-rejected', icon: <FiXCircle /> },
-  Pending: { label: 'Pending Review', className: 'status-pending', icon: <FiClock /> }
-};
+import "./QuickActionModal.css";
 
-export default function QuickActionModal({ isOpen, onClose, requestData, onActionSuccess }) {
-  const [loading, setLoading] = useState(false);
-
+const QuickActionModal = ({ isOpen, onClose, requestData }) => {
   if (!isOpen || !requestData) return null;
 
-  const handleAction = async (status) => {
-    try {
-      setLoading(true);
-      const actionValue = status === 'Approved' ? 'approve' : 'reject';
-      await axiosClient.put(`/leave/admin/approval/${requestData.requestId}`, { action: actionValue });
-      
-      await alertSuccess("Success", `Request has been ${status.toLowerCase()} successfully.`);
-      if (onActionSuccess) onActionSuccess(); 
-      onClose();
-    } catch (err) {
-      alertError("Error", err.response?.data?.message || "Unable to process the request.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const status = requestData?.status || "Pending";
+  const isApproved = status === "Approved";
+  const isRejected = status === "Rejected";
 
-  const currentStatus = STATUS_CONFIG[requestData.status] || STATUS_CONFIG.Pending;
+  const decisionLabel = isApproved
+    ? "Approved by:"
+    : isRejected
+    ? "Rejected by:"
+    : null;
+
+  const decisionName =
+    requestData?.approvedByHR &&
+    `${requestData.approvedByHR.firstName || ""} ${requestData.approvedByHR.lastName || ""}`.trim();
+
+  const statusClass = isApproved
+    ? "status-success"
+    : isRejected
+    ? "status-danger"
+    : "status-warning";
+
+  const statusIcon = isApproved ? <FiCheckCircle /> : isRejected ? <FiXCircle /> : <FiClock />;
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="qa-modal" onClick={(e) => e.stopPropagation()}>
-        
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-card" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div className="qa-modal-header">
-          <div className="qa-title">
-            <div className="qa-icon-header">
-              {requestData.isReadOnly ? <FiInfo /> : <FiFileText />}
-            </div>
-            <span>{requestData.isReadOnly ? "Leave Details" : "Manage Leave Request"}</span>
+        <div className="modal-header">
+          <div className="header-title">
+            <FiInfo className="header-icon" />
+            <span>Leave Request Detail</span>
           </div>
-          <button className="qa-close-btn" onClick={onClose} aria-label="Close">
+          <button className="close-btn-icon" onClick={onClose} aria-label="Close">
             <FiX />
           </button>
         </div>
 
-        {/* Content Body */}
-        <div className="qa-modal-body">
-          {requestData.isReadOnly && (
-            <div className="qa-status-wrapper">
-              <span className={`qa-badge ${currentStatus.className}`}>
-                {currentStatus.icon} {currentStatus.label}
-              </span>
-            </div>
-          )}
-
-          <div className="qa-info-list">
-            <div className="qa-info-row">
-              <FiUser className="qa-row-icon" />
-              <span className="qa-label">Employee:</span>
-              <span className="qa-value">{requestData.employeeName}</span>
-            </div>
-            <div className="qa-info-row">
-              <FiFileText className="qa-row-icon" />
-              <span className="qa-label">Type:</span>
-              <span className="qa-value">{requestData.leaveType}</span>
-            </div>
-            <div className="qa-info-row">
-              <FiCalendar className="qa-row-icon" />
-              <span className="qa-label">Period:</span>
-              <span className="qa-value">
-                {moment(requestData.startDate).format("DD MMM")} - {moment(requestData.endDate).format("DD MMM YYYY")}
-              </span>
-            </div>
-          </div>
-
-          <div className="qa-reason-box">
-            <span className="qa-reason-label">Reason</span>
-            <p className="qa-reason-text">{requestData.reason || "No reason provided."}</p>
-          </div>
-
-          {requestData.attachmentUrl && (
-            <a 
-              href={`http://localhost:8000/uploads/${requestData.attachmentUrl}`} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="qa-attachment-link"
-            >
-              <FiPaperclip />
-              <span className="qa-attachment-text">View Attachment</span>
-              <FiExternalLink size={14} />
-            </a>
-          )}
+        {/* Status */}
+        <div className="status-section">
+          <span className={`status-pill ${statusClass}`}>
+            {statusIcon} {status}
+          </span>
         </div>
 
-        {/* Footer Actions */}
-        <div className="qa-modal-footer">
-          {requestData.isReadOnly ? (
-            <button className="qa-btn qa-btn-outline full" onClick={onClose}>
-              Close Window
-            </button>
-          ) : (
-            <div className="qa-btn-group">
-              <button 
-                className="qa-btn qa-btn-danger" 
-                onClick={() => handleAction('Rejected')} 
-                disabled={loading}
-              >
-                <FiXCircle /> Reject
-              </button>
-              <button 
-                className="qa-btn qa-btn-primary" 
-                onClick={() => handleAction('Approved')} 
-                disabled={loading}
-              >
-                <FiCheck /> Approve
-              </button>
+        {/* Body */}
+        <div className="modal-body">
+          <div className="detail-row">
+            <div className="detail-icon">
+              <FiUser />
+            </div>
+            <div className="detail-label">Employee:</div>
+            <div className="detail-value">{requestData.employeeName || "-"}</div>
+          </div>
+
+          <div className="detail-row">
+            <div className="detail-icon">
+              <FiFileText />
+            </div>
+            <div className="detail-label">Leave Type:</div>
+            <div className="detail-value">{requestData.leaveType || "-"}</div>
+          </div>
+
+          <div className="detail-row">
+            <div className="detail-icon">
+              <FiCalendar />
+            </div>
+            <div className="detail-label">Period:</div>
+            <div className="detail-value">
+              {requestData.startDate
+                ? moment(requestData.startDate).format("DD MMM")
+                : "-"}{" "}
+              -{" "}
+              {requestData.endDate
+                ? moment(requestData.endDate).format("DD MMM YYYY")
+                : "-"}
+            </div>
+          </div>
+
+          {/* ✅ Approved by / Rejected by */}
+          {decisionLabel && decisionName && (
+            <div className="detail-row">
+              <div className="detail-icon">
+                {isApproved ? <FiCheckCircle /> : <FiXCircle />}
+              </div>
+              <div className="detail-label">{decisionLabel}</div>
+              <div className="detail-value">{decisionName}</div>
             </div>
           )}
+
+          {/* ✅ เวลา approve/reject */}
+          {requestData.approvalDate && (
+            <div className="detail-row">
+              <div className="detail-icon">
+                <FiClock />
+              </div>
+              <div className="detail-label">Decision at:</div>
+              <div className="detail-value">
+                {moment(requestData.approvalDate).format("DD MMM YYYY, HH:mm")}
+              </div>
+            </div>
+          )}
+
+          {/* Reason */}
+          <div className="reason-box">
+            <label className="reason-label">Reason</label>
+            <p className="reason-text">
+              {requestData.reason || "No reason provided."}
+            </p>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="modal-footer">
+          <button className="btn-close-window" onClick={onClose}>
+            Close Window
+          </button>
         </div>
       </div>
     </div>
   );
-}
+};
+
+export default QuickActionModal;

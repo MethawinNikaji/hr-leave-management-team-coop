@@ -17,11 +17,37 @@ exports.getMyNotifications = async (req, res, next) => {
       where: { employeeId: myId },
       orderBy: { createdAt: 'desc' },
       take: 50,
-      include: {
+            include: {
         relatedRequest: {
-          select: { status: true, startDate: true, endDate: true, leaveType: true, attachmentUrl: true, reason: true }
-        }
-      }
+            select: {
+            status: true,
+            startDate: true,
+            endDate: true,
+            attachmentUrl: true,
+            reason: true,
+
+            // ✅ leave type
+            leaveType: {
+                select: {
+                typeName: true,
+                },
+            },
+
+            // ✅ NEW: คนที่ approve / reject
+            approvedByHR: {
+                select: {
+                employeeId: true,
+                firstName: true,
+                lastName: true,
+                },
+            },
+
+            // ✅ NEW: เวลา approve / reject
+            approvalDate: true,
+            },
+        },
+        },
+
     });
 
     const unreadCount = await prisma.notification.count({

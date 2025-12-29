@@ -132,7 +132,18 @@ const getMyRequests = async (req, res, next) => {
     const employeeId = parseInt(req.user.employeeId);
     const requests = await prisma.leaveRequest.findMany({
       where: { employeeId },
-      include: { leaveType: true },
+                include: {
+            leaveType: true,
+
+            // ✅ เพิ่มคนที่อนุมัติ (HR)
+            approvedByHR: {
+                select: {
+                employeeId: true,
+                firstName: true,
+                lastName: true,
+                },
+            },
+            },
       orderBy: { requestedAt: 'desc' }
     });
 
