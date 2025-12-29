@@ -233,6 +233,7 @@ module.exports = {
     checkLeaveOverlap,
     calculateTotalDays, 
     checkQuotaAvailability,
-    updateUsedQuota
+    updateUsedQuota,
+    checkLeaveGapPolicy,
     // export getValidWorkDays/getHolidays ถ้าต้องการใช้ที่อื่น แต่ในที่นี้ export แค่ calculateTotalDays พอ
 };

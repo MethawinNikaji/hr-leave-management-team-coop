@@ -24,6 +24,7 @@ const requestLeave = async (req, res, next) => {
     const attachmentUrl = req.file ? req.file.filename : null;
 
     // 1. Validations
+    await leaveService.checkLeaveGapPolicy(employeeId, startDate);
     await leaveService.checkLeaveOverlap(employeeId, startDate, endDate);
     const totalDaysRequested = await leaveService.calculateTotalDays(startDate, endDate, startDuration, endDuration);
 
