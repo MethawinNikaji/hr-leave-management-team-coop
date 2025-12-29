@@ -151,6 +151,8 @@ model AttendancePolicy {
   endTime        String   @default("18:00")
   graceMinutes   Int      @default(5)
   workingDays    String   @default("mon,tue,wed,thu,fri") // เก็บเป็น String คั่นด้วย comma
+  leaveGapDays   Int      @default(0) @map("leave_gap_days")
+  specialHolidays Json?    @map("special_holidays")
   updatedAt      DateTime @default(now()) @updatedAt
 }
 model AuditLog {

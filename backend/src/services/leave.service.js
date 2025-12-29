@@ -22,34 +22,68 @@ const getHolidays = async (startDate, endDate) => {
 };
 
 /**
+ * ✅ ตรวจสอบระยะห่างระหว่างการลา (Leave Gap Policy)
+ */
+const checkLeaveGapPolicy = async (employeeId, startDate) => {
+    // 1. ดึงนโยบายปัจจุบัน
+    const policy = await prisma.attendancePolicy.findFirst({ where: { policyId: 1 } });
+    if (!policy || policy.leaveGapDays <= 0) return; // ถ้าไม่ได้ตั้งค่าไว้ ให้ผ่านไปเลย
+
+    const gap = policy.leaveGapDays;
+    const requestedStart = moment(startDate).startOf('day');
+
+    // 2. ค้นหาการลาที่ "อนุมัติแล้ว" ล่าสุดก่อนวันที่กำลังจะลา
+    const lastLeave = await prisma.leaveRequest.findFirst({
+        where: {
+            employeeId,
+            status: 'Approved',
+            endDate: { lt: requestedStart.toDate() }
+        },
+        orderBy: { endDate: 'desc' }
+    });
+
+    if (lastLeave) {
+        const lastEnd = moment(lastLeave.endDate).startOf('day');
+        const diffDays = requestedStart.diff(lastEnd, 'days') - 1; // ลบ 1 เพราะไม่นับวันสุดท้ายที่ลา
+
+        if (diffDays < gap) {
+            throw CustomError.badRequest(`Cannot request leave. Policy requires a ${gap}-day gap between approved leaves. (Current gap: ${diffDays} days)`);
+        }
+    }
+};
+
+/**
  * คำนวณจำนวนวันทำงานระหว่าง start/end date โดยตัดวันหยุดสุดสัปดาห์ (ส/อา) และวันหยุดนักขัตฤกษ์ออก
  */
 const getValidWorkDays = async (startDateStr, endDateStr) => {
     const start = moment(startDateStr).tz(TIMEZONE).startOf('day');
     const end = moment(endDateStr).tz(TIMEZONE).startOf('day');
     
-    // 1. ดึงวันหยุดนักขัตฤกษ์ในช่วงวันที่ร้องขอ
-    const holidayRecords = await getHolidays(start.toDate(), end.toDate());
+    // 1. ดึงวันหยุดจากตารางหลัก + จาก Policy
+    const [holidayRecords, policy] = await Promise.all([
+        getHolidays(start.toDate(), end.toDate()),
+        prisma.attendancePolicy.findFirst({ where: { policyId: 1 }, select: { specialHolidays: true } })
+    ]);
+
     const holidayMap = new Map();
-    holidayRecords.forEach(h => {
-        // ใช้ ISO string ของวันที่เพื่อเป็น Key
-        holidayMap.set(moment(h.holidayDate).format('YYYY-MM-DD'), true);
-    });
+    // ใส่จากตารางหลัก
+    holidayRecords.forEach(h => holidayMap.set(moment(h.holidayDate).format('YYYY-MM-DD'), true));
+    
+    // ใส่จากฟิลด์ Special Holidays ใน Policy (ถ้ามี)
+    if (policy?.specialHolidays && Array.isArray(policy.specialHolidays)) {
+        policy.specialHolidays.forEach(hStr => holidayMap.set(hStr, true));
+    }
 
     let workDaysCount = 0;
     let current = start.clone();
-
     while (current.isSameOrBefore(end, 'day')) {
         const dateStr = current.format('YYYY-MM-DD');
-        const dayOfWeek = current.day(); // 0 (Sun) to 6 (Sat)
-        
-        // 2. ตรวจสอบ: ไม่ใช่เสาร์ (6) และไม่ใช่อาทิตย์ (0) และไม่ใช่วันหยุดนักขัตฤกษ์
+        const dayOfWeek = current.day(); 
         if (dayOfWeek !== 0 && dayOfWeek !== 6 && !holidayMap.has(dateStr)) {
             workDaysCount++;
         }
         current.add(1, 'day');
     }
-
     return workDaysCount;
 };
 

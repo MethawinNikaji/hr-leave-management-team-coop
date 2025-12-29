@@ -57,6 +57,10 @@ Add Polyci
 pnpx prisma@6 migrate dev --name add_attendance_policy
 Add LeaveType Color for HR Dashboard (Report Tabs)
 pnpx prisma@6 migrate dev --name add_color_to_leavetype
+Add Audit Log
+pnpx prisma@6 migrate dev --name audit_log
+Add leave gap and holiday config
+pnpx prisma@6 migrate dev --name add_leave_gap_and_holidays
 ```
 ### To Run Project
 ```bash

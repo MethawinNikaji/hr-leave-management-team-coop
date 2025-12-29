@@ -3,9 +3,6 @@ import "./HRAttendancePolicy.css";
 import { alertConfirm, alertSuccess, alertError } from "../utils/sweetAlert";
 import axiosClient from "../api/axiosClient";
 
-// ✅ Frontend-only policy settings
-const STORAGE_KEY = "attendance_policy_v1";
-
 const DAYS = [
   { key: "mon", label: "Mon" },
   { key: "tue", label: "Tue" },
@@ -18,23 +15,11 @@ const DAYS = [
 
 const defaultPolicy = {
   startTime: "09:00",
-  endTime: "18:00", // 🔥 เพิ่มฟิลด์เวลาเลิกงานเริ่มต้น
+  endTime: "18:00",
   graceMinutes: 5,
   workingDays: { mon: true, tue: true, wed: true, thu: true, fri: true, sat: false, sun: false },
   specialHolidays: [],
-  shiftsEnabled: false,
-  shifts: [
-    { id: "day", name: "Day Shift", startTime: "09:00", endTime: "18:00", graceMinutes: 5 },
-  ],
-};
-
-const safeParse = (raw, fallback) => {
-  try {
-    const v = JSON.parse(raw);
-    return v && typeof v === "object" ? v : fallback;
-  } catch {
-    return fallback;
-  }
+  leaveGapDays: 0, // ค่าเริ่มต้นของนโยบายระยะห่างการลา
 };
 
 const clampInt = (v, min, max) => {
@@ -54,12 +39,17 @@ export default function HRAttendancePolicy() {
         const res = await axiosClient.get("/admin/attendance-policy");
         const data = res.data.policy;
         
-        // แปลง "mon,tue" จาก DB เป็น {mon: true, tue: true} เพื่อให้ Checkbox ติ๊กถูก
-        const daysArr = data.workingDays.split(",");
+        // แปลง "mon,tue" จาก DB เป็น Object {mon: true, tue: true}
+        const daysArr = data.workingDays ? data.workingDays.split(",") : [];
         const daysObj = {};
         DAYS.forEach(d => daysObj[d.key] = daysArr.includes(d.key));
 
-        setPolicy({ ...data, workingDays: daysObj });
+        setPolicy({ 
+          ...data, 
+          workingDays: daysObj,
+          specialHolidays: data.specialHolidays || [],
+          leaveGapDays: data.leaveGapDays || 0
+        });
       } catch (err) {
         console.error("Load policy error", err);
       }
@@ -75,14 +65,13 @@ export default function HRAttendancePolicy() {
   const save = async () => {
     const ok = await alertConfirm(
       "Save Attendance Policy",
-      "This will update work policy used by the system (frontend only for now).",
+      "This will update work policy and leave restrictions used by the system.",
       "Save"
     );
     if (!ok) return;
 
     try {
       setSaving(true);
-      // แปลง {mon: true, tue: true} เป็น "mon,tue" เพื่อเก็บลงฐานข้อมูล
       const daysStr = Object.keys(policy.workingDays)
         .filter(key => policy.workingDays[key])
         .join(",");
@@ -91,7 +80,9 @@ export default function HRAttendancePolicy() {
         startTime: policy.startTime,
         endTime: policy.endTime,
         graceMinutes: policy.graceMinutes,
-        workingDays: daysStr
+        workingDays: daysStr,
+        leaveGapDays: policy.leaveGapDays,
+        specialHolidays: policy.specialHolidays
       });
       
       await alertSuccess("Saved", "Policy updated in database!");
@@ -111,10 +102,11 @@ export default function HRAttendancePolicy() {
     );
     if (!ok) return;
     try {
-      const daysStr = "mon,tue,wed,thu,fri"; // ค่าเริ่มต้น
+      const daysStr = "mon,tue,wed,thu,fri";
       await axiosClient.put("/admin/attendance-policy", {
         ...defaultPolicy,
-        workingDays: daysStr
+        workingDays: daysStr,
+        specialHolidays: []
       });
       setPolicy(defaultPolicy);
       await alertSuccess("Reset", "Policy reset to default in database.");
@@ -144,7 +136,7 @@ export default function HRAttendancePolicy() {
         <div>
           <h1 className="hrp-title">Attendance Settings</h1>
           <p className="hrp-sub">
-            Configure work start/end time, late grace period, working days and special holidays.
+            Configure work start/end time, leave restrictions, and company holidays.
           </p>
         </div>
 
@@ -159,6 +151,7 @@ export default function HRAttendancePolicy() {
       </div>
 
       <div className="hrp-grid">
+        {/* 1. Work Policy Section */}
         <section className="hrp-card">
           <h3 className="hrp-card-title">Work Policy</h3>
 
@@ -172,7 +165,6 @@ export default function HRAttendancePolicy() {
               />
             </div>
 
-            {/* 🔥 เพิ่มช่องกรอกเวลาเลิกงาน (End time) */}
             <div className="hrp-field">
               <label>End time (Check-out)</label>
               <input
@@ -194,7 +186,6 @@ export default function HRAttendancePolicy() {
                 onChange={(e) => setPolicy((p) => ({ ...p, graceMinutes: clampInt(e.target.value, 0, 180) }))}
               />
             </div>
-            {/* ช่องว่างเพื่อให้ layout ดูสมดุล */}
             <div className="hrp-field" style={{ opacity: 0, pointerEvents: 'none' }}>
                <label>Space</label>
                <input type="text" readOnly />
@@ -226,6 +217,33 @@ export default function HRAttendancePolicy() {
           </div>
         </section>
 
+        {/* 2. Leave Gap Policy Section (ตำแหน่งเดิมของ Special Holidays) */}
+        <section className="hrp-card">
+          <h3 className="hrp-card-title">Leave Gap Policy</h3>
+          <p className="hrp-sub2">
+            Set a mandatory minimum rest period between leave requests to ensure workforce availability.
+          </p>
+
+          <div className="hrp-field" style={{ marginTop: '20px' }}>
+            <label>Minimum days between leave requests</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <input
+                type="number"
+                min={0}
+                max={30}
+                style={{ width: '100px' }}
+                value={policy.leaveGapDays || 0}
+                onChange={(e) => setPolicy((p) => ({ ...p, leaveGapDays: clampInt(e.target.value, 0, 30) }))}
+              />
+              <span style={{ color: '#64748b', fontSize: '14px', fontWeight: '500' }}>Days</span>
+            </div>
+            <div className="hrp-hint" style={{ marginTop: '12px' }}>
+              Example: If set to 3, an employee must wait 3 days after an approved leave before taking another.
+            </div>
+          </div>
+        </section>
+
+        {/* 3. Special Holidays Section (ตำแหน่งเดิมของ Shift) */}
         <section className="hrp-card">
           <h3 className="hrp-card-title">Special Holidays</h3>
           <p className="hrp-sub2">Add one-off holidays (YYYY-MM-DD) that should be treated as non-working days.</p>
@@ -233,7 +251,7 @@ export default function HRAttendancePolicy() {
           <div className="hrp-holiday-row">
             <input
               className="hrp-holiday-input"
-              placeholder="YYYY-MM-DD"
+              type="date" // ปรับเป็น type date เพื่อให้เลือกง่ายขึ้น
               value={holidayInput}
               onChange={(e) => setHolidayInput(e.target.value)}
             />
@@ -256,26 +274,6 @@ export default function HRAttendancePolicy() {
               ))}
             </div>
           )}
-        </section>
-
-        <section className="hrp-card hrp-card-muted">
-          <h3 className="hrp-card-title">Shift (Next Phase)</h3>
-          <p className="hrp-sub2">
-            Shift support requires backend tables (policy/shift) and check-in logic. This UI is prepared for next phase.
-          </p>
-
-          <label className="hrp-shift-toggle">
-            <input
-              type="checkbox"
-              checked={!!policy.shiftsEnabled}
-              onChange={(e) => setPolicy((p) => ({ ...p, shiftsEnabled: e.target.checked }))}
-            />
-            Enable shift system
-          </label>
-
-          <div className="hrp-hint">
-            When backend is ready, we will allow creating multiple shifts and assign them to employees.
-          </div>
         </section>
       </div>
     </div>

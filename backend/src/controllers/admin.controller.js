@@ -573,7 +573,9 @@ const getAttendancePolicy = async (req, res, next) => {
           startTime: "09:00",
           endTime: "18:00",
           graceMinutes: 5,
-          workingDays: "mon,tue,wed,thu,fri"
+          workingDays: "mon,tue,wed,thu,fri",
+          leaveGapDays: 0,
+          specialHolidays: []
         }
       });
     }
@@ -587,14 +589,14 @@ const getAttendancePolicy = async (req, res, next) => {
 const updateAttendancePolicy = async (req, res, next) => {
   try {
     const performedByEmployeeId = Number(req.user.employeeId);
-    const { startTime, endTime, graceMinutes, workingDays } = req.body;
+    const { startTime, endTime, graceMinutes, workingDays, leaveGapDays, specialHolidays } = req.body;
 
     const oldPolicy = await prisma.attendancePolicy.findFirst();
 
     const policy = await prisma.attendancePolicy.upsert({
       where: { policyId: 1 },
-      update: { startTime, endTime, graceMinutes, workingDays },
-      create: { policyId: 1, startTime, endTime, graceMinutes, workingDays }
+      update: { startTime, endTime, graceMinutes, workingDays, leaveGapDays: parseInt(leaveGapDays) || 0, specialHolidays: specialHolidays || [] },
+      create: { policyId: 1, startTime, endTime, graceMinutes, workingDays, leaveGapDays: parseInt(leaveGapDays) || 0, specialHolidays: specialHolidays || [] }
     });
 
     await safeAudit({
