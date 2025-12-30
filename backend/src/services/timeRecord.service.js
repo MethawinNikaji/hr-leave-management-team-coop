@@ -91,7 +91,7 @@ const checkOut = async (employeeId) => {
 
         // ถ้าเวลาปัจจุบัน "ก่อน" เวลาเลิกงาน ให้ Error
         if (moment(now).isBefore(endDeadline)) {
-            throw CustomError.badRequest(`ยังไม่ถึงเวลาเลิกงานตามนโยบาย (${policy.endTime} น.)`);
+            throw CustomError.badRequest(`It is not yet the scheduled end-of-work time according to the policy. (Policy: ${policy.endTime})`);
         }
     }
     

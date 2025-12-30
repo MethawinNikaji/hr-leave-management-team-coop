@@ -5,26 +5,29 @@ import Pagination from "../components/Pagination";
 import { getMyTimeRecords, getMyLateSummary } from "../api/timeRecordService";
 import { alertError, alertSuccess } from "../utils/sweetAlert";
 
+// Helper: Format date to YYYY-MM-DD
 const pad2 = (n) => String(n).padStart(2, "0");
 const toYMD = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 
+// CSV Builder
 const buildCSV = (rows) => {
   const escape = (v) => {
     const s = String(v ?? "");
     if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
     return s;
   };
-  const header = ["Date", "Check In", "Check Out", "Late", "Note"].join(",");
+  const header = ["Date", "Check In", "Check Out", "Status", "Note"].join(",");
   const body = rows
-    .map((r) => [r.date, r.in, r.out, r.late ? "YES" : "NO", r.note].map(escape).join(","))
+    .map((r) => [r.date, r.in, r.out, r.late ? "LATE" : "ON TIME", r.note].map(escape).join(","))
     .join("\n");
   return `${header}\n${body}`;
 };
 
 export default function WorkerAttendancePage() {
   const today = useMemo(() => new Date(), []);
+  
+  // State
   const [range, setRange] = useState(() => {
-    // default: last 30 days
     const end = new Date();
     const start = new Date();
     start.setDate(start.getDate() - 30);
@@ -37,11 +40,12 @@ export default function WorkerAttendancePage() {
   const [records, setRecords] = useState([]);
   const [lateInfo, setLateInfo] = useState(null);
 
-  // pagination
+  // Pagination
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  const fetchAll = async () => {
+  // Fetch Data
+  const fetchData = async () => {
     setLoading(true);
     try {
       const [recRes, lateRes] = await Promise.all([
@@ -49,23 +53,30 @@ export default function WorkerAttendancePage() {
         getMyLateSummary(),
       ]);
 
-      const rows = recRes.data?.records || recRes.data?.data?.records || [];
-      setRecords(rows);
+      const fetchedRecords = recRes.data?.records || recRes.data?.data?.records || [];
+      setRecords(fetchedRecords);
       setLateInfo(lateRes.data || null);
     } catch (err) {
       console.error(err);
-      await alertError("โหลดข้อมูลไม่สำเร็จ", "ไม่สามารถดึงประวัติการลงเวลาได้");
+      await alertError("Fetch Failed", "Could not retrieve attendance records.");
     } finally {
       setLoading(false);
     }
   };
 
+  // Sync data on range change
   useEffect(() => {
-    fetchAll();
+    fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [range.start, range.end]);
 
-  const normalized = useMemo(() => {
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [q, onlyLate, range.start, range.end]);
+
+  // Filter and Normalize Logic
+  const filteredData = useMemo(() => {
     const query = q.trim().toLowerCase();
 
     const mapped = records.map((r) => {
@@ -79,68 +90,58 @@ export default function WorkerAttendancePage() {
         out: outTime,
         late: !!r.isLate,
         note: r.note || "",
-        raw: r,
       };
     });
 
-    let rows = mapped;
-    if (onlyLate) rows = rows.filter((x) => x.late);
-    if (query) {
-      rows = rows.filter((x) =>
-        [x.date, x.in, x.out, x.note, x.late ? "late" : "on time"].some((v) =>
-          String(v).toLowerCase().includes(query)
-        )
-      );
-    }
-    return rows;
+    return mapped.filter((item) => {
+      const matchesLate = onlyLate ? item.late : true;
+      const matchesSearch = !query || [item.date, item.in, item.out, item.note, item.late ? "late" : "on time"]
+        .some((v) => String(v).toLowerCase().includes(query));
+      
+      return matchesLate && matchesSearch;
+    });
   }, [records, q, onlyLate]);
 
-  useEffect(() => {
-    setPage(1);
-  }, [q, onlyLate, range.start, range.end]);
-
-  const total = normalized.length;
+  const total = filteredData.length;
   const startIdx = (page - 1) * pageSize;
-  const paged = useMemo(
-    () => normalized.slice(startIdx, startIdx + pageSize),
-    [normalized, startIdx, pageSize]
+  const pagedRecords = useMemo(
+    () => filteredData.slice(startIdx, startIdx + pageSize),
+    [filteredData, startIdx, pageSize]
   );
 
-  const exportCSV = async () => {
+  const handleExportCSV = async () => {
     try {
-      const csv = buildCSV(normalized);
+      const csv = buildCSV(filteredData);
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `my_attendance_${range.start}_to_${range.end}.csv`;
+      a.download = `attendance_report_${range.start}_to_${range.end}.csv`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      await alertSuccess("Export สำเร็จ", "ดาวน์โหลดไฟล์ CSV เรียบร้อยแล้ว");
+      await alertSuccess("Export Successful", "CSV file has been downloaded.");
     } catch (e) {
-      await alertError("Export ไม่สำเร็จ", "ไม่สามารถสร้างไฟล์ CSV ได้");
+      await alertError("Export Failed", "Could not generate CSV file.");
     }
   };
 
-  const lateCount = lateInfo?.lateCount ?? null;
-  const lateLimit = lateInfo?.lateLimit ?? 5;
-  const isExceeded = lateInfo?.isExceeded ?? false;
+  const { lateCount = null, lateLimit = 5, isExceeded = false } = lateInfo || {};
 
   return (
     <div className="wa-page">
       <header className="wa-header">
         <div>
           <h1 className="wa-title">My Attendance</h1>
-          <p className="wa-subtitle">ประวัติการลงเวลา + ค้นหา/กรอง/Export</p>
+          <p className="wa-subtitle">Attendance history with search, filter, and export options</p>
         </div>
 
         <div className="wa-header-right">
           <div className={`wa-pill ${isExceeded ? "danger" : ""}`}>
             Late this month: <strong>{lateCount ?? "-"}</strong> / {lateLimit}
           </div>
-          <button className="wa-btn wa-btn-primary" type="button" onClick={exportCSV} disabled={loading}>
+          <button className="wa-btn wa-btn-primary" type="button" onClick={handleExportCSV} disabled={loading}>
             Export CSV
           </button>
         </div>
@@ -149,7 +150,7 @@ export default function WorkerAttendancePage() {
       <section className="wa-panel">
         <div className="wa-controls">
           <div className="wa-control">
-            <label>Start</label>
+            <label>Start Date</label>
             <input
               type="date"
               value={range.start}
@@ -159,7 +160,7 @@ export default function WorkerAttendancePage() {
           </div>
 
           <div className="wa-control">
-            <label>End</label>
+            <label>End Date</label>
             <input
               type="date"
               value={range.end}
@@ -175,25 +176,25 @@ export default function WorkerAttendancePage() {
               type="text"
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="ค้นหา date / note / time"
+              placeholder="Filter by date, note, or time..."
             />
           </div>
 
           <label className="wa-toggle">
             <input type="checkbox" checked={onlyLate} onChange={(e) => setOnlyLate(e.target.checked)} />
-            <span>เฉพาะมาสาย</span>
+            <span>Show only late</span>
           </label>
 
-          <button className="wa-btn wa-btn-ghost" type="button" onClick={fetchAll} disabled={loading}>
+          <button className="wa-btn wa-btn-ghost" type="button" onClick={fetchData} disabled={loading}>
             Refresh
           </button>
         </div>
 
         <div className="wa-table-wrap">
           {loading ? (
-            <div className="wa-empty">Loading...</div>
+            <div className="wa-empty">Loading records...</div>
           ) : total === 0 ? (
-            <div className="wa-empty">ไม่พบข้อมูลในช่วงวันที่นี้</div>
+            <div className="wa-empty">No records found for the selected range.</div>
           ) : (
             <table className="wa-table">
               <thead>
@@ -206,17 +207,15 @@ export default function WorkerAttendancePage() {
                 </tr>
               </thead>
               <tbody>
-                {paged.map((r) => (
+                {pagedRecords.map((r) => (
                   <tr key={r.id}>
                     <td className="wa-mono">{r.date}</td>
                     <td className="wa-mono">{r.in}</td>
                     <td className="wa-mono">{r.out}</td>
                     <td>
-                      {r.late ? (
-                        <span className="wa-badge late">Late</span>
-                      ) : (
-                        <span className="wa-badge ok">On Time</span>
-                      )}
+                      <span className={`wa-badge ${r.late ? "late" : "ok"}`}>
+                        {r.late ? "Late" : "On Time"}
+                      </span>
                     </td>
                     <td className="wa-note">{r.note || "-"}</td>
                   </tr>
