@@ -19,6 +19,7 @@ function QuotaCard({ title, usedDays, totalDays, carriedOverDays }) {
   const used = num(usedDays);
   const currentTotal = num(totalDays);
   const carried = num(carriedOverDays);
+  
 
   // Total available = current year + carried over
   const totalEffective = currentTotal + carried;
@@ -470,10 +471,26 @@ export default function WorkerDashboard() {
                 />
               </label>
 
-              <label className="full">
-                Attachment (optional)
-                <input type="file" onChange={(e) => setSelectedFile(e.target.files[0])} />
-              </label>
+             <label className="full">
+              <span className="field-label">ATTACHMENT (OPTIONAL)</span>
+
+              <div className="file-upload">
+                <input
+                  type="file"
+                  id="attachment"
+                  hidden
+                  onChange={(e) => setSelectedFile(e.target.files[0])}
+                />
+
+                <label htmlFor="attachment" className="file-upload-btn">
+                  Choose file
+                </label>
+
+                <span className={`file-upload-name ${selectedFile ? "active" : ""}`}>
+                  {selectedFile ? selectedFile.name : "No file selected"}
+                </span>
+              </div>
+            </label>
 
               <div className="modal-actions">
                 <button

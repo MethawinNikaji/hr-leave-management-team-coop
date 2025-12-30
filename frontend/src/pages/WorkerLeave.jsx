@@ -49,18 +49,18 @@ export default function WorkerLeave() {
 
   // 🔥 ฟังก์ชันยกเลิกใบลา
   const handleCancelLeave = async (requestId) => {
-    if (!(await alertConfirm("ยืนยันการยกเลิก", "คุณมั่นใจหรือไม่ที่จะยกเลิกคำขอลาใบนี้?", "ยืนยัน"))) return;
+    if (!(await alertConfirm("Confirm cancellation", "Are you sure you want to cancel this leave request?", "Confirm"))) return;
     try {
       const res = await axiosClient.patch(`/leave/${requestId}/cancel`, {});
       if (res.data.success) {
-        await alertSuccess("สำเร็จ", "ยกเลิกคำขอลาเรียบร้อยแล้ว");
+        await alertSuccess("Success", "Leave request cancelled successfully.");
         fetchData(); 
       } else {
-        await alertError("ไม่สามารถยกเลิกได้", res.data.message);
+        await alertError("Unable to cancel", res.data.message);
       }
     } catch (err) {
       console.error("Cancel Leave Error:", err);
-      await alertError("เกิดข้อผิดพลาด", "เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์");
+      await alertError("Error", "Failed to connect to server.");
     }
   };
 

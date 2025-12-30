@@ -510,3 +510,66 @@
 .swal2-container {
   z-index: 10000 !important; /* ต้องสูงกว่า z-index ของ Modal */
 }
+/* ===============================
+   FILE UPLOAD – HR THEME
+   =============================== */
+
+.field-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: #64748b;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.file-upload {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+/* Button */
+.file-upload-btn {
+  padding: 10px 18px;
+  border-radius: 14px;
+  background: white;       /* dark navy */
+  color: #0f172a;
+  border: 1px solid #cbd5f5;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.file-upload-btn:hover {
+  background: #020617;
+}
+
+/* File name */
+.file-upload-name {
+  font-size: 13px;
+  color: #94a3b8;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 320px;
+}
+
+.file-upload-name.active {
+  color: #0f172a;
+}
+
+/* Focus (keyboard / accessibility) */
+.file-upload:focus-within {
+  border-color: #94a3b8;
+  box-shadow: 0 0 0 4px rgba(148, 163, 184, 0.25);
+}
+

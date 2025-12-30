@@ -24,7 +24,7 @@ const baseConfig = {
   },
 };
 
-export const alertConfirm = async (title, html, confirmText = "ยืนยัน") => {
+export const alertConfirm = async (title, html, confirmText = "Confirm") => {
   const res = await Swal.fire({
     ...baseConfig,
     icon: "question",
@@ -32,7 +32,7 @@ export const alertConfirm = async (title, html, confirmText = "ยืนยั�
     html,
     showCancelButton: true,
     confirmButtonText: confirmText,
-    cancelButtonText: "ยกเลิก",
+    cancelButtonText: "Cancel",
   });
   return res.isConfirmed;
 };
@@ -54,7 +54,7 @@ export const alertError = (title, text = "") => {
     icon: "error",
     title,
     text,
-    confirmButtonText: "ปิด",
+    confirmButtonText: "Close",
   });
 };
 
@@ -64,6 +64,6 @@ export const alertInfo = (title, text = "") => {
     icon: "info",
     title,
     text,
-    confirmButtonText: "ตกลง",
+    confirmButtonText: "OK",
   });
 };

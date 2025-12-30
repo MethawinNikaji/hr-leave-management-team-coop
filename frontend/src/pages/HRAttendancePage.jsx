@@ -174,16 +174,16 @@ export default function HRAttendancePage() {
     try {
       // เดิม: /checkin -> แก้เป็น: /check-in
       await axios.post("http://localhost:8000/api/timerecord/check-in", {}, getAuthHeader());
-      await alertSuccess("สำเร็จ", "Check In สำเร็จ");
+      await alertSuccess("Success", "Check-in successful");
       fetchAttendanceData();
       fetchLateSummary();
-    } catch (err) { alertError("Check In ล้มเหลว", err.response?.data?.message); }
+    } catch (err) { alertError("Check-in failed", err.response?.data?.message); }
   };
 
   const handleCheckOut = async () => {
     // 1. ตรวจสอบว่ามีข้อมูล policy หรือยัง (ดึงมาจาก DB แล้ว)
     if (!policy || !policy.endTime) {
-      return alertError("ผิดพลาด", "ไม่สามารถโหลดนโยบายการเข้างานได้");
+      return alertError("Error", "Unable to load attendance policy.");
     }
 
     // 2. คำนวณเวลาเลิกงานจาก Policy ในวันนี้
@@ -194,31 +194,31 @@ export default function HRAttendancePage() {
     // 3. 🔥 ตรวจสอบเงื่อนไข: ถ้าเวลาปัจจุบัน "ยังไม่ถึง" เวลาเลิกงาน
     if (nowMoment.isBefore(endMoment)) {
       return alertError(
-        "ยังไม่ถึงเวลาเลิกงาน", 
-        `นโยบายกำหนดให้ Check-out ได้ตั้งแต่เวลา ${policy.endTime} น. เป็นต้นไป`
+        "Not time to check out yet", 
+        `Policy allows check-out starting from ${policy.endTime}.`
       );
     }
 
     // 4. ถ้าผ่านเงื่อนไข (ถึงเวลาแล้ว) ให้ยิง API ตามปกติ
     try {
       await axios.post("http://localhost:8000/api/timerecord/check-out", {}, getAuthHeader());
-      await alertSuccess("สำเร็จ", "Check Out สำเร็จ");
+      await alertSuccess("Success", "Check-out successful");
       fetchAttendanceData();
     } catch (err) { 
-      alertError("Check Out ล้มเหลว", err.response?.data?.message || "เกิดข้อผิดพลาด"); 
+      alertError("Check-out failed", err.response?.data?.message || "Something went wrong"); 
     }
   };
 
   const handleCancelLeave = async (requestId) => {
-    if (!(await alertConfirm("ยืนยันการยกเลิก", "คุณมั่นใจหรือไม่ที่จะยกเลิกคำขอลาใบนี้?", "ยืนยัน"))) return;
+    if (!(await alertConfirm("Confirm cancellation", "Are you sure you want to cancel this leave request?", "Confirm"))) return;
     try {
       const res = await axios.patch(`http://localhost:8000/api/leave/${requestId}/cancel`, {}, getAuthHeader());
       if (res.data.success) {
-        await alertSuccess("สำเร็จ", "ยกเลิกคำขอลาเรียบร้อยแล้ว");
+        await alertSuccess("Success", "Leave request cancelled successfully.");
         fetchLeaveHistory();
         fetchQuotaData();
-      } else { alertError("ไม่สามารถยกเลิกได้", res.data.message); }
-    } catch (err) { alertError("เกิดข้อผิดพลาด", "เชื่อมต่อเซิร์ฟเวอร์ล้มเหลว"); }
+      } else { alertError("Unable to cancel", res.data.message); }
+    } catch (err) { alertError("Error", "Failed to connect to server."); }
   };
 
   const handleLeaveChange = (e) => {
@@ -269,13 +269,13 @@ export default function HRAttendancePage() {
       });
 
       if (res.data.success) {
-        await alertSuccess("สำเร็จ", "ส่งคำขอลาสำเร็จ");
+        await alertSuccess("Success", "Leave request submitted successfully.");
         setIsLeaveModalOpen(false);
         fetchQuotaData();
         fetchLeaveHistory();
         setLeaveForm({ leaveTypeId: quotas[0]?.leaveTypeId.toString() || "", startDate: "", endDate: "", detail: "" });
-      } else { alertInfo("ไม่สำเร็จ", res.data.message); }
-    } catch (err) { alertError("เกิดข้อผิดพลาด", err.response?.data?.message); }
+      } else { alertInfo("Failed", res.data.message); }
+    } catch (err) { alertError("Error", err.response?.data?.message); }
   };
 
   const formatTime = (d) => d ? new Date(d).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "--:--";
@@ -354,7 +354,7 @@ export default function HRAttendancePage() {
             </thead>
             <tbody>
               {history.length === 0 ? (
-                <tr><td colSpan="4" className="empty">ไม่มีข้อมูลการลงเวลา</td></tr>
+                <tr><td colSpan="4" className="empty">No attendance records</td></tr>
               ) : (
                 history.slice(0, 10).map((row) => (
                   <tr key={row.recordId}>
@@ -380,7 +380,7 @@ export default function HRAttendancePage() {
             </thead>
             <tbody>
               {leaveHistory.length === 0 ? (
-                <tr><td colSpan="5" className="empty">ยังไม่มีประวัติการลา</td></tr>
+                <tr><td colSpan="5" className="empty">No leave history yet</td></tr>
               ) : (
                 leaveHistory.slice(0, 10).map((req) => (
                   <tr key={req.requestId}>
@@ -420,7 +420,7 @@ export default function HRAttendancePage() {
               <select name="leaveTypeId" value={leaveForm.leaveTypeId} onChange={handleLeaveChange} required>
                 {quotas.map((q) => (
                   <option key={q.leaveTypeId} value={q.leaveTypeId}>
-                    {q.leaveType?.typeName} (คงเหลือ: {num(q.totalDays) + num(q.carriedOverDays) - num(q.usedDays)} วัน)
+                    {q.leaveType?.typeName} (Remaining: {num(q.totalDays) + num(q.carriedOverDays) - num(q.usedDays)} days)
                   </option>
                 ))}
               </select>
@@ -437,15 +437,33 @@ export default function HRAttendancePage() {
                   padding: '12px', borderRadius: '12px', color: '#0369a1', fontSize: '14px'
                 }}>
                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <FiCalendar /> <span>จำนวนวันลาจริง: <strong>{previewDays} วัน</strong></span>
+                      <FiCalendar /> <span>Actual leave days: <strong>{previewDays} days</strong></span>
                    </div>
-                   <p style={{ fontSize: '11px', color: '#0ea5e9', margin: '4px 0 0' }}>* ระบบหักวันหยุดเสาร์-อาทิตย์ และวันหยุดนักขัตฤกษ์ให้คุณแล้ว</p>
+                   <p style={{ fontSize: '11px', color: '#0ea5e9', margin: '4px 0 0' }}>* Weekends and public holidays are excluded automatically</p>
                 </div>
               )}
 
               <label className="full">Detail<textarea name="detail" rows="3" value={leaveForm.detail} onChange={handleLeaveChange} placeholder="Reason." /></label>
-              <label className="full">หลักฐานแนบ<input type="file" onChange={handleFileChange} style={{ border: 'none', padding: '10px 0' }} /></label>
+              <label className="full">
+                <span className="field-label">ATTACHMENT (OPTIONAL)</span>
 
+                <div className="file-upload">
+                  <input
+                    type="file"
+                    id="attachment"
+                    hidden
+                    onChange={(e) => setSelectedFile(e.target.files[0])}
+                  />
+
+                  <label htmlFor="attachment" className="file-upload-btn">
+                    Choose file
+                  </label>
+
+                  <span className={`file-upload-name ${selectedFile ? "active" : ""}`}>
+                    {selectedFile ? selectedFile.name : "No file selected"}
+                  </span>
+                </div>
+              </label>
               <div className="modal-actions">
                 <button type="button" className="outline-btn" onClick={() => setIsLeaveModalOpen(false)}>Cancel</button>
                 <button type="submit" className="primary-btn">Submit Request</button>

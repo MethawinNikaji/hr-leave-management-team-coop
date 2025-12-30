@@ -62,7 +62,7 @@ export default function WorkerProfile() {
         });
         
         if (res.data.success) {
-        await alertSuccess("สำเร็จ", "อัปเดตข้อมูลสำเร็จ");
+        await alertSuccess("Success", "Profile updated successfully.");
         setIsEditing(false); // ปิดโหมดแก้ไข
         
         // --- เรียกฟังก์ชันดึงข้อมูลใหม่ เพื่ออัปเดต UI โดยไม่ต้องรีโหลดหน้า ---
@@ -70,12 +70,12 @@ export default function WorkerProfile() {
         // --------------------------------------------------------
         }
     } catch (err) {
-        await alertError("เกิดข้อผิดพลาด", (err.response?.data?.message || "เกิดข้อผิดพลาดในการอัปเดต"));
+        await alertError("Error", (err.response?.data?.message || "Update failed."));
     }
   };
 
-  if (loading) return <div className="p-loader">กำลังโหลดข้อมูลโปรไฟล์...</div>;
-  if (!profile) return <div className="p-error">ไม่พบข้อมูลผู้ใช้งาน</div>;
+  if (loading) return <div className="p-loader">Loading profile...</div>;
+  if (!profile) return <div className="p-error">User not found</div>;
 
   const initials = (profile.firstName?.charAt(0) || "U") + (profile.lastName?.charAt(0) || "");
 
@@ -108,10 +108,10 @@ export default function WorkerProfile() {
         <form className="profile-details-grid" onSubmit={handleUpdate}>
           {/* ข้อมูลส่วนตัว */}
           <section className="info-section">
-            <h3 className="section-header"><FiUser /> ข้อมูลส่วนตัว</h3>
+            <h3 className="section-header"><FiUser /> Personal Information</h3>
             <div className="info-field-list">
               <div className="info-box">
-                <label>ชื่อ</label>
+                <label>First name</label>
                 {isEditing ? (
                   <input 
                     type="text" 
@@ -122,7 +122,7 @@ export default function WorkerProfile() {
                 ) : <p>{profile.firstName}</p>}
               </div>
               <div className="info-box">
-                <label>นามสกุล</label>
+                <label>Last name</label>
                 {isEditing ? (
                   <input 
                     type="text" 
@@ -133,7 +133,7 @@ export default function WorkerProfile() {
                 ) : <p>{profile.lastName}</p>}
               </div>
               <div className="info-box">
-                <label><FiMail /> อีเมลติดต่อ</label>
+                <label><FiMail /> Contact email</label>
                 <p>{profile.email}</p>
               </div>
             </div>
@@ -142,47 +142,47 @@ export default function WorkerProfile() {
           {/* ข้อมูลการทำงาน หรือ โหมดเปลี่ยนรหัสผ่าน */}
           {!isEditing ? (
             <section className="info-section">
-              <h3 className="section-header"><FiBriefcase /> ข้อมูลการทำงาน</h3>
+              <h3 className="section-header"><FiBriefcase /> Employment Information</h3>
               <div className="info-field-list">
                 <div className="info-box">
-                  <label>รหัสพนักงาน</label>
+                  <label>Employee ID</label>
                   <p>#{profile.employeeId}</p>
                 </div>
                 <div className="info-box">
-                  <label><FiCalendar /> วันที่เริ่มงาน</label>
+                  <label><FiCalendar /> Start date</label>
                   <p>{profile.joiningDate ? moment(profile.joiningDate).format("DD MMM YYYY") : "-"}</p>
                 </div>
                 <div className={`info-box highlight ${profile.isActive ? 'ok' : 'danger'}`}>
-                  <label><FiShield /> สถานะพนักงาน</label>
-                  <p>{profile.isActive ? "กำลังทำงาน (Active)" : "พ้นสภาพพนักงาน"}</p>
+                  <label><FiShield /> Employment status</label>
+                  <p>{profile.isActive ? "Active" : "Inactive"}</p>
                 </div>
               </div>
             </section>
           ) : (
             <section className="info-section edit-password-section">
-              <h3 className="section-header"><FiLock /> เปลี่ยนรหัสผ่าน</h3>
+              <h3 className="section-header"><FiLock /> Change Password</h3>
               <div className="info-field-list">
                 <div className="info-box">
-                  <label>รหัสผ่านปัจจุบัน (เพื่อยืนยันการเปลี่ยนแปลง)</label>
+                  <label>Current password (to confirm changes)</label>
                   <input 
                     type="password" 
                     className="edit-input"
-                    placeholder="ใส่รหัสผ่านเดิม..."
+                    placeholder="Enter current password..."
                     value={formData.currentPassword}
                     onChange={(e) => setFormData({...formData, currentPassword: e.target.value})}
                   />
                 </div>
                 <div className="info-box">
-                  <label>รหัสผ่านใหม่ (ปล่อยว่างถ้าไม่ต้องการเปลี่ยน)</label>
+                  <label>New password (leave blank to keep current)</label>
                   <input 
                     type="password" 
                     className="edit-input"
-                    placeholder="ใส่รหัสผ่านใหม่..."
+                    placeholder="Enter new password..."
                     value={formData.newPassword}
                     onChange={(e) => setFormData({...formData, newPassword: e.target.value})}
                   />
                 </div>
-                <p className="edit-hint">* หากต้องการเปลี่ยนรหัสผ่าน ต้องระบุทั้งสองช่อง</p>
+                <p className="edit-hint">* To change your password, fill in both fields.</p>
               </div>
             </section>
           )}

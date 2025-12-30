@@ -404,10 +404,10 @@ export default function HRLeaveApprovals() {
                             <div style={{ fontSize: '48px' }}>
                               {meta.kind === "word" ? "📝" : meta.kind === "zip" ? "📦" : "📁"}
                             </div>
-                            <div style={{ fontWeight: 'bold' }}>ไฟล์ประเภท {meta.kind.toUpperCase()}</div>
+                            <div style={{ fontWeight: 'bold' }}>File type: {meta.kind.toUpperCase()}</div>
                             <div style={{ fontSize: '13px', color: '#6b7280', textAlign: 'center' }}>
-                              เบราว์เซอร์ไม่รองรับการแสดงตัวอย่างไฟล์ประเภทนี้ <br/> 
-                              กรุณากดปุ่ม <b>Download</b> หรือ <b>Open</b> ด้านบน
+                              This browser can't preview this file type.<br/> 
+                              Please click <b>Download</b> or <b>Open</b> above.
                             </div>
                           </div>
                         )}

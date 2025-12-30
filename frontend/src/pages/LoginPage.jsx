@@ -1,4 +1,3 @@
-// frontend/src/pages/LoginPage.jsx
 import { useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import "./LoginPage.css";
@@ -13,7 +12,11 @@ export default function LoginPage() {
   const { login } = useAuth();
   const noti = useNotification();
 
-  const [form, setForm] = useState({ email: "", password: "", remember: false });
+  const [form, setForm] = useState({
+    email: "",
+    password: "",
+    remember: false,
+  });
   const [showPw, setShowPw] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -23,16 +26,22 @@ export default function LoginPage() {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setForm((p) => ({ ...p, [name]: type === "checkbox" ? checked : value }));
+    setForm((p) => ({
+      ...p,
+      [name]: type === "checkbox" ? checked : value,
+    }));
   };
 
   const goAfterLogin = (role) => {
-    // ถ้ามี from (โดน guard เด้งมา) ให้กลับไปหน้าที่ขอ
+    // If redirected by auth guard, go back to requested page
     const from = location.state?.from;
     if (from) return navigate(from, { replace: true });
 
-    // ถ้าไม่มี from ให้ไปตาม role
-    return navigate(role === "HR" ? "/hr/dashboard" : "/worker/dashboard", { replace: true });
+    // Otherwise route by role
+    return navigate(
+      role === "HR" ? "/hr/dashboard" : "/worker/dashboard",
+      { replace: true }
+    );
   };
 
   const handleSubmit = async (e) => {
@@ -42,30 +51,31 @@ export default function LoginPage() {
     try {
       setSubmitting(true);
 
-      // ✅ ใช้ AuthContext.login (จะจัดการ token/user ให้เอง)
+      // ✅ Use AuthContext.login (handles token & user)
       const { user } = await login(form.email, form.password);
 
-      // ✅ sync unread count (ดึงจาก API ผ่าน context ที่ทำไว้)
-      // ไม่พังถ้า provider ยังไม่ถูกครอบ (noti อาจเป็น null)
+      // ✅ Sync unread notifications count
       try {
         await noti?.refresh?.();
       } catch {
-        // ignore
+        // ignore if provider not mounted
       }
 
-      await alertSuccess("เข้าสู่ระบบสำเร็จ", `ยินดีต้อนรับ ${user?.firstName || "User"}`);
+      await alertSuccess(
+        "Login successful",
+        `Welcome back ${user?.firstName || "User"}`
+      );
 
       goAfterLogin(user?.role);
     } catch (err) {
       console.error("Login Error:", err);
 
-      // รองรับรูปแบบ error หลายแบบ
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        "เชื่อมต่อ Server ไม่ได้ หรืออีเมล/รหัสผ่านไม่ถูกต้อง";
+        "Unable to connect to server or invalid email/password.";
 
-      await alertError("เข้าสู่ระบบไม่สำเร็จ", msg);
+      await alertError("Login failed", msg);
     } finally {
       setSubmitting(false);
     }
@@ -82,7 +92,7 @@ export default function LoginPage() {
 
         <form className="auth-form" onSubmit={handleSubmit}>
           <label className="field">
-            <span className="label">อีเมล</span>
+            <span className="label">Email</span>
             <input
               className="input"
               type="email"
@@ -96,13 +106,13 @@ export default function LoginPage() {
 
           <label className="field">
             <div className="label-row">
-              <span className="label">รหัสผ่าน</span>
+              <span className="label">Password</span>
               <button
                 type="button"
                 className="link-btn"
                 onClick={() => setShowPw((s) => !s)}
               >
-                {showPw ? "ซ่อน" : "แสดง"}
+                {showPw ? "Hide" : "Show"}
               </button>
             </div>
 
@@ -125,19 +135,23 @@ export default function LoginPage() {
                 checked={form.remember}
                 onChange={handleChange}
               />
-              <span>จดจำฉัน</span>
+              <span>Remember me</span>
             </label>
           </div>
 
-          <button className="primary" type="submit" disabled={!isValid || submitting}>
-            {submitting ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
+          <button
+            className="primary"
+            type="submit"
+            disabled={!isValid || submitting}
+          >
+            {submitting ? "Signing in..." : "Sign in"}
           </button>
         </form>
 
         <div className="divider" />
 
         <div className="test-accounts">
-          <div className="title">บัญชีทดสอบ:</div>
+          <div className="title">Test Accounts</div>
           <div className="list">
             <div className="row">
               <span className="label">HR</span>
@@ -148,7 +162,7 @@ export default function LoginPage() {
               <code>worker.a@company.com</code>
             </div>
             <div className="row">
-              <span className="label">Pass</span>
+              <span className="label">Password</span>
               <code>Password123</code>
             </div>
           </div>
