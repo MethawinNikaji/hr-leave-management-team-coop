@@ -1,64 +1,60 @@
 import React, { useEffect, useMemo, useState } from "react";
 import moment from "moment";
-import { FiRefreshCw, FiSearch, FiShield, FiFilter, FiX } from "react-icons/fi";
+import { FiRefreshCw, FiSearch, FiShield, FiFilter, FiX, FiTrash2 } from "react-icons/fi";
 
 import Pagination from "./Pagination";
 import { getAuditLogs } from "../api/auditService";
 import { alertError } from "../utils/sweetAlert";
 import "./AuditLogPanel.css";
 
-// -----------------------
-// 1) Mapping ให้คนอ่านง่าย
-// -----------------------
+// --- Constants ---
 const ACTION_LABELS = {
-  // Leave
-  LEAVE_REQUEST_CREATE: "ยื่นใบลา",
-  LEAVE_REQUEST_CANCEL: "ยกเลิกใบลา",
-  LEAVE_REQUEST_APPROVE: "อนุมัติใบลา",
-  LEAVE_REQUEST_REJECT: "ไม่อนุมัติใบลา",
-  LEAVE_REQUEST_DELETE: "ลบใบลา",
-
-  // Attendance
-  CHECKIN: "เช็คอินเข้างาน",
-  CHECKIN_LATE: "เช็คอิน (มาสาย)",
-  CHECKOUT: "เช็คเอาต์ออกงาน",
-
-  // Leave Type / Policy / Quota / Holiday
-  LEAVE_TYPE_CREATE: "สร้างประเภทการลา",
-  LEAVE_TYPE_UPDATE: "แก้ไขประเภทการลา",
-  LEAVE_TYPE_DELETE: "ลบประเภทการลา",
-
-  QUOTA_CREATE: "ตั้งค่าโควต้า (สร้าง)",
-  QUOTA_UPDATE: "ตั้งค่าโควต้า (แก้ไข)",
-  EMPLOYEE_QUOTA_BULK_UPDATE: "ปรับโควต้า (รายบุคคล)",
-
-  HOLIDAY_CREATE: "เพิ่มวันหยุด",
-  HOLIDAY_DELETE: "ลบวันหยุด",
-
-  ATTENDANCE_POLICY_UPDATE: "ปรับนโยบายเวลาเข้างาน",
-  SYNC_DEFAULT_QUOTAS_ALL_EMPLOYEES: "ซิงค์โควต้าเริ่มต้นทั้งบริษัท",
-  PROCESS_YEAR_END_CARRY_FORWARD: "ประมวลผลยกยอดโควต้า",
-
-  // Employee
-  EMPLOYEE_CREATE: "เพิ่มพนักงาน",
-  EMPLOYEE_UPDATE_BY_HR: "แก้ไขข้อมูลพนักงาน",
-  PROFILE_UPDATE: "แก้ไขโปรไฟล์",
-
-  // Auth
-  REGISTER: "สมัครบัญชี",
-  LOGIN_SUCCESS: "เข้าสู่ระบบ",
-
-  // Report
-  EXPORT_ATTENDANCE_CSV: "Export รายงานลงเวลา (CSV)",
-
-  // Notification
-  NOTIFICATION_MARK_READ: "อ่านแจ้งเตือน",
-  NOTIFICATION_MARK_ALL_READ: "อ่านแจ้งเตือนทั้งหมด",
-  NOTIFICATION_CLEAR_ALL: "ล้างแจ้งเตือนทั้งหมด",
-  NOTIFICATION_DELETE_ONE: "ลบแจ้งเตือน",
+  LEAVE_REQUEST_CREATE: "Leave Requested",
+  LEAVE_REQUEST_CANCEL: "Leave Cancelled",
+  LEAVE_REQUEST_APPROVE: "Leave Approved",
+  LEAVE_REQUEST_REJECT: "Leave Rejected",
+  LEAVE_REQUEST_DELETE: "Leave Deleted",
+  CHECKIN: "Clock-In",
+  CHECKIN_LATE: "Clock-In (Late)",
+  CHECKOUT: "Clock-Out",
+  LEAVE_TYPE_CREATE: "Created Leave Type",
+  LEAVE_TYPE_UPDATE: "Updated Leave Type",
+  LEAVE_TYPE_DELETE: "Deleted Leave Type",
+  QUOTA_CREATE: "Created Quota",
+  QUOTA_UPDATE: "Updated Quota",
+  EMPLOYEE_QUOTA_BULK_UPDATE: "Bulk Quota Update",
+  HOLIDAY_CREATE: "Added Holiday",
+  HOLIDAY_DELETE: "Deleted Holiday",
+  ATTENDANCE_POLICY_UPDATE: "Updated Attendance Policy",
+  SYNC_DEFAULT_QUOTAS_ALL_EMPLOYEES: "Synced Global Quotas",
+  PROCESS_YEAR_END_CARRY_FORWARD: "Processed Year-End Carry Forward",
+  EMPLOYEE_CREATE: "Added Employee",
+  EMPLOYEE_UPDATE_BY_HR: "Employee Info Updated",
+  PROFILE_UPDATE: "Profile Updated",
+  REGISTER: "Account Registered",
+  LOGIN_SUCCESS: "Login Success",
+  EXPORT_ATTENDANCE_CSV: "Exported Attendance (CSV)",
+  NOTIFICATION_MARK_READ: "Marked Read",
+  NOTIFICATION_MARK_ALL_READ: "Marked All Read",
+  NOTIFICATION_CLEAR_ALL: "Cleared Notifications",
+  NOTIFICATION_DELETE_ONE: "Deleted Notification",
 };
 
-const CATEGORY_BY_ACTION = (action = "") => {
+const CATEGORY_LABELS = {
+  Leave: "Leave Management",
+  Attendance: "Attendance",
+  Quota: "Quota",
+  Holiday: "Holidays",
+  Policy: "Policies",
+  Employee: "Employee Records",
+  Notification: "Notifications",
+  Auth: "Account/Auth",
+  Report: "Reports",
+  Other: "Other",
+};
+
+// --- Helpers ---
+const getCategoryByAction = (action = "") => {
   if (action.startsWith("LEAVE_")) return "Leave";
   if (action.startsWith("CHECK")) return "Attendance";
   if (action.includes("QUOTA")) return "Quota";
@@ -71,341 +67,171 @@ const CATEGORY_BY_ACTION = (action = "") => {
   return "Other";
 };
 
-const CATEGORY_LABELS = {
-  Leave: "การลา",
-  Attendance: "ลงเวลา",
-  Quota: "โควต้า",
-  Holiday: "วันหยุด",
-  Policy: "นโยบาย",
-  Employee: "พนักงาน",
-  Notification: "แจ้งเตือน",
-  Auth: "บัญชี",
-  Report: "รายงาน",
-  Other: "อื่นๆ",
-};
-
-// -----------------------
-// 2) Helper แปลง entityKey ให้เป็นคำอธิบาย
-// -----------------------
 const parseEntityText = (log) => {
-  const entity = log?.entity || "";
-  const key = log?.entityKey || "";
-
+  const { entity = "", entityKey = "" } = log || {};
   if (entity === "LeaveRequest") {
-    const m = key.match(/LeaveRequest:(\d+)/i);
-    const id = m?.[1];
-    return id ? `ใบลา #${id}` : "ใบลา";
+    const id = entityKey.match(/LeaveRequest:(\d+)/i)?.[1];
+    return id ? `Leave Request #${id}` : "Leave Request";
   }
-
   if (entity === "TimeRecord") {
-    const m = key.match(/Employee:(\d+):WorkDate:(\d{4}-\d{2}-\d{2})/i);
-    const empId = m?.[1];
-    const date = m?.[2];
-    return `ลงเวลา${date ? ` (${moment(date).format("DD MMM YYYY")})` : ""}${empId ? ` • พนักงาน #${empId}` : ""}`;
+    const match = entityKey.match(/Employee:(\d+):WorkDate:(\d{4}-\d{2}-\d{2})/i);
+    const dateStr = match?.[2] ? moment(match[2]).format("DD MMM YYYY") : "";
+    return `Attendance${dateStr ? ` (${dateStr})` : ""}${match?.[1] ? ` • Emp #${match[1]}` : ""}`;
   }
-
-  if (entity === "Employee") {
-    const m = key.match(/Employee:(\d+)/i);
-    const id = m?.[1];
-    return id ? `พนักงาน #${id}` : "พนักงาน";
-  }
-
-  if (entity && key) return `${entity} • ${key}`;
-  return entity || key || "-";
+  return entity && entityKey ? `${entity} • ${entityKey}` : (entity || entityKey || "-");
 };
 
-// summary: ไม่ใส่ label ซ้ำ (ให้ label อยู่บรรทัดบน)
-const buildSummary = (log) => {
-  const action = log?.action || "";
-  const target = parseEntityText(log);
-
-  if (action === "LEAVE_REQUEST_CREATE") {
-    const days = log?.newValue?.totalDaysRequested;
-    return `${target}${days ? ` • ${days} วัน` : ""}`;
-  }
-
-  return target;
-};
-
-/**
- * ✅ สำคัญ: ใช้ class เฉพาะของ Audit Log เท่านั้น
- * เพื่อไม่ชน/ไม่โดน CSS จาก HRDashboard.css (.badge)
- */
-const auditBadgeClass = (category) => {
-  switch (category) {
-    case "Leave":
-      return "audit-badge audit-badge--leave";
-    case "Attendance":
-      return "audit-badge audit-badge--attendance";
-    case "Quota":
-      return "audit-badge audit-badge--quota";
-    case "Holiday":
-      return "audit-badge audit-badge--holiday";
-    case "Policy":
-      return "audit-badge audit-badge--policy";
-    case "Employee":
-      return "audit-badge audit-badge--employee";
-    case "Notification":
-      return "audit-badge audit-badge--notification";
-    case "Auth":
-      return "audit-badge audit-badge--auth";
-    case "Report":
-      return "audit-badge audit-badge--report";
-    default:
-      return "audit-badge audit-badge--other";
-  }
-};
-
-const JsonBlock = ({ value }) => {
-  if (!value) return <span className="audit-text-muted">-</span>;
-  return (
-    <pre
-      style={{
-        margin: 0,
-        padding: 12,
-        borderRadius: 12,
-        border: "1px solid #eef2f7",
-        background: "#fafafa",
-        fontSize: 12,
-        overflow: "auto",
-        maxHeight: 220,
-      }}
-    >
-      {JSON.stringify(value, null, 2)}
-    </pre>
-  );
-};
+const JsonBlock = ({ value }) => (
+  <pre style={{ margin: 0, padding: 12, borderRadius: 12, border: "1px solid #eef2f7", background: "#fafafa", fontSize: 12, overflow: "auto", maxHeight: 220 }}>
+    {value ? JSON.stringify(value, null, 2) : "-"}
+  </pre>
+);
 
 export default function AuditLogPanel() {
   const [loading, setLoading] = useState(false);
-
-  // server paging
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
 
-  // filters
+  // Filter States
   const [q, setQ] = useState("");
   const [category, setCategory] = useState("All");
   const [action, setAction] = useState("All");
-  const [dateFrom, setDateFrom] = useState(""); // YYYY-MM-DD
-  const [dateTo, setDateTo] = useState(""); // YYYY-MM-DD
-
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-
-  // detail modal
   const [selected, setSelected] = useState(null);
 
-  const categories = useMemo(() => {
-    return ["All", "Leave", "Attendance", "Quota", "Holiday", "Policy", "Employee", "Notification", "Auth", "Report", "Other"];
-  }, []);
+  const categories = useMemo(() => ["All", ...Object.keys(CATEGORY_LABELS)], []);
+  const actionOptions = useMemo(() => ["All", ...Object.keys(ACTION_LABELS)], []);
 
-  const actionOptions = useMemo(() => {
-    // All + keys of ACTION_LABELS
-    return ["All", ...Object.keys(ACTION_LABELS)];
-  }, []);
+  const handleClearFilters = () => {
+    setQ("");
+    setCategory("All");
+    setAction("All");
+    setDateFrom("");
+    setDateTo("");
+    setPage(1);
+  };
 
   const fetchAudit = async () => {
     setLoading(true);
     try {
-      const res = await getAuditLogs({
-        q,
-        category,
-        action: action === "All" ? "" : action,
-        dateFrom,
-        dateTo,
-        page,
-        pageSize,
-      });
-
-      // รองรับทั้งแบบเดิม (array) และแบบใหม่ (object)
-      if (Array.isArray(res)) {
-        setRows(res);
-        setTotal(res.length);
-      } else {
-        setRows(res?.rows || []);
-        setTotal(res?.total || 0);
-      }
+      const params = { q, category, action: action === "All" ? "" : action, dateFrom, dateTo, page, pageSize };
+      const res = await getAuditLogs(params);
+      setRows(Array.isArray(res) ? res : res?.rows || []);
+      setTotal(Array.isArray(res) ? res.length : res?.total || 0);
     } catch (err) {
-      console.error(err);
       alertError("Error", "Unable to load audit logs.");
     } finally {
       setLoading(false);
     }
   };
 
-  // fetch เมื่อ paging / filters เปลี่ยน
-  useEffect(() => {
-    fetchAudit();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, pageSize, category, action, dateFrom, dateTo]);
+  useEffect(() => { fetchAudit(); }, [page, pageSize, category, action, dateFrom, dateTo]);
 
-  // search debounce
   useEffect(() => {
-    const t = setTimeout(() => {
-      setPage(1);
-      fetchAudit();
-    }, 350);
+    const t = setTimeout(() => { setPage(1); fetchAudit(); }, 350);
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);
 
-  const normalized = useMemo(() => {
-    return (rows || []).map((l) => {
-      const cat = CATEGORY_BY_ACTION(l?.action || "");
-      const user = l?.performer
-        ? `${l.performer.firstName || ""} ${l.performer.lastName || ""}`.trim()
-        : "-";
-
-      return {
-        ...l,
-        __category: cat,
-        __categoryLabel: CATEGORY_LABELS[cat] || cat,
-        __actionLabel: ACTION_LABELS[l?.action] || l?.action || "-",
-        __userLabel: user || "-",
-        __summary: buildSummary(l),
-      };
-    });
-  }, [rows]);
+  const normalizedData = useMemo(() => (rows || []).map(log => {
+    const cat = getCategoryByAction(log?.action);
+    return {
+      ...log,
+      __catLabel: CATEGORY_LABELS[cat] || cat,
+      __actLabel: ACTION_LABELS[log?.action] || log?.action || "-",
+      __user: log?.performer ? `${log.performer.firstName} ${log.performer.lastName}`.trim() : "-",
+      __summary: parseEntityText(log)
+    };
+  }), [rows]);
 
   return (
     <section className="audit-wrapper">
       <div className="audit-card">
-        {/* HEADER */}
-        <div className="audit-head">
-          <div>
-            <div className="audit-title">
-              <FiShield /> Audit Log
-            </div>
-            <div className="audit-subtitle">ประวัติกิจกรรมการใช้งานในระบบบริษัท</div>
+        {/* HEADER & TOOLS SECTION */}
+        <div className="audit-head" style={{ flexDirection: "column", alignItems: "flex-start", gap: "20px" }}>
+          {/* 1. TITLE (Always on Top) */}
+          <div className="audit-header-title">
+            <div className="audit-title"><FiShield /> Audit Log</div>
+            <div className="audit-subtitle">System activities and history</div>
           </div>
 
+          {/* 2. TOOLS / FILTERS */}
           <div className="audit-tools">
-            {/* Category */}
             <div className="audit-field">
-              <label className="audit-label">
-                <FiFilter /> ประเภท
-              </label>
-              <select
-                className="audit-select"
-                value={category}
-                onChange={(e) => {
-                  setCategory(e.target.value);
-                  setPage(1);
-                }}
-              >
-                {categories.map((c) => (
-                  <option key={c} value={c}>
-                    {c === "All" ? "ทั้งหมด" : CATEGORY_LABELS[c] || c}
-                  </option>
-                ))}
+              <label className="audit-label"><FiFilter /> Category</label>
+              <select className="audit-select" value={category} onChange={e => setCategory(e.target.value)}>
+                {categories.map(c => <option key={c} value={c}>{c === "All" ? "All" : CATEGORY_LABELS[c] || c}</option>)}
               </select>
             </div>
 
-            {/* Action */}
             <div className="audit-field">
               <label className="audit-label">Action</label>
-              <select
-                className="audit-select"
-                value={action}
-                onChange={(e) => {
-                  setAction(e.target.value);
-                  setPage(1);
-                }}
-              >
-                {actionOptions.map((a) => (
-                  <option key={a} value={a}>
-                    {a === "All" ? "ทั้งหมด" : ACTION_LABELS[a] || a}
-                  </option>
-                ))}
+              <select className="audit-select" value={action} onChange={e => setAction(e.target.value)}>
+                {actionOptions.map(a => <option key={a} value={a}>{a === "All" ? "All" : ACTION_LABELS[a] || a}</option>)}
               </select>
             </div>
 
-            {/* Date From/To */}
             <div className="audit-field">
-              <label className="audit-label">จากวันที่</label>
-              <input
-                className="audit-input"
-                type="date"
-                value={dateFrom}
-                onChange={(e) => {
-                  setDateFrom(e.target.value);
-                  setPage(1);
-                }}
-              />
-            </div>
-            <div className="audit-field">
-              <label className="audit-label">ถึงวันที่</label>
-              <input
-                className="audit-input"
-                type="date"
-                value={dateTo}
-                onChange={(e) => {
-                  setDateTo(e.target.value);
-                  setPage(1);
-                }}
-              />
+              <label className="audit-label">From</label>
+              <input className="audit-input" type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
             </div>
 
-            {/* Search */}
+            <div className="audit-field">
+              <label className="audit-label">To</label>
+              <input className="audit-input" type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+            </div>
+
             <div className="audit-search">
               <FiSearch className="audit-search-icon" />
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="ค้นหา: ชื่อผู้ใช้, ใบลา #, IP..." />
+              <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search User, ID..." />
             </div>
 
-            <button className="btn outline small" onClick={fetchAudit} disabled={loading}>
-              <FiRefreshCw className={loading ? "spin" : ""} /> Refresh
-            </button>
+            <div className="audit-action-btns">
+              <button className="btn outline small" onClick={handleClearFilters} title="Clear all filters">
+                <FiTrash2 /> Clear
+              </button>
+              <button className="btn primary small" onClick={fetchAudit} disabled={loading}>
+                <FiRefreshCw className={loading ? "spin" : ""} /> Refresh
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* TABLE */}
+        {/* TABLE SECTION */}
         <div className="audit-table-wrap">
           <table className="audit-table">
-            <colgroup>
-              <col />
-              <col />
-              <col />
-              <col />
-            </colgroup>
-
             <thead>
               <tr>
-                <th style={{ width: 190 }}>เวลา</th>
-                <th style={{ width: 170 }}>ผู้ใช้งาน</th>
-                <th style={{ width: 130 }}>ประเภท</th>
-                <th>รายละเอียด</th>
+                <th className="audit-th-time">Timestamp</th>
+                <th className="audit-th-user">User</th>
+                <th className="audit-th-type">Category</th>
+                <th className="audit-th-desc">Activity</th>
               </tr>
             </thead>
-
             <tbody>
-              {normalized.length === 0 ? (
-                <tr>
-                  <td colSpan="4" className="audit-empty">
-                    {loading ? "กำลังโหลด..." : "ไม่พบข้อมูล"}
-                  </td>
-                </tr>
+              {normalizedData.length === 0 ? (
+                <tr><td colSpan="4" className="audit-empty">{loading ? "Loading..." : "No logs found"}</td></tr>
               ) : (
-                normalized.map((l) => (
-                  <tr key={l.auditLogId} className="audit-row" onClick={() => setSelected(l)} title="คลิกเพื่อดูรายละเอียด">
-                    <td>
-                      <div className="audit-time">{l.createdAt ? moment(l.createdAt).format("DD MMM YYYY") : "-"}</div>
-                      <div className="audit-time-sub">{l.createdAt ? moment(l.createdAt).format("HH:mm") : ""}</div>
+                normalizedData.map(log => (
+                  <tr key={log.auditLogId} className="audit-row" onClick={() => setSelected(log)}>
+                    <td className="audit-td-time">
+                      <div className="audit-time">{moment(log.createdAt).format("DD MMM YYYY")}</div>
+                      <div className="audit-time-sub">{moment(log.createdAt).format("HH:mm")}</div>
                     </td>
-
-                    <td>
-                      <div className="audit-user">{l.__userLabel}</div>
-                      <div className="audit-user-sub">{l?.performer?.role || "-"}</div>
+                    <td className="audit-td-user">
+                      <div className="audit-user">{log.__user}</div>
+                      <div className="audit-user-sub">{log?.performer?.role}</div>
                     </td>
-
-                    <td>
-                      {/* ✅ ใช้ class เฉพาะ audit เท่านั้น */}
-                      <span className={auditBadgeClass(l.__category)}>{l.__categoryLabel}</span>
+                    <td className="audit-td-type">
+                      <span className={`audit-badge audit-badge--${getCategoryByAction(log.action).toLowerCase()}`}>
+                        {log.__catLabel}
+                      </span>
                     </td>
-
-                    <td>
-                      <div className="audit-action">{l.__actionLabel}</div>
-                      <div className="audit-desc">{l.__summary}</div>
+                    <td className="audit-td-desc">
+                      <div className="audit-action">{log.__actLabel}</div>
+                      <div className="audit-desc">{log.__summary}</div>
                     </td>
                   </tr>
                 ))
@@ -416,104 +242,40 @@ export default function AuditLogPanel() {
 
         {/* FOOTER */}
         <div className="audit-footer">
-          <div className="audit-hint">คลิกแถวเพื่อดูรายละเอียด Before/After และ IP</div>
+          <div className="audit-hint">Click row for data comparison</div>
           <Pagination total={total} page={page} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={setPageSize} />
         </div>
       </div>
 
       {/* DETAIL MODAL */}
       {selected && (
-        <div
-          onClick={() => setSelected(null)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.45)",
-            zIndex: 9999,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 18,
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              width: "min(980px, 96vw)",
-              borderRadius: 18,
-              background: "white",
-              border: "1px solid #eef2f7",
-              boxShadow: "0 12px 40px rgba(0,0,0,0.25)",
-              overflow: "hidden",
-            }}
-          >
-            <div
-              style={{
-                padding: "14px 16px",
-                borderBottom: "1px solid #eef2f7",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 10,
-              }}
-            >
-              <div style={{ display: "flex", flexDirection: "column" }}>
-                <div style={{ fontWeight: 900, fontSize: 14 }}>{ACTION_LABELS[selected.action] || selected.action}</div>
-                <div className="audit-text-muted" style={{ fontSize: 12, marginTop: 2 }}>
-                  {selected.createdAt ? moment(selected.createdAt).format("DD MMM YYYY, HH:mm:ss") : "-"}
-                  {" • "}
-                  {selected.entity ? `${selected.entity}` : "-"}
-                  {selected.entityKey ? ` • ${selected.entityKey}` : ""}
-                </div>
+        <div className="audit-modal-overlay" onClick={() => setSelected(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+          <div className="audit-modal-content" onClick={e => e.stopPropagation()} style={{ background: "white", width: "min(960px, 95vw)", borderRadius: "18px", overflow: "hidden", boxShadow: "0 20px 50px rgba(0,0,0,0.3)" }}>
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid #eee", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800 }}>{ACTION_LABELS[selected.action] || selected.action}</h3>
+                <div style={{ fontSize: "12px", color: "#666", marginTop: "4px" }}>{moment(selected.createdAt).format("DD MMM YYYY, HH:mm:ss")}</div>
               </div>
-
-              <button className="btn outline small" onClick={() => setSelected(null)}>
-                <FiX /> ปิด
-              </button>
+              <button className="btn outline small" onClick={() => setSelected(null)}><FiX /> Close</button>
             </div>
-
-            <div style={{ padding: 16 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                <div style={{ border: "1px solid #eef2f7", borderRadius: 14, padding: 14 }}>
-                  <div style={{ fontWeight: 900, fontSize: 13, marginBottom: 10 }}>ข้อมูลการกระทำ</div>
-                  <div style={{ fontSize: 13, lineHeight: 1.7 }}>
-                    <div>
-                      <b>ผู้ทำ:</b>{" "}
-                      {selected?.performer ? `${selected.performer.firstName} ${selected.performer.lastName}` : "-"}
-                    </div>
-                    <div>
-                      <b>Role:</b> {selected?.performer?.role || "-"}
-                    </div>
-                    <div>
-                      <b>IP:</b> {selected?.ipAddress || "-"}
-                    </div>
-                    <div>
-                      <b>Target:</b> {parseEntityText(selected)}
-                    </div>
+            <div style={{ padding: "20px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "20px" }}>
+                <div style={{ border: "1px solid #f0f0f0", padding: "15px", borderRadius: "12px" }}>
+                  <h4 style={{ marginTop: 0, fontSize: "14px", borderBottom: "1px solid #f0f0f0", paddingBottom: "8px" }}>General Information</h4>
+                  <div style={{ fontSize: "13px", lineHeight: "2" }}>
+                    <div><b>User:</b> {selected.__user}</div>
+                    <div><b>Role:</b> {selected?.performer?.role || "-"}</div>
+                    <div><b>IP Address:</b> {selected.ipAddress || "N/A"}</div>
+                    <div><b>Target:</b> {selected.__summary}</div>
                   </div>
                 </div>
-
-                <div style={{ border: "1px solid #eef2f7", borderRadius: 14, padding: 14 }}>
-                  <div style={{ fontWeight: 900, fontSize: 13, marginBottom: 10 }}>หลักฐาน (Before / After)</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                    <div>
-                      <div className="audit-text-muted" style={{ fontSize: 12, fontWeight: 800, marginBottom: 6 }}>
-                        BEFORE
-                      </div>
-                      <JsonBlock value={selected.oldValue} />
-                    </div>
-                    <div>
-                      <div className="audit-text-muted" style={{ fontSize: 12, fontWeight: 800, marginBottom: 6 }}>
-                        AFTER
-                      </div>
-                      <JsonBlock value={selected.newValue} />
-                    </div>
+                <div style={{ border: "1px solid #f0f0f0", padding: "15px", borderRadius: "12px" }}>
+                  <h4 style={{ marginTop: 0, fontSize: "14px", borderBottom: "1px solid #f0f0f0", paddingBottom: "8px" }}>Changes Snapshot</h4>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                    <div><label style={{ fontSize: "11px", fontWeight: 800, color: "#999" }}>BEFORE</label><JsonBlock value={selected.oldValue} /></div>
+                    <div><label style={{ fontSize: "11px", fontWeight: 800, color: "#999" }}>AFTER</label><JsonBlock value={selected.newValue} /></div>
                   </div>
                 </div>
-              </div>
-
-              <div className="audit-text-muted" style={{ fontSize: 12, marginTop: 12 }}>
-                * คลิกนอกกรอบเพื่อปิด
               </div>
             </div>
           </div>
