@@ -130,3 +130,24 @@
 .detail-row .detail-value {
   word-break: break-word;
 }
+
+/* 1. สีสำหรับ Company Holiday (สีหลักของระบบ - ดูเป็นทางการ) */
+.status-pill.status-primary {
+  background-color: #e0f2fe; /* Light Blue */
+  color: #0369a1;            /* Dark Blue */
+  border: 1px solid #bae6fd;
+}
+
+/* 2. สีสำหรับ Weekend (สีม่วงหรือสีเทาอ่อน - ดูผ่อนคลาย) */
+.status-pill.status-secondary {
+  background-color: #f3f4f6; /* Light Gray */
+  color: #4b5563;            /* Grayish Blue */
+  border: 1px solid #e5e7eb;
+}
+
+/* 3. ปรับแต่ง Icon พิเศษสำหรับวันหยุด (ถ้าต้องการให้ดูต่างจากวันทำงาน) */
+.status-pill.status-primary svg,
+.status-pill.status-secondary svg {
+  margin-right: 6px;
+  font-size: 14px;
+}

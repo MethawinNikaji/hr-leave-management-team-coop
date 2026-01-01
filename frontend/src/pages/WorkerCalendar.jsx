@@ -145,19 +145,24 @@ export default function WorkerCalendar() {
     const att = attByDate[isoDate];
     const lvs = leaveByDate[isoDate] || [];
     const leave = lvs.length > 0 ? lvs[0] : null;
+    
+    const todayStr = toISODate(new Date());
+    const isFuture = isoDate > todayStr;
+    const dayOfWeek = moment(isoDate).day(); // 0 = Sun, 6 = Sat
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    const isHoliday = specialHolidays.includes(isoDate);
 
     let modalData = null;
 
-    const isHoliday = specialHolidays.includes(isoDate);
-
     if (isHoliday) {
-    modalData = {
-      type: "holiday",
-      status: "Company Holiday",
-      reason: "This is a pre-announced company non-working day.",
-    };
-  } else if (leave) {
-      // ✅ leave
+      // ✅ Priority 1: Company Holiday (สูงสุดตามเดิม)
+      modalData = {
+        type: "holiday",
+        status: "Company Holiday",
+        reason: "This is a pre-announced company non-working day.",
+      };
+    } else if (leave) {
+      // ✅ Priority 2: Approved Leave (ทับวันหยุดปกติเสมอ)
       modalData = {
         type: "leave",
         status: leave.status,
@@ -165,15 +170,27 @@ export default function WorkerCalendar() {
         leaveType: leave.leaveType,
         startDate: leave.startDate,
         endDate: leave.endDate,
-        reason: leave.reason,
-
-        // ✅ NEW
         approvedByName: leave.approvedByName || "",
         approvedByHR: leave.approvedByHR || null,
         approvalDate: leave.approvalDate || null,
+        reason: leave.reason,
+      };
+    } else if (isWeekend) {
+      // ✅ Priority 3: Weekend (ย้ายขึ้นมาเพื่อรองรับวันหยุดเสาร์-อาทิตย์ทุกช่วงเวลา)
+      modalData = {
+        type: "weekend",
+        status: "Weekend",
+        reason: "Weekly non-working day (Saturday/Sunday).",
+      };
+    } else if (isFuture) {
+      // ✅ Priority 4: Future Dates (สำหรับวันธรรมดาในอนาคต)
+      modalData = {
+        type: "future",
+        status: "Upcoming Date",
+        reason: "This date has not arrived yet. Attendance cannot be recorded in advance.",
       };
     } else if (att) {
-      // attendance
+      // ✅ Priority 5: Attendance (ข้อมูลอดีตที่บันทึกไว้)
       modalData = {
         type: "attendance",
         status: att.isLate ? "Late" : "Normal",
@@ -183,12 +200,12 @@ export default function WorkerCalendar() {
         reason: "-",
       };
     } else {
-      // no data
+      // ✅ Priority 6: No Data (สำหรับวันทำงานในอดีตที่ไม่มีข้อมูล)
       modalData = {
         type: "nodata",
         status: "No Data",
         employeeName: "You",
-        reason: "-",
+        reason: "No attendance or leave record found for this past date.",
       };
     }
 
