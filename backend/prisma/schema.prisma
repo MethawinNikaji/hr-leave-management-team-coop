@@ -33,9 +33,39 @@ model Employee {
   leaveQuotas     LeaveQuota[]
   leaveRequests   LeaveRequest[]
   notifications   Notification[]
+  profileUpdateRequests   ProfileUpdateRequest[]
   // ใช้สำหรับ approvedByHrId ใน LeaveRequest
   approvals       LeaveRequest[] @relation("ApprovedByHR") 
   auditLogs AuditLog[] @relation("EmployeeAuditLogs")
+}
+
+// 1.1. Model: ProfileUpdateRequest (สำหรับเปลี่ยนชื่อ)
+model ProfileUpdateRequest {
+  requestId     Int      @id @default(autoincrement()) @map("request_id")
+  employeeId    Int      @map("employee_id")
+  
+  // ข้อมูลเดิม (เก็บไว้เปรียบเทียบ)
+  oldFirstName  String   @map("old_first_name")
+  oldLastName   String   @map("old_last_name")
+  
+  // ข้อมูลใหม่ที่ขอเปลี่ยน
+  newFirstName  String   @map("new_first_name")
+  newLastName   String   @map("new_last_name")
+  
+  reason        String?  @db.Text
+  attachmentUrl String?  @map("attachment_url") @db.VarChar(255)
+  
+  status        String   @default("Pending") // 'Pending', 'Approved', 'Rejected'
+  requestedAt   DateTime @default(now()) @map("requested_at")
+  
+  // ใครอนุมัติ
+  approvedByHrId Int?    @map("approved_by_hr_id")
+  actionDate     DateTime? @map("action_date")
+
+  // Relations
+  employee      Employee @relation(fields: [employeeId], references: [employeeId])
+
+  notifications Notification[]
 }
 
 // 2. Model: LeaveType (ประเภทการลา)
@@ -126,12 +156,14 @@ model Notification {
   notificationType    String    @map("notification_type") // 'NewRequest', 'Approval', 'Rejection', 'LateWarning'
   message             String
   relatedRequestId    Int?      @map("related_request_id")
+  relatedProfileRequestId   Int?    @map("related_profile_request_id")
   isRead              Boolean   @map("is_read") @default(false)
   createdAt           DateTime  @map("created_at") @default(now())
 
   // Relations
   employee      Employee      @relation(fields: [employeeId], references: [employeeId])
   relatedRequest LeaveRequest? @relation(fields: [relatedRequestId], references: [requestId])
+  profileUpdateRequest ProfileUpdateRequest? @relation(fields: [relatedProfileRequestId], references: [requestId])
 
   // Index for efficiency (e.g., querying unread notifications for a specific employee)
   @@index([employeeId])

@@ -3,7 +3,7 @@ import axios from "axios";
 import moment from "moment";
 import { 
   FiUser, FiMail, FiCalendar, FiShield, 
-  FiBriefcase, FiRefreshCw, FiEdit2, FiCheck, FiX, FiLock
+  FiBriefcase, FiRefreshCw, FiEdit2, FiCheck, FiX, FiLock, FiUpload
 } from "react-icons/fi";
 import "./WorkerProfile.css";
 import { alertConfirm, alertError, alertSuccess, alertInfo } from "../utils/sweetAlert";
@@ -15,13 +15,23 @@ export default function WorkerProfile() {
   });
   const [loading, setLoading] = useState(!profile);
   
-  // State สำหรับโหมดแก้ไข
+  // State สำหรับโหมดแก้ไขเดิม (รหัสผ่าน)
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
     currentPassword: "",
     newPassword: ""
+  });
+
+  // ✅ New States สำหรับการยื่นคำร้องเปลี่ยนชื่อ
+  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
+  const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
+  const [requestData, setRequestData] = useState({
+    newFirstName: "",
+    newLastName: "",
+    reason: "",
+    attachment: null
   });
 
   const fetchProfile = async () => {
@@ -33,13 +43,18 @@ export default function WorkerProfile() {
       if (res.data.success) {
         setProfile(res.data.user);
         localStorage.setItem("user", JSON.stringify(res.data.user));
-        // Reset ฟอร์มข้อมูลตามฐานข้อมูลล่าสุด
         setFormData(prev => ({
           ...prev,
           firstName: res.data.user.firstName,
           lastName: res.data.user.lastName,
           currentPassword: "",
           newPassword: ""
+        }));
+        // Reset request data
+        setRequestData(prev => ({
+          ...prev,
+          newFirstName: res.data.user.firstName,
+          newLastName: res.data.user.lastName
         }));
       }
     } catch (err) {
@@ -53,6 +68,7 @@ export default function WorkerProfile() {
     fetchProfile();
   }, []);
 
+  // ฟังก์ชันอัปเดตเดิม (รหัสผ่าน)
   const handleUpdate = async (e) => {
     e.preventDefault();
     try {
@@ -63,14 +79,50 @@ export default function WorkerProfile() {
         
         if (res.data.success) {
         await alertSuccess("Success", "Profile updated successfully.");
-        setIsEditing(false); // ปิดโหมดแก้ไข
-        
-        // --- เรียกฟังก์ชันดึงข้อมูลใหม่ เพื่ออัปเดต UI โดยไม่ต้องรีโหลดหน้า ---
+        setIsEditing(false);
         await fetchProfile(); 
-        // --------------------------------------------------------
         }
     } catch (err) {
         await alertError("Error", (err.response?.data?.message || "Update failed."));
+    }
+  };
+
+  // ✅ ฟังก์ชันใหม่: จัดการส่งคำร้องขอเปลี่ยนชื่อ
+  const handleSubmitRequest = async (e) => {
+    e.preventDefault();
+    if (!requestData.newFirstName || !requestData.newLastName) {
+      return alertError("Validation", "Please fill in both First and Last name.");
+    }
+
+    const ok = await alertConfirm("Confirm Request", "Are you sure you want to submit this name change request?");
+    if (!ok) return;
+
+    try {
+      setIsSubmittingRequest(true);
+      const token = localStorage.getItem("token");
+      
+      const sendData = new FormData();
+      sendData.append("newFirstName", requestData.newFirstName);
+      sendData.append("newLastName", requestData.newLastName);
+      sendData.append("reason", requestData.reason);
+      if (requestData.attachment) sendData.append("attachment", requestData.attachment);
+
+      const res = await axios.post("http://localhost:8000/api/auth/request-profile-update", sendData, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data"
+        },
+      });
+
+      if (res.data.success) {
+        await alertSuccess("Request Sent", "Your request has been submitted to HR.");
+        setIsRequestModalOpen(false);
+        fetchProfile(); // เพื่อโหลดสถานะ Pending (ถ้ามี)
+      }
+    } catch (err) {
+      await alertError("Error", err.response?.data?.message || "Failed to submit request.");
+    } finally {
+      setIsSubmittingRequest(false);
     }
   };
 
@@ -78,12 +130,12 @@ export default function WorkerProfile() {
   if (!profile) return <div className="p-error">User not found</div>;
 
   const initials = (profile.firstName?.charAt(0) || "U") + (profile.lastName?.charAt(0) || "");
+  const hasPendingRequest = profile?.profileUpdateRequests?.some(r => r.status === 'Pending');
 
   return (
     <div className="profile-page-container">
       <header className="profile-page-header">
         <h1 className="profile-page-title">My Profile</h1>
-        
       </header>
 
       <div className="profile-main-content">
@@ -92,45 +144,48 @@ export default function WorkerProfile() {
             <div className="avatar-circle">
               {profile.profileImageUrl ? (
                 <img src={profile.profileImageUrl} alt="Profile" />
-              ) : (
-                initials.toUpperCase()
-              )}
+              ) : ( initials.toUpperCase() )}
             </div>
             <h2 className="display-name">{profile.firstName} {profile.lastName}</h2>
             <span className="badge-role">{profile.role || "Worker"}</span>
-            <div className={`status-pill ${profile.isActive ? 'active' : 'inactive'}`}>
-              <span className="dot"></span>
-              {profile.isActive ? "Active Employee" : "Inactive"}
-            </div>
+            
+            {/* ✅ แสดงสถานะ Pending */}
+            {hasPendingRequest ? (
+              <div className="status-pill pending">
+                <FiRefreshCw className="spin" /> Pending Approval
+              </div>
+            ) : (
+              <div className={`status-pill ${profile.isActive ? 'active' : 'inactive'}`}>
+                <span className="dot"></span>
+                {profile.isActive ? "Active Employee" : "Inactive"}
+              </div>
+            )}
+
+            {/* ✅ ปุ่มยื่นคำร้องใหม่ */}
+            <button 
+              className="btn outline full-width" 
+              style={{ marginTop: '20px', gap: '8px' }}
+              onClick={() => setIsRequestModalOpen(true)}
+              disabled={hasPendingRequest}
+            >
+              <FiEdit2 /> Request Name Change
+            </button>
           </div>
         </aside>
 
         <form className="profile-details-grid" onSubmit={handleUpdate}>
-          {/* ข้อมูลส่วนตัว */}
           <section className="info-section">
-            <h3 className="section-header"><FiUser /> Personal Information</h3>
+            <h3 className="section-header">
+              <FiUser /> Personal Information
+            </h3>
             <div className="info-field-list">
               <div className="info-box">
                 <label>First name</label>
-                {isEditing ? (
-                  <input 
-                    type="text" 
-                    className="edit-input"
-                    value={formData.firstName}
-                    onChange={(e) => setFormData({...formData, firstName: e.target.value})}
-                  />
-                ) : <p>{profile.firstName}</p>}
+                <p>{profile.firstName}</p>
               </div>
               <div className="info-box">
                 <label>Last name</label>
-                {isEditing ? (
-                  <input 
-                    type="text" 
-                    className="edit-input"
-                    value={formData.lastName}
-                    onChange={(e) => setFormData({...formData, lastName: e.target.value})}
-                  />
-                ) : <p>{profile.lastName}</p>}
+                <p>{profile.lastName}</p>
               </div>
               <div className="info-box">
                 <label><FiMail /> Contact email</label>
@@ -139,7 +194,6 @@ export default function WorkerProfile() {
             </div>
           </section>
 
-          {/* ข้อมูลการทำงาน หรือ โหมดเปลี่ยนรหัสผ่าน */}
           {!isEditing ? (
             <section className="info-section">
               <h3 className="section-header"><FiBriefcase /> Employment Information</h3>
@@ -160,34 +214,113 @@ export default function WorkerProfile() {
             </section>
           ) : (
             <section className="info-section edit-password-section">
-              <h3 className="section-header"><FiLock /> Change Password</h3>
+              <div className="section-header-row">
+                <h3 className="section-header"><FiLock /> Change Password</h3>
+                <button type="button" className="btn-close-edit" onClick={() => setIsEditing(false)}><FiX /></button>
+              </div>
               <div className="info-field-list">
                 <div className="info-box">
-                  <label>Current password (to confirm changes)</label>
+                  <label>Current password</label>
                   <input 
                     type="password" 
                     className="edit-input"
                     placeholder="Enter current password..."
                     value={formData.currentPassword}
                     onChange={(e) => setFormData({...formData, currentPassword: e.target.value})}
+                    required
                   />
                 </div>
                 <div className="info-box">
-                  <label>New password (leave blank to keep current)</label>
+                  <label>New password</label>
                   <input 
                     type="password" 
                     className="edit-input"
                     placeholder="Enter new password..."
                     value={formData.newPassword}
                     onChange={(e) => setFormData({...formData, newPassword: e.target.value})}
+                    required
                   />
                 </div>
-                <p className="edit-hint">* To change your password, fill in both fields.</p>
+                <button type="submit" className="btn primary full-width">Update Password</button>
               </div>
             </section>
           )}
         </form>
       </div>
+
+      {/* ✅ MODAL: Request Profile Update */}
+      {isRequestModalOpen && (
+        <div className="p-modal-overlay" onClick={() => setIsRequestModalOpen(false)}>
+          <div className="p-modal-content" onClick={e => e.stopPropagation()}>
+            <div className="p-modal-header">
+              <div className="p-header-icon"><FiEdit2 /></div>
+              <div className="p-header-text">
+                <h3>Request Name Change</h3>
+                <p>Submit a request to update your official name.</p>
+              </div>
+              <button className="p-modal-close" onClick={() => setIsRequestModalOpen(false)}><FiX /></button>
+            </div>
+            
+            <form onSubmit={handleSubmitRequest} className="p-modal-form">
+              <div className="p-current-info">
+                <label>Current Name</label>
+                <div className="p-name-badge">{profile.firstName} {profile.lastName}</div>
+              </div>
+
+              <div className="p-form-row">
+                <div className="p-input-group">
+                  <label>New First Name</label>
+                  <input 
+                    type="text" 
+                    value={requestData.newFirstName}
+                    onChange={e => setRequestData({...requestData, newFirstName: e.target.value})}
+                    placeholder="First name"
+                  />
+                </div>
+                <div className="p-input-group">
+                  <label>New Last Name</label>
+                  <input 
+                    type="text" 
+                    value={requestData.newLastName}
+                    onChange={e => setRequestData({...requestData, newLastName: e.target.value})}
+                    placeholder="Last name"
+                  />
+                </div>
+              </div>
+
+              <div className="p-input-group">
+                <label>Reason</label>
+                <textarea 
+                  rows="2"
+                  value={requestData.reason}
+                  onChange={e => setRequestData({...requestData, reason: e.target.value})}
+                  placeholder="e.g. Marriage or legal change"
+                ></textarea>
+              </div>
+
+              <div className="p-upload-zone">
+                <input 
+                  type="file" 
+                  id="p-file"
+                  hidden
+                  onChange={e => setRequestData({...requestData, attachment: e.target.files[0]})}
+                />
+                <label htmlFor="p-file">
+                  <FiUpload />
+                  <span>{requestData.attachment ? requestData.attachment.name : "Upload supporting document"}</span>
+                </label>
+              </div>
+
+              <div className="p-modal-footer">
+                <button type="button" className="p-btn-cancel" onClick={() => setIsRequestModalOpen(false)}>Cancel</button>
+                <button type="submit" className="p-btn-submit" disabled={isSubmittingRequest}>
+                  {isSubmittingRequest ? "Sending..." : "Submit Request"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

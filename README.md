@@ -61,6 +61,10 @@ Add Audit Log
 pnpx prisma@6 migrate dev --name audit_log
 Add leave gap and holiday config
 pnpx prisma@6 migrate dev --name add_leave_gap_and_holidays
+Add Employee Profile Update
+pnpx prisma@6 migrate dev --name profile_request
+Add Fixed change profile notif status
+pnpx prisma@6 migrate dev --name profile_status
 ```
 ### To Run Project
 ```bash

@@ -16,6 +16,7 @@ import WorkerProfile from "./pages/WorkerProfile";
 
 import HRDashboard from "./pages/HRDashboard";
 import HRAttendancePage from "./pages/HRAttendancePage";
+import HRProfileRequests from "./pages/HRProfileRequests";
 import HRLeaveApprovals from "./pages/HRLeaveApprovals";
 import HRNotifications from "./pages/HRNotifications";
 import Employees from "./pages/HREmployees";
@@ -113,6 +114,14 @@ export default function App() {
           element={
             <RoleRoute allow={["HR"]}>
               <HRNotifications />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="hr/profile-requests"
+          element={
+            <RoleRoute allow={["HR"]}>
+              <HRProfileRequests />
             </RoleRoute>
           }
         />

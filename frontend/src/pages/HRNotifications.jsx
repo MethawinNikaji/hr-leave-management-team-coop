@@ -8,6 +8,7 @@ import "./WorkerNotifications.css";
 import Pagination from "../components/Pagination";
 import { alertConfirm, alertError, alertSuccess } from "../utils/sweetAlert";
 import QuickActionModal from "../components/QuickActionModal";
+import { useNavigate } from "react-router-dom";
 
 const api = axios.create({ baseURL: "http://localhost:8000" });
 const getAuthHeader = () => ({
@@ -17,6 +18,7 @@ const getAuthHeader = () => ({
 const LAST_SEEN_KEY = "hr_notifications_last_seen";
 
 export default function HRNotifications() {
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -52,6 +54,14 @@ export default function HRNotifications() {
 
   const handleNotiClick = (noti) => {
     if (!noti.isRead) markAsRead(noti.notificationId);
+
+    if (noti.message?.includes("Profile Update")) {
+      // นำทางไปยังหน้า Profile Requests โดยส่ง state ไปบอกว่าให้เปิดดู ID ไหน
+      navigate("/hr/profile-requests", { 
+        state: { autoOpenId: noti.message.match(/ID: (\d+)/)?.[1] } 
+      });
+      return;
+    }
 
     if (noti.relatedRequestId && noti.relatedRequest) {
       setSelectedRequest({
@@ -113,7 +123,10 @@ export default function HRNotifications() {
     } catch (err) { alertError("Error", "Failed to clear data."); }
   };
 
-  const getTitle = (type) => {
+  const getTitle = (type, message) => {
+    if (message?.includes("Profile Update")) {
+      return "Profile Update Request";
+    }
     if (type === "NewRequest") return "New Leave Request";
     if (type === "Approved") return "Request Approved";
     return "System Alert";
@@ -144,7 +157,7 @@ export default function HRNotifications() {
               <div className="wn-row">
                 <div className="noti-icon-box">{n.notificationType === "NewRequest" ? <FiAlertCircle className="noti-ico danger" /> : <FiCheckCircle className="noti-ico ok" />}</div>
                 <div className="wn-body">
-                  <div className="wn-item-title">{getTitle(n.notificationType)} {n._isNewSinceLastSeen && <span className="badge-new">NEW</span>}</div>
+                  <div className="wn-item-title">{getTitle(n.notificationType, n.message)} {n._isNewSinceLastSeen && <span className="badge-new">NEW</span>}</div>
                   <div className="wn-item-msg">{n.message}</div>
                   <div className="wn-item-time">{new Date(n.createdAt).toLocaleString("en-GB")}</div>
                 </div>

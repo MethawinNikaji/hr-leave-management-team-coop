@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import moment from "moment";
 import {
   FiX, FiInfo, FiCalendar, FiClock, FiUser,
-  FiCheckCircle, FiXCircle, FiFileText, FiLoader, FiPaperclip
+  FiCheckCircle, FiXCircle, FiFileText, FiLoader, FiPaperclip,
+  FiArrowRight // ✅ เพิ่ม icon สำหรับชี้บอกการเปลี่ยนชื่อ
 } from "react-icons/fi";
 import axiosClient from "../api/axiosClient";
 import { alertSuccess, alertError, alertConfirm } from "../utils/sweetAlert";
@@ -15,6 +16,7 @@ const QuickActionModal = ({ isOpen, onClose, requestData, onActionSuccess }) => 
 
   // 1. Destructure data
   const {
+    type = 'LEAVE', // ✅ เพิ่ม type (Default เป็น LEAVE เพื่อไม่ให้กระทบของเดิม)
     status = "Pending",
     requestId,
     employeeName,
@@ -24,14 +26,16 @@ const QuickActionModal = ({ isOpen, onClose, requestData, onActionSuccess }) => 
     reason,
     attachmentUrl,
     isReadOnly,
-    approvedByHR
+    approvedByHR,
+    oldName, // ✅ รองรับข้อมูลจาก Profile Request
+    newName  // ✅ รองรับข้อมูลจาก Profile Request
   } = requestData;
 
   const isPending = status === "Pending";
   const isApproved = status === "Approved";
   const isRejected = status === "Rejected";
 
-  // 2. Handle Approval/Rejection Decision
+  // 2. Handle Approval/Rejection Decision (เฉพาะ LEAVE ตามระบบเดิม)
   const handleDecision = async (action) => {
     const isApprove = action === "approve";
     const title = isApprove ? "Approve Request" : "Reject Request";
@@ -68,11 +72,11 @@ const QuickActionModal = ({ isOpen, onClose, requestData, onActionSuccess }) => 
     <div className="modal-overlay" onClick={onClose}>
       <div className="qa-modal" onClick={(e) => e.stopPropagation()}>
         
-        {/* Header */}
+        {/* Header - ปรับตามประเภทคำร้อง */}
         <div className="qa-modal-header">
           <div className="qa-title">
             <div className="qa-icon-header"><FiInfo /></div>
-            <span>Leave Request Detail</span>
+            <span>{type === 'PROFILE' ? 'Profile Update Detail' : 'Leave Request Detail'}</span>
           </div>
           <button className="qa-close-btn" onClick={onClose}><FiX /></button>
         </div>
@@ -87,24 +91,44 @@ const QuickActionModal = ({ isOpen, onClose, requestData, onActionSuccess }) => 
           </div>
 
           <div className="qa-info-list">
-            <div className="qa-info-row">
-              <FiUser className="qa-row-icon" />
-              <span className="qa-label">Employee:</span>
-              <span className="qa-value">{employeeName || "-"}</span>
-            </div>
-            <div className="qa-info-row">
-              <FiFileText className="qa-row-icon" />
-              <span className="qa-label">Type:</span>
-              <span className="qa-value">{leaveType || "-"}</span>
-            </div>
-            <div className="qa-info-row">
-              <FiCalendar className="qa-row-icon" />
-              <span className="qa-label">Period:</span>
-              <span className="qa-value">
-                {startDate ? moment(startDate).format("DD MMM") : "-"} - {endDate ? moment(endDate).format("DD MMM YYYY") : "-"}
-              </span>
-            </div>
+            {/* ✅ กรณีที่ 1: การแจ้งเตือนเปลี่ยนชื่อ (PROFILE) */}
+            {type === 'PROFILE' ? (
+              <>
+                <div className="qa-info-row">
+                  <FiUser className="qa-row-icon" />
+                  <span className="qa-label">Current Name:</span>
+                  <span className="qa-value">{oldName || "-"}</span>
+                </div>
+                <div className="qa-info-row">
+                  <FiArrowRight className="qa-row-icon" style={{ color: '#3b82f6' }} />
+                  <span className="qa-label">New Name:</span>
+                  <span className="qa-value" style={{ fontWeight: 'bold', color: '#3b82f6' }}>{newName || "-"}</span>
+                </div>
+              </>
+            ) : (
+              /* ✅ กรณีที่ 2: การแจ้งเตือนการลา (LEAVE - แบบเดิม) */
+              <>
+                <div className="qa-info-row">
+                  <FiUser className="qa-row-icon" />
+                  <span className="qa-label">Employee:</span>
+                  <span className="qa-value">{employeeName || "-"}</span>
+                </div>
+                <div className="qa-info-row">
+                  <FiFileText className="qa-row-icon" />
+                  <span className="qa-label">Type:</span>
+                  <span className="qa-value">{leaveType || "-"}</span>
+                </div>
+                <div className="qa-info-row">
+                  <FiCalendar className="qa-row-icon" />
+                  <span className="qa-label">Period:</span>
+                  <span className="qa-value">
+                    {startDate ? moment(startDate).format("DD MMM") : "-"} - {endDate ? moment(endDate).format("DD MMM YYYY") : "-"}
+                  </span>
+                </div>
+              </>
+            )}
 
+            {/* HR Info แสดงเหมือนกันทั้งสองแบบ */}
             {approvedByHR && (
               <div className="qa-info-row">
                 {isApproved ? <FiCheckCircle className="qa-row-icon" /> : <FiXCircle className="qa-row-icon" />}
@@ -116,10 +140,19 @@ const QuickActionModal = ({ isOpen, onClose, requestData, onActionSuccess }) => 
             )}
           </div>
 
+          {/* ปรับ URL ตามประเภทโฟลเดอร์เก็บไฟล์ */}
           {attachmentUrl && (
-            <a href={`http://localhost:8000/uploads/${attachmentUrl}`} target="_blank" rel="noreferrer" className="qa-attachment-link">
+            <a 
+              href={type === 'PROFILE' 
+                ? `http://localhost:8000/uploads/profiles/${attachmentUrl}` 
+                : `http://localhost:8000/uploads/${attachmentUrl}`
+              } 
+              target="_blank" 
+              rel="noreferrer" 
+              className="qa-attachment-link"
+            >
               <FiPaperclip />
-              <span className="qa-attachment-text">View Attachment</span>
+              <span className="qa-attachment-text">View Supporting Document</span>
             </a>
           )}
 
@@ -131,7 +164,8 @@ const QuickActionModal = ({ isOpen, onClose, requestData, onActionSuccess }) => 
 
         {/* Footer Actions */}
         <div className="qa-modal-footer">
-          {isPending && !isReadOnly ? (
+          {/* ระบบเดิมจะโชว์ปุ่ม Approve/Reject เฉพาะ Leave ที่ยัง Pending และไม่ใช่ ReadOnly */}
+          {isPending && !isReadOnly && type === 'LEAVE' ? (
             <div className="minimal-actions">
               <button className="m-btn m-btn-reject" onClick={() => handleDecision("reject")} disabled={isSubmitting}>
                 {isSubmitting ? <FiLoader className="spin" /> : <FiXCircle />} Reject

@@ -18,44 +18,31 @@ exports.getMyNotifications = async (req, res, next) => {
       where: { employeeId: myId },
       orderBy: { createdAt: 'desc' },
       take: 50,
-            include: {
+      include: {
         relatedRequest: {
-            select: {
-            status: true,
-            startDate: true,
-            endDate: true,
-            attachmentUrl: true,
-            reason: true,
-
-            // ✅ leave type
-            leaveType: {
-                select: {
-                typeName: true,
-                },
-            },
-
-            // ✅ NEW: คนที่ approve / reject
-            approvedByHR: {
-                select: {
-                employeeId: true,
-                firstName: true,
-                lastName: true,
-                },
-            },
-
-            // ✅ NEW: เวลา approve / reject
-            approvalDate: true,
-            },
+          include: {
+            leaveType: { select: { typeName: true } },
+            approvedByHR: { select: { firstName: true, lastName: true } },
+          },
         },
-        },
-
+        // ✅ ปรับส่วนนี้: ดึงรายการทั้งหมด (ไม่ใช้ take: 1) เพื่อให้เลือกแมตช์ ID ได้ถูกต้อง
+        employee: {
+          select: {
+            profileUpdateRequests: {
+              orderBy: { requestedAt: 'desc' },
+              // ลบ take: 1 ออก เพื่อให้แจ้งเตือนใบเก่าๆ สามารถหาข้อมูลของตัวเองเจอ
+              include: {
+                // อ้างอิงตาม schema: ตาราง profileUpdateRequest มีฟิลด์ employeeId
+                employee: { select: { firstName: true, lastName: true } } 
+              }
+            }
+          }
+        }
+      },
     });
 
     const unreadCount = await prisma.notification.count({
-      where: {
-        employeeId: myId,
-        isRead: false
-      }
+      where: { employeeId: myId, isRead: false }
     });
 
     res.json({ success: true, notifications, unreadCount });

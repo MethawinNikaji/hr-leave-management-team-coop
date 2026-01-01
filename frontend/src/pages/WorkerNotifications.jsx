@@ -63,11 +63,41 @@ export default function WorkerNotifications() {
   const handleNotiClick = (noti) => {
     if (!noti.isRead) markAsRead(noti.notificationId);
 
-    // ✅ Keep the same guard: only open modal when backend provides relatedRequest
+    // 1. ตรวจสอบว่าเป็นเรื่อง Profile Update หรือไม่ (เช็คจาก Message)
+    if (noti.message?.toLowerCase().includes("profile update")) {
+    
+      // ✅ STEP A: ดึงเลข ID ออกจากข้อความแจ้งเตือน (เช่นจาก "ID: 15")
+      const matchId = noti.message.match(/ID: (\d+)/);
+      const targetId = matchId ? Number(matchId[1]) : null;
+
+      // ✅ STEP B: ค้นหาคำร้องจากรายการทั้งหมดที่ Backend ส่งมา ให้ตรงกับ ID ที่ได้
+      const allRequests = noti.employee?.profileUpdateRequests || [];
+      const profileReq = targetId 
+        ? allRequests.find(r => Number(r.requestId) === targetId) // หาใบที่ ID ตรงกัน
+        : allRequests[0]; // ถ้าหา ID ในข้อความไม่เจอ ให้ใช้ใบแจ้งเตือนล่าสุดแทน
+
+      if (profileReq) {
+        setSelectedRequest({
+          type: 'PROFILE',
+          requestId: profileReq.requestId,
+          // ✅ ตอนนี้ status จะตรงตามใบจริง (Approved หรือ Rejected)
+          status: profileReq.status, 
+          oldName: `${profileReq.oldFirstName} ${profileReq.oldLastName}`,
+          newName: `${profileReq.newFirstName} ${profileReq.newLastName}`,
+          reason: profileReq.reason || "Requested via profile settings",
+          attachmentUrl: profileReq.attachmentUrl,
+          isReadOnly: true,
+        });
+        setIsModalOpen(true);
+      }
+      return; // จบการทำงาน
+    }
+
+    // 2. กรณีใบลา (Logic เดิมของคุณ - ไม่ต้องลบ)
     if (noti.relatedRequestId && noti.relatedRequest) {
       const rr = noti.relatedRequest;
-
       setSelectedRequest({
+        type: 'LEAVE', // ✅ เพิ่ม Flag
         requestId: noti.relatedRequestId,
         employeeName: "Your Request",
         leaveType: rr.leaveType?.typeName || "Unknown",
@@ -76,13 +106,10 @@ export default function WorkerNotifications() {
         reason: rr?.reason || "No reason provided.",
         status: rr.status,
         attachmentUrl: rr.attachmentUrl,
-        isReadOnly: true, // Always read-only for workers
-
-        // ✅ NEW: for Approved by / Rejected by
-        approvedByHR: rr.approvedByHR || null,
-        approvalDate: rr.approvalDate || null,
+        isReadOnly: true,
+        approvedByHR: rr.approvedByHR,
+        approvalDate: rr.approvalDate,
       });
-
       setIsModalOpen(true);
     }
   };
@@ -157,7 +184,10 @@ export default function WorkerNotifications() {
     }
   };
 
-  const getTitle = (type) => {
+  const getTitle = (type, message) => {
+    if (message?.includes("profile update") || message?.includes("change name")) {
+      return "Profile Update Update";
+    }
     if (type === "NewRequest") return "New Request Submitted";
     if (type === "Approved") return "Leave Request Approved";
     if (type === "Rejected") return "Leave Request Rejected";
@@ -232,7 +262,7 @@ export default function WorkerNotifications() {
 
                 <div className="wn-body">
                   <div className="wn-item-title">
-                    {getTitle(n.notificationType)}{" "}
+                    {getTitle(n.notificationType, n.message)}
                     {n._isNewSinceLastSeen && <span className="badge-new">NEW</span>}
                   </div>
                   <div className="wn-item-msg">{n.message}</div>

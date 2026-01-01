@@ -4,6 +4,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const authModel = require('../models/auth.model');
 const CustomError = require('../utils/customError');
+const notificationService = require('../services/notification.service');
 
 // ✅ AUDIT
 const { logAudit } = require("../utils/auditLogger");
@@ -219,9 +220,163 @@ const updateProfile = async (req, res, next) => {
   }
 };
 
+// --- ฟังก์ชันยื่นคำร้อง (พนักงาน -> HR) ---
+const requestProfileUpdate = async (req, res, next) => {
+  try {
+    const employeeId = Number(req.user.employeeId);
+    const { newFirstName, newLastName, reason } = req.body;
+
+    // ตรวจสอบคำร้อง Pending เดิม (คงเดิม)
+    const pendingRequest = await prisma.profileUpdateRequest.findFirst({
+      where: { employeeId, status: 'Pending' }
+    });
+
+    if (pendingRequest) {
+      return res.status(400).json({ success: false, message: "You already have pending request." });
+    }
+
+    const attachmentUrl = req.file ? req.file.filename : null;
+
+    // ✅ ใช้ Transaction เพื่อสร้างทั้ง Request และ Notification พร้อมกัน
+    const result = await prisma.$transaction(async (tx) => {
+      const employee = await tx.employee.findUnique({ where: { employeeId } });
+
+      const request = await tx.profileUpdateRequest.create({
+        data: {
+          employeeId,
+          oldFirstName: employee.firstName,
+          oldLastName: employee.lastName,
+          newFirstName,
+          newLastName,
+          reason,
+          attachmentUrl
+        }
+      });
+
+      // ดึงรายชื่อ HR ที่ Active
+      const allHR = await tx.employee.findMany({
+        where: { role: 'HR', isActive: true },
+        select: { employeeId: true }
+      });
+
+      // สร้างแจ้งเตือนใน DB สำหรับ HR
+      if (allHR.length > 0) {
+        await tx.notification.createMany({
+          data: allHR.map(hr => ({
+            employeeId: hr.employeeId,
+            notificationType: 'NewRequest', // ใช้ Type เดียวกับระบบลาเพื่อให้ UI เดิมทำงานได้
+            message: `New Profile Update request from ${employee.firstName} ${employee.lastName} (ID: ${request.requestId})`,
+            relatedProfileRequestId: request.requestId,
+          }))
+        });
+      }
+
+      return { request, allHR };
+    });
+
+    // ✅ ส่ง WebSocket สัญญาณหา HR ทุกคน
+    result.allHR.forEach(hr => {
+      notificationService.sendNotification(hr.employeeId, {
+        type: 'NOTIFICATION',
+        data: { type: 'NewRequest', message: `New profile request (ID: ${result.request.requestId})` }
+      });
+    });
+
+    // AUDIT (คงเดิม)
+    await safeAudit({
+      action: "PROFILE_UPDATE_REQUEST_SUBMIT",
+      entity: "ProfileUpdateRequest",
+      entityKey: `Request:${result.request.requestId}`,
+      oldValue: null,
+      newValue: { newFirstName, newLastName, reason },
+      performedByEmployeeId: employeeId,
+      ipAddress: getClientIp(req),
+    });
+
+    res.status(201).json({ success: true, message: "ยื่นคำร้องและแจ้งเตือน HR แล้ว", request: result.request });
+  } catch (error) { next(error); }
+};
+
+// ดึงรายการคำร้องทั้งหมด (สำหรับหน้าตาราง HR)
+const getAllProfileRequests = async (req, res, next) => {
+  try {
+    const requests = await prisma.profileUpdateRequest.findMany({
+      where: { status: 'Pending' },
+      include: { employee: true },
+      orderBy: { requestedAt: 'desc' }
+    });
+    res.json({ success: true, requests });
+  } catch (error) { next(error); }
+};
+
+// --- ฟังก์ชันอนุมัติ/ปฏิเสธ (HR -> พนักงาน) ---
+const handleProfileApproval = async (req, res, next) => {
+  try {
+    const { requestId } = req.params;
+    const { action } = req.body; 
+    const hrId = req.user.employeeId;
+
+    const result = await prisma.$transaction(async (tx) => {
+      const request = await tx.profileUpdateRequest.findUnique({
+        where: { requestId: Number(requestId) }
+      });
+
+      if (!request) throw new Error("คำร้องไม่ถูกต้อง");
+
+      let finalStatus = action === 'approve' ? 'Approved' : 'Rejected';
+
+      if (action === 'approve') {
+        await tx.employee.update({
+          where: { employeeId: request.employeeId },
+          data: { firstName: request.newFirstName, lastName: request.newLastName }
+        });
+      }
+
+      const updatedRequest = await tx.profileUpdateRequest.update({
+        where: { requestId: request.requestId },
+        data: { status: finalStatus, approvedByHrId: hrId, actionDate: new Date() }
+      });
+
+      // ✅ สร้างแจ้งเตือนกลับหาพนักงานเจ้าของเรื่อง
+      const newNoti = await tx.notification.create({
+        data: {
+          employeeId: request.employeeId,
+          notificationType: finalStatus,
+          message: `Your profile update request has been ${finalStatus.toLowerCase()} (ID: ${request.requestId}).`,
+          relatedProfileRequestId: request.requestId,
+        }
+      });
+
+      return { updatedRequest, newNoti };
+    });
+
+    // ✅ ส่ง WebSocket สัญญาณหาพนักงาน
+    notificationService.sendNotification(result.updatedRequest.employeeId, {
+      type: 'NOTIFICATION',
+      data: result.newNoti
+    });
+
+    // AUDIT (คงเดิม)
+    await safeAudit({
+      action: action === "approve" ? "PROFILE_UPDATE_APPROVED" : "PROFILE_UPDATE_REJECTED",
+      entity: "Employee",
+      entityKey: `Employee:${result.updatedRequest.employeeId}`,
+      oldValue: { firstName: result.updatedRequest.oldFirstName, lastName: result.updatedRequest.oldLastName },
+      newValue: { firstName: result.updatedRequest.newFirstName, lastName: result.updatedRequest.newLastName },
+      performedByEmployeeId: hrId,
+      ipAddress: getClientIp(req),
+    });
+
+    res.json({ success: true, message: `ดำเนินการสำเร็จ` });
+  } catch (error) { next(error); }
+};
+
 module.exports = {
   register,
   login,
   getMe,
   updateProfile,
+  requestProfileUpdate,
+  getAllProfileRequests,
+  handleProfileApproval,
 };

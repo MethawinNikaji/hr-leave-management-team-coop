@@ -30,6 +30,7 @@ const MENUS = {
     {
       section: "HR MANAGEMENT",
       items: [
+        { to: "/hr/profile-requests", label: "Profile Requests", icon: <FiUser />, badgeKey: "profile_request_unread" },
         { to: "/hr/leave-approvals", label: "Leave Approvals", icon: <FiCheckSquare /> },
         { to: "/hr/employees", label: "Employees", icon: <FiUsers /> },
         { to: "/hr/leave-settings", label: "Leave Quota Settings", icon: <FiSettings /> },
