@@ -4,17 +4,8 @@ import { alertConfirm, alertSuccess, alertError } from "../utils/sweetAlert";
 import axiosClient from "../api/axiosClient";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import { enUS } from 'date-fns/locale';
-
-const DAYS = [
-  { key: "mon", label: "Mon" },
-  { key: "tue", label: "Tue" },
-  { key: "wed", label: "Wed" },
-  { key: "thu", label: "Thu" },
-  { key: "fri", label: "Fri" },
-  { key: "sat", label: "Sat" },
-  { key: "sun", label: "Sun" },
-];
+import { enUS } from "date-fns/locale";
+import { useTranslation } from "react-i18next";
 
 const defaultPolicy = {
   startTime: "09:00",
@@ -22,7 +13,7 @@ const defaultPolicy = {
   graceMinutes: 5,
   workingDays: { mon: true, tue: true, wed: true, thu: true, fri: true, sat: false, sun: false },
   specialHolidays: [],
-  leaveGapDays: 0, // ค่าเริ่มต้นของนโยบายระยะห่างการลา
+  leaveGapDays: 0,
 };
 
 const clampInt = (v, min, max) => {
@@ -32,6 +23,22 @@ const clampInt = (v, min, max) => {
 };
 
 export default function HRAttendancePolicy() {
+  const { t } = useTranslation();
+
+  // ✅ DAYS ต้องอยู่ใน component เพราะต้องใช้ t()
+  const DAYS = useMemo(
+    () => [
+      { key: "mon", label: t("days.mon") },
+      { key: "tue", label: t("days.tue") },
+      { key: "wed", label: t("days.wed") },
+      { key: "thu", label: t("days.thu") },
+      { key: "fri", label: t("days.fri") },
+      { key: "sat", label: t("days.sat") },
+      { key: "sun", label: t("days.sun") },
+    ],
+    [t]
+  );
+
   const [policy, setPolicy] = useState(defaultPolicy);
   const [holidayInput, setHolidayInput] = useState("");
   const [saving, setSaving] = useState(false);
@@ -41,42 +48,42 @@ export default function HRAttendancePolicy() {
       try {
         const res = await axiosClient.get("/admin/attendance-policy");
         const data = res.data.policy;
-        
-        // แปลง "mon,tue" จาก DB เป็น Object {mon: true, tue: true}
+
         const daysArr = data.workingDays ? data.workingDays.split(",") : [];
         const daysObj = {};
-        DAYS.forEach(d => daysObj[d.key] = daysArr.includes(d.key));
+        DAYS.forEach((d) => (daysObj[d.key] = daysArr.includes(d.key)));
 
-        setPolicy({ 
-          ...data, 
+        setPolicy({
+          ...data,
           workingDays: daysObj,
           specialHolidays: data.specialHolidays || [],
-          leaveGapDays: data.leaveGapDays || 0
+          leaveGapDays: data.leaveGapDays || 0,
         });
       } catch (err) {
         console.error("Load policy error", err);
       }
     };
     fetchPolicy();
-  }, []);
+  }, [DAYS]);
 
   const workingSummary = useMemo(() => {
     const on = DAYS.filter((d) => policy.workingDays?.[d.key]).map((d) => d.label);
     return on.length ? on.join(", ") : "—";
-  }, [policy.workingDays]);
+  }, [policy.workingDays, DAYS]);
 
   const save = async () => {
     const ok = await alertConfirm(
-      "Save Attendance Policy",
-      "This will update work policy and leave restrictions used by the system.",
-      "Save"
+      t("attendancePolicy.saveTitle"),
+      t("attendancePolicy.saveDesc"),
+      t("common.save")
     );
     if (!ok) return;
 
     try {
       setSaving(true);
-      const daysStr = Object.keys(policy.workingDays)
-        .filter(key => policy.workingDays[key])
+
+      const daysStr = Object.keys(policy.workingDays || {})
+        .filter((key) => policy.workingDays[key])
         .join(",");
 
       await axiosClient.put("/admin/attendance-policy", {
@@ -85,13 +92,13 @@ export default function HRAttendancePolicy() {
         graceMinutes: policy.graceMinutes,
         workingDays: daysStr,
         leaveGapDays: policy.leaveGapDays,
-        specialHolidays: policy.specialHolidays
+        specialHolidays: policy.specialHolidays,
       });
-      
-      await alertSuccess("Saved", "Policy updated in database!");
+
+      await alertSuccess(t("common.saved"), t("attendancePolicy.savedSuccess"));
     } catch (e) {
       console.error(e);
-      await alertError("Error", "Failed to save to database.");
+      await alertError(t("common.error"), t("attendancePolicy.savedFail"));
     } finally {
       setSaving(false);
     }
@@ -99,28 +106,31 @@ export default function HRAttendancePolicy() {
 
   const reset = async () => {
     const ok = await alertConfirm(
-      "Reset to Default",
-      "This will reset all policy values to default.",
-      "Reset"
+      t("attendancePolicy.resetTitle"),
+      t("attendancePolicy.resetDesc"),
+      t("common.reset")
     );
     if (!ok) return;
+
     try {
       const daysStr = "mon,tue,wed,thu,fri";
       await axiosClient.put("/admin/attendance-policy", {
         ...defaultPolicy,
         workingDays: daysStr,
-        specialHolidays: []
+        specialHolidays: [],
       });
+
       setPolicy(defaultPolicy);
-      await alertSuccess("Reset", "Policy reset to default in database.");
+      await alertSuccess(t("common.reset"), t("attendancePolicy.resetSuccess"));
     } catch (e) {
-      await alertError("Error", "Cannot reset policy.");
+      await alertError(t("common.error"), t("attendancePolicy.resetFail"));
     }
   };
 
   const addHoliday = () => {
     const d = holidayInput.trim();
     if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
+
     setPolicy((p) => {
       const set = new Set(p.specialHolidays || []);
       set.add(d);
@@ -130,25 +140,26 @@ export default function HRAttendancePolicy() {
   };
 
   const removeHoliday = (d) => {
-    setPolicy((p) => ({ ...p, specialHolidays: (p.specialHolidays || []).filter((x) => x !== d) }));
+    setPolicy((p) => ({
+      ...p,
+      specialHolidays: (p.specialHolidays || []).filter((x) => x !== d),
+    }));
   };
 
   return (
     <div className="page-card hr-policy">
       <div className="hrp-head">
         <div>
-          <h1 className="hrp-title">Attendance Settings</h1>
-          <p className="hrp-sub">
-            Configure work start/end time, leave restrictions, and company holidays.
-          </p>
+          <h1 className="hrp-title">{t("attendancePolicy.title")}</h1>
+          <p className="hrp-sub">{t("attendancePolicy.subtitle")}</p>
         </div>
 
         <div className="hrp-actions">
           <button className="btn outline" type="button" onClick={reset} disabled={saving}>
-            Reset
+            {t("common.reset")}
           </button>
           <button className="btn primary" type="button" onClick={save} disabled={saving}>
-            {saving ? "Saving..." : "Save"}
+            {saving ? t("common.saving") : t("common.save")}
           </button>
         </div>
       </div>
@@ -156,11 +167,11 @@ export default function HRAttendancePolicy() {
       <div className="hrp-grid">
         {/* 1. Work Policy Section */}
         <section className="hrp-card">
-          <h3 className="hrp-card-title">Work Policy</h3>
+          <h3 className="hrp-card-title">{t("attendancePolicy.workPolicyTitle")}</h3>
 
           <div className="hrp-row">
             <div className="hrp-field">
-              <label>Start time</label>
+              <label>{t("attendancePolicy.startTime")}</label>
               <input
                 type="time"
                 value={policy.startTime}
@@ -169,7 +180,7 @@ export default function HRAttendancePolicy() {
             </div>
 
             <div className="hrp-field">
-              <label>End time (Check-out)</label>
+              <label>{t("attendancePolicy.endTime")}</label>
               <input
                 type="time"
                 value={policy.endTime}
@@ -180,7 +191,7 @@ export default function HRAttendancePolicy() {
 
           <div className="hrp-row">
             <div className="hrp-field">
-              <label>Late after (grace minutes)</label>
+              <label>{t("attendancePolicy.graceMinutes")}</label>
               <input
                 type="number"
                 min={0}
@@ -189,16 +200,18 @@ export default function HRAttendancePolicy() {
                 onChange={(e) => setPolicy((p) => ({ ...p, graceMinutes: clampInt(e.target.value, 0, 180) }))}
               />
             </div>
-            <div className="hrp-field" style={{ opacity: 0, pointerEvents: 'none' }}>
-               <label>Space</label>
-               <input type="text" readOnly />
+
+            <div className="hrp-field" style={{ opacity: 0, pointerEvents: "none" }}>
+              <label>{t("common.space")}</label>
+              <input type="text" readOnly />
             </div>
           </div>
 
           <div className="hrp-divider" />
 
           <div className="hrp-field">
-            <label>Working days</label>
+            <label>{t("attendancePolicy.workingDays")}</label>
+
             <div className="hrp-days">
               {DAYS.map((d) => (
                 <label className="hrp-day" key={d.key}>
@@ -216,53 +229,68 @@ export default function HRAttendancePolicy() {
                 </label>
               ))}
             </div>
-            <div className="hrp-hint">Currently: <strong>{workingSummary}</strong></div>
+
+            <div className="hrp-hint">
+              {t("attendancePolicy.currently")}: <strong>{workingSummary}</strong>
+            </div>
           </div>
         </section>
 
-        {/* 2. Leave Gap Policy Section (ตำแหน่งเดิมของ Special Holidays) */}
+        {/* 2. Leave Gap Policy Section */}
         <section className="hrp-card">
-          <h3 className="hrp-card-title">Leave Gap Policy</h3>
-          <p className="hrp-sub2">
-            Set a mandatory minimum rest period between leave requests to ensure workforce availability.
-          </p>
+          <h3 className="hrp-card-title">{t("attendancePolicy.leaveGapTitle")}</h3>
+          <p className="hrp-sub2">{t("attendancePolicy.leaveGapDesc")}</p>
 
-          <div className="hrp-field" style={{ marginTop: '20px' }}>
-            <label>Minimum days between leave requests</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div className="hrp-field" style={{ marginTop: "20px" }}>
+            <label>{t("attendancePolicy.leaveGapLabel")}</label>
+
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
               <input
                 type="number"
                 min={0}
                 max={30}
-                style={{ width: '100px' }}
+                style={{ width: "100px" }}
                 value={policy.leaveGapDays || 0}
                 onChange={(e) => setPolicy((p) => ({ ...p, leaveGapDays: clampInt(e.target.value, 0, 30) }))}
               />
-              <span style={{ color: '#64748b', fontSize: '14px', fontWeight: '500' }}>Days</span>
+              <span style={{ color: "#64748b", fontSize: "14px", fontWeight: "500" }}>
+                {t("attendancePolicy.days")}
+              </span>
             </div>
-            <div className="hrp-hint" style={{ marginTop: '12px' }}>
-              Example: If set to 3, an employee must wait 3 days after an approved leave before taking another.
+
+            <div className="hrp-hint" style={{ marginTop: "12px" }}>
+              {t("attendancePolicy.leaveGapExample")}
             </div>
           </div>
         </section>
 
-        {/* 3. Special Holidays Section (ตำแหน่งเดิมของ Shift) */}
+        {/* 3. Special Holidays Section */}
         <section className="hrp-card">
-          <h3 className="hrp-card-title">Special Holidays</h3>
+          <h3 className="hrp-card-title">{t("attendancePolicy.specialHolidaysTitle")}</h3>
+
           <div className="hrp-holiday-row">
             <DatePicker
-              selected={holidayInput ? new Date(holidayInput) : null}
-              onChange={(date) => setHolidayInput(date.toISOString().split('T')[0])}
+              selected={holidayInput ? new Date(`${holidayInput}T00:00:00`) : null}
+              onChange={(date) => {
+                if (!date) {
+                  setHolidayInput("");
+                  return;
+                }
+                setHolidayInput(date.toISOString().split("T")[0]);
+              }}
               dateFormat="yyyy-MM-dd"
               locale={enUS}
-              placeholderText="Select Holiday Date"
+              placeholderText={t("attendancePolicy.selectHolidayDate")}
               className="hrp-holiday-input"
             />
-            <button className="btn outline" type="button" onClick={addHoliday}>Add</button>
+
+            <button className="btn outline" type="button" onClick={addHoliday}>
+              {t("common.add")}
+            </button>
           </div>
 
-          {(!policy.specialHolidays || policy.specialHolidays.length === 0) ? (
-            <div className="hrp-empty">No holidays added.</div>
+          {!policy.specialHolidays || policy.specialHolidays.length === 0 ? (
+            <div className="hrp-empty">{t("attendancePolicy.noHolidays")}</div>
           ) : (
             <div className="hrp-holiday-list">
               {policy.specialHolidays.map((d) => (

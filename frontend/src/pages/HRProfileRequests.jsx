@@ -6,8 +6,11 @@ import axiosClient from "../api/axiosClient";
 import { FiUser, FiCheck, FiX, FiInfo, FiExternalLink, FiClock } from "react-icons/fi";
 import moment from "moment";
 import "./HRLeaveApprovals.css"; // ใช้ CSS ร่วมกับหน้า Leave เพื่อความคุมโทน
+import { useTranslation } from "react-i18next";
 
 export default function HRProfileRequests() {
+
+  const { t, i18n } = useTranslation();
   const location = useLocation();
   const [requests, setRequests] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -46,7 +49,7 @@ export default function HRProfileRequests() {
       }
     } catch (err) {
       console.error(err);
-      alertError("Error", "Unable to fetch profile update requests");
+      alertError(t("Error"), t("Unable to fetch profile update requests"));
     } finally {
       setIsLoading(false);
     }
@@ -87,7 +90,7 @@ export default function HRProfileRequests() {
       fetchRequests(); // รีโหลดข้อมูล
       setActive(null); // ปิด modal ถ้าเปิดอยู่
     } catch (err) {
-      alertError("Error", err.response?.data?.message || "ดำเนินการล้มเหลว");
+      alertError("Error", err.response?.data?.message || t("\u0e14\u0e33\u0e40\u0e19\u0e34\u0e19\u0e01\u0e32\u0e23\u0e25\u0e49\u0e21\u0e40\u0e2b\u0e25\u0e27"));
     }
   };
 
@@ -108,12 +111,12 @@ export default function HRProfileRequests() {
     <div className="page-card hr-leave-approvals">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h1 style={{ margin: 0 }}>Profile Update Requests</h1>
-          <p style={{ marginTop: 6, color: "#64748b" }}>Review and approve employee name change requests</p>
+          <h1 style={{ margin: 0 }}>{t("Profile Update Requests")}</h1>
+          <p style={{ marginTop: 6, color: "#64748b" }}>{t("Review and approve employee name change requests")}</p>
         </div>
         <button className="btn outline" onClick={fetchRequests} disabled={isLoading}>
-          {isLoading ? "Loading..." : "Refresh List"}
-        </button>
+        {isLoading ? t("Loading...") : t("Refresh List")}
+      </button>
       </div>
 
       {/* Filters */}
@@ -122,7 +125,7 @@ export default function HRProfileRequests() {
           className="audit-input"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search employee name or proposed name..."
+          placeholder={t("Search employee name or proposed name...")}
           style={{ width: "320px", borderRadius: "12px" }}
         />
       </div>
@@ -131,18 +134,18 @@ export default function HRProfileRequests() {
         <table className="table">
           <thead>
             <tr>
-              <th>Request ID</th>
-              <th>Employee</th>
-              <th>Current Name</th>
-              <th>Proposed Name</th>
-              <th>Request Date</th>
-              <th>Status</th>
-              <th style={{ textAlign: "right" }}>Actions</th>
+              <th>{t("Request ID")}</th>
+              <th>{t("Employee")}</th>
+              <th>{t("Current Name")}</th>
+              <th>{t("Proposed Name")}</th>
+              <th>{t("Request Date")}</th>
+              <th>{t("Status")}</th>
+              <th style={{ textAlign: "right" }}>{t("Actions")}</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan="7" style={{ textAlign: "center", padding: 40 }}>Loading...</td></tr>
+              <tr><td colSpan="7" style={{ textAlign: "center", padding: 40 }}>{t("Loading...")}</td></tr>
             ) : paged.length > 0 ? (
               paged.map((r) => (
                 <tr key={r.requestId} className="hrla-row" onClick={() => setActive(r)}>
@@ -159,7 +162,7 @@ export default function HRProfileRequests() {
                   <td><span className="status pending">{r.status}</span></td>
                   <td style={{ textAlign: "right" }}>
                     <div style={{ display: "inline-flex", gap: 8 }} onClick={(e) => e.stopPropagation()}>
-                      <button className="btn small outline" onClick={() => setActive(r)}>Details</button>
+                      <button className="btn small outline" onClick={() => setActive(r)}>{t("Details")}</button>
                       <button className="btn small primary" onClick={() => handleAction(r.requestId, "approve")}><FiCheck /></button>
                       <button className="btn small outline danger" style={{ borderColor: '#ef4444', color: '#ef4444' }} onClick={() => handleAction(r.requestId, "reject")}><FiX /></button>
                     </div>
@@ -167,7 +170,7 @@ export default function HRProfileRequests() {
                 </tr>
               ))
             ) : (
-              <tr><td colSpan="7" style={{ textAlign: "center", padding: 40 }}>No pending requests.</td></tr>
+              <tr><td colSpan="7" style={{ textAlign: "center", padding: 40 }}>{t("No pending requests.")}</td></tr>
             )}
           </tbody>
         </table>
@@ -181,8 +184,8 @@ export default function HRProfileRequests() {
             <div className="p-modal-header">
               <div className="p-header-icon" style={{ background: '#eff6ff', color: '#3b82f6' }}><FiUser /></div>
               <div className="p-header-text">
-                <h3>Request Details</h3>
-                <p>Compare details before approval</p>
+                <h3>{t("Request Details")}</h3>
+                <p>{t("Compare details before approval")}</p>
               </div>
               <button className="p-modal-close" onClick={() => setActive(null)}><FiX /></button>
             </div>
@@ -190,13 +193,13 @@ export default function HRProfileRequests() {
             <div className="p-modal-form" style={{ padding: '0 32px 32px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                 <div className="p-current-info">
-                  <label>Current Name (Old)</label>
+                  <label>{t("Current Name (Old)")}</label>
                   <div className="p-name-badge" style={{ background: '#f1f5f9', borderStyle: 'solid' }}>
                     {active.oldFirstName} {active.oldLastName}
                   </div>
                 </div>
                 <div className="p-current-info">
-                  <label>Proposed Name (New)</label>
+                  <label>{t("Proposed Name (New)")}</label>
                   <div className="p-name-badge" style={{ background: '#f0fdf4', borderColor: '#22c55e', color: '#166534', borderStyle: 'solid' }}>
                     {active.newFirstName} {active.newLastName}
                   </div>
@@ -204,15 +207,15 @@ export default function HRProfileRequests() {
               </div>
 
               <div className="p-input-group" style={{ marginTop: '10px' }}>
-                <label>Reason for change</label>
+                <label>{t("Reason for change")}</label>
                 <div style={{ padding: '12px', background: '#f8fafc', borderRadius: '12px', fontSize: '14px', border: '1.5px solid #f1f5f9' }}>
-                  {active.reason || "No reason provided"}
+                  {active.reason || t("No reason provided")}
                 </div>
               </div>
 
               {active.attachmentUrl && (
                 <div className="p-input-group p-attachment-section">
-                    <label>Supporting Document</label>
+                    <label>{t("Supporting Document")}</label>
                     <a 
                     href={`http://localhost:8000/uploads/profiles/${active.attachmentUrl}`} 
                     target="_blank" 
@@ -223,17 +226,17 @@ export default function HRProfileRequests() {
                         <FiExternalLink />
                     </div>
                     <div className="p-file-info">
-                        <span className="p-file-name">View Attachment</span>
-                        <span className="p-file-desc">Official document (PDF/Image)</span>
+                        <span className="p-file-name">{t("View Attachment")}</span>
+                        <span className="p-file-desc">{t("Official document (PDF/Image)")}</span>
                     </div>
-                    <div className="p-file-action">Open</div>
+                    <div className="p-file-action">{t("Open")}</div>
                     </a>
                 </div>
                 )}
 
               <div className="p-modal-footer" style={{ marginTop: '20px' }}>
-                <button type="button" className="p-btn-cancel" onClick={() => handleAction(active.requestId, "reject")}>Reject Request</button>
-                <button type="button" className="p-btn-submit" onClick={() => handleAction(active.requestId, "approve")}>Approve & Update Profile</button>
+                <button type="button" className="p-btn-cancel" onClick={() => handleAction(active.requestId, "reject")}>{t("Reject Request")}</button>
+                <button type="button" className="p-btn-submit" onClick={() => handleAction(active.requestId, "approve")}>{t("Approve & Update Profile")}</button>
               </div>
             </div>
           </div>

@@ -1,10 +1,13 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { getMyNotifications } from "../api/notificationService";
 import { useAuth } from "./AuthContext";
+import { useTranslation } from "react-i18next";
 
 const NotificationContext = createContext(null);
 
 export function NotificationProvider({ children }) {
+  const { t } = useTranslation();
+
   const { isReady, isAuthenticated, user } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
 

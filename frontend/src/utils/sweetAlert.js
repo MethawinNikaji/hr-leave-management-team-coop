@@ -1,4 +1,5 @@
 import Swal from "sweetalert2";
+import i18n from "../i18n";
 
 /**
  * Corporate SweetAlert2 wrapper (Red/Black theme)
@@ -24,15 +25,15 @@ const baseConfig = {
   },
 };
 
-export const alertConfirm = async (title, html, confirmText = "Confirm") => {
+export const alertConfirm = async (title, html, confirmText) => {
   const res = await Swal.fire({
     ...baseConfig,
     icon: "question",
     title,
     html,
     showCancelButton: true,
-    confirmButtonText: confirmText,
-    cancelButtonText: "Cancel",
+    confirmButtonText: confirmText || i18n.t("common.confirm"),
+    cancelButtonText: i18n.t("common.cancel"),
   });
   return res.isConfirmed;
 };
@@ -54,7 +55,7 @@ export const alertError = (title, text = "") => {
     icon: "error",
     title,
     text,
-    confirmButtonText: "Close",
+    confirmButtonText: i18n.t("common.close"),
   });
 };
 
@@ -64,6 +65,6 @@ export const alertInfo = (title, text = "") => {
     icon: "info",
     title,
     text,
-    confirmButtonText: "OK",
+    confirmButtonText: i18n.t("common.ok"),
   });
 };

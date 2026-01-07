@@ -9,6 +9,7 @@ import { alertConfirm, alertError, alertSuccess, alertInfo } from "../utils/swee
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { enUS } from 'date-fns/locale';
+import { useTranslation } from "react-i18next";
 
 // Helper Functions
 function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
@@ -23,7 +24,7 @@ const parseWorkingDays = (str) => {
 };
 
 // 🔥 ปรับปรุง QuotaCard ให้แสดงยอดทบสะสมเหมือนของ Worker
-function QuotaCard({ title, usedDays, totalDays, carriedOverDays }) {
+function QuotaCard({ title, usedDays, totalDays, carriedOverDays, t }) {
   const used = num(usedDays);
   const currentTotal = num(totalDays);
   const carried = num(carriedOverDays);
@@ -53,15 +54,15 @@ function QuotaCard({ title, usedDays, totalDays, carriedOverDays }) {
 
       <div className="quota-metrics">
         <div className="qm">
-          <div className="qm-label">Used</div>
+          <div className="qm-label">{t("Used")}</div>
           <div className="qm-value">{used}</div>
         </div>
         <div className="qm highlight" style={{ background: 'rgba(30, 64, 175, 0.05)' }}>
-          <div className="qm-label">Available</div>
+          <div className="qm-label">{t("Available")}</div>
           <div className="qm-value">{totalEffective}</div>
         </div>
         <div className="qm success" style={{ background: 'rgba(22, 163, 74, 0.05)' }}>
-          <div className="qm-label">Remaining</div>
+          <div className="qm-label">{t("Remaining")}</div>
           <div className="qm-value">{remaining}</div>
         </div>
       </div>
@@ -74,6 +75,7 @@ function QuotaCard({ title, usedDays, totalDays, carriedOverDays }) {
 }
 
 export default function HRAttendancePage() {
+  const { t, i18n } = useTranslation();
   const [now, setNow] = useState(new Date());
   const [checkedInAt, setCheckedInAt] = useState(null);
   const [checkedOutAt, setCheckedOutAt] = useState(null);
@@ -196,43 +198,43 @@ export default function HRAttendancePage() {
   const handleCheckIn = async () => {
     try {
       await axios.post("http://localhost:8000/api/timerecord/check-in", {}, getAuthHeader());
-      await alertSuccess("Success", "Check-in successful");
+      await alertSuccess(t("Success"), t("Check-in successful"));
       fetchAttendanceData();
       fetchLateSummary();
-    } catch (err) { alertError("Check-in failed", err.response?.data?.message); }
+    } catch (err) { alertError(t("Check-in failed"), err.response?.data?.message); }
   };
 
   const handleCheckOut = async () => {
     if (!policy || !policy.endTime) {
-      return alertError("Error", "Unable to load attendance policy.");
+      return alertError(t("Error"), t("Unable to load attendance policy."));
     }
     const [pEndHour, pEndMin] = policy.endTime.split(':').map(Number);
     const nowMoment = moment(); 
     const endMoment = moment().hour(pEndHour).minute(pEndMin).second(0).millisecond(0);
 
     if (nowMoment.isBefore(endMoment)) {
-      return alertError("Not time to check out yet", `Policy allows check-out starting from ${policy.endTime}.`);
+      return alertError(t("Not time to check out yet"), `Policy allows check-out starting from ${policy.endTime}.`);
     }
 
     try {
       await axios.post("http://localhost:8000/api/timerecord/check-out", {}, getAuthHeader());
-      await alertSuccess("Success", "Check-out successful");
+      await alertSuccess(t("Success"), t("Check-out successful"));
       fetchAttendanceData();
     } catch (err) { 
-      alertError("Check-out failed", err.response?.data?.message || "Something went wrong"); 
+      alertError(t("Check-out failed"), err.response?.data?.message || t("Something went wrong")); 
     }
   };
 
   const handleCancelLeave = async (requestId) => {
-    if (!(await alertConfirm("Confirm cancellation", "Are you sure you want to cancel this leave request?", "Confirm"))) return;
+    if (!(await alertConfirm(t("Confirm cancellation"), t("Are you sure you want to cancel this leave request?"), "Confirm"))) return;
     try {
       const res = await axios.patch(`http://localhost:8000/api/leave/${requestId}/cancel`, {}, getAuthHeader());
       if (res.data.success) {
-        await alertSuccess("Success", "Leave request cancelled successfully.");
+        await alertSuccess(t("Success"), t("Leave request cancelled successfully."));
         fetchLeaveHistory();
         fetchQuotaData();
-      } else { alertError("Unable to cancel", res.data.message); }
-    } catch (err) { alertError("Error", "Failed to connect to server."); }
+      } else { alertError(t("Unable to cancel"), res.data.message); }
+    } catch (err) { alertError(t("Error"), t("Failed to connect to server.")); }
   };
 
   const handleLeaveChange = (e) => {
@@ -265,7 +267,7 @@ export default function HRAttendancePage() {
       });
 
       if (res.data.success) {
-        await alertSuccess("Success", "Leave request submitted successfully.");
+        await alertSuccess(t("Success"), t("Leave request submitted successfully."));
         setIsLeaveModalOpen(false);
         fetchQuotaData();
         fetchLeaveHistory();
@@ -299,7 +301,9 @@ export default function HRAttendancePage() {
     <div className="page-card">
       <header className="worker-header">
         <div>
-          <h1 className="worker-title">Hello, {user.firstName || "HR"}</h1>
+          <h1 className="worker-title">
+            {t("Hello")}, {user.firstName || t("HR")}
+          </h1>
           <p className="worker-datetime">{now.toLocaleString("en-GB")}</p>
         </div>
         <div className="worker-header-right">
@@ -308,70 +312,69 @@ export default function HRAttendancePage() {
       </header>
 
       <div className="late-warning">
-        <span>Late this month: <strong>{lateSummary.lateCount} / {lateSummary.lateLimit}</strong></span>
+        <span>{t("Late this month:")} <strong>{lateSummary.lateCount} / {lateSummary.lateLimit}</strong></span>
       </div>
 
       <section className="action-row">
         <div className="action-card">
-          <h3>Check In</h3>
+          <h3>{t("Check In")}</h3>
           <p className="action-time">{formatTime(checkedInAt)}</p>
           <button className="btn-checkin" onClick={handleCheckIn} disabled={!!checkedInAt}>
-            {checkedInAt ? "Checked In" : "Check In Now"}
+            {checkedInAt ? t("Checked In") : t("Check In Now")}
           </button>
         </div>
         <div className="action-card">
-          <h3>Check Out</h3>
+          <h3>{t("Check Out")}</h3>
           <p className="action-time">{formatTime(checkedOutAt)}</p>
           <button className="btn-checkout" onClick={handleCheckOut} disabled={!checkedInAt || !!checkedOutAt || isBeforeEndTime} style={isBeforeEndTime && checkedInAt && !checkedOutAt ? { opacity: 0.5, cursor: 'not-allowed' } : {}}>
-            {isBeforeEndTime && checkedInAt && !checkedOutAt ? `Wait until ${policy.endTime}` : "Check Out"}
+            {isBeforeEndTime && checkedInAt && !checkedOutAt ? `Wait until ${policy.endTime}` : t("Check Out")}
           </button>
         </div>
         <div className="action-card">
-          <h3>Leave</h3>
-          <p className="action-time">Manage Leaves</p>
+          <h3>{t("Leave")}</h3>
+          <p className="action-time">{t("Leave Request")}</p>
           <button className="btn-leave" onClick={() => setIsLeaveModalOpen(true)}>
-            Request Leave
+            {t("Create Leave Request")}
           </button>
         </div>
       </section>
 
-      <h2 className="section-subtitle">
-        Your Leave Balance (Including Carry-over)
-      </h2>
+      <h2 className="section-subtitle">{t("Your Leave Balance (Including Carry-over)")}</h2>
 
       <section className="quota-grid">
         {quotas.length > 0 ? (
           quotas.map((q) => (
-            <QuotaCard
-              key={q.quotaId}
-              title={q.leaveType?.typeName || "Leave"}
-              usedDays={q.usedDays}
-              totalDays={q.totalDays}
-              carriedOverDays={q.carriedOverDays} 
-            />
+           <QuotaCard
+            key={q.quotaId}
+            title={q.leaveType?.typeName || t("Leave")}
+            usedDays={q.usedDays}
+            totalDays={q.totalDays}
+            carriedOverDays={q.carriedOverDays}
+            t={t}   // ✅ ส่ง t เข้าไป
+          />
           ))
         ) : (
-          <div className="quota-empty">Loading quotas...</div>
+          <div className="quota-empty">{t("Loading quotas...")}</div>
         )}
       </section>
 
       <section className="history-section">
-        <h2>Your Personal Time History</h2>
+        <h2>{t("Your Personal Time History")}</h2>
         <div className="history-table-wrapper">
           <table className="history-table">
             <thead>
-              <tr><th>Date</th><th>In</th><th>Out</th><th>Status</th></tr>
+              <tr><th>{t("Date")}</th><th>{t("In")}</th><th>{t("Out")}</th><th>{t("Status")}</th></tr>
             </thead>
             <tbody>
               {history.length === 0 ? (
-                <tr><td colSpan="4" className="empty">No attendance records</td></tr>
+                <tr><td colSpan="4" className="empty">{t("No attendance records")}</td></tr>
               ) : (
                 history.slice(0, 10).map((row) => (
                   <tr key={row.recordId}>
                     <td>{formatDate(row.workDate)}</td>
                     <td>{formatTime(row.checkInTime)}</td>
                     <td>{formatTime(row.checkOutTime)}</td>
-                    <td><span className={`status-badge ${row.isLate ? "status-late" : "status-ok"}`}>{row.isLate ? "Late" : "On Time"}</span></td>
+                    <td><span className={`status-badge ${row.isLate ? "status-late" : "status-ok"}`}>{row.isLate ? "Late" : t("On Time")}</span></td>
                   </tr>
                 ))
               )}
@@ -381,15 +384,15 @@ export default function HRAttendancePage() {
       </section>
 
       <section className="history-section" style={{ marginTop: '30px' }}>
-        <h2>Your Personal Leave History</h2>
+        <h2>{t("Your Personal Leave History")}</h2>
         <div className="history-table-wrapper">
           <table className="history-table">
             <thead>
-              <tr><th>Type</th><th>Date Range</th><th>Days</th><th>Status</th><th style={{ textAlign: 'center' }}>Action</th></tr>
+              <tr><th>{t("Type")}</th><th>{t("Date Range")}</th><th>{t("Days")}</th><th>{t("Status")}</th><th style={{ textAlign: 'center' }}>{t("Action")}</th></tr>
             </thead>
             <tbody>
               {leaveHistory.length === 0 ? (
-                <tr><td colSpan="5" className="empty">No leave history yet</td></tr>
+                <tr><td colSpan="5" className="empty">{t("No leave history yet")}</td></tr>
               ) : (
                 leaveHistory.slice(0, 10).map((req) => (
                   <tr key={req.requestId}>
@@ -399,7 +402,7 @@ export default function HRAttendancePage() {
                     <td><span className={`status-badge status-${normStatus(req.status)}`}>{req.status}</span></td>
                     <td style={{ textAlign: 'center' }}>
                       {normStatus(req.status) === "pending" && (
-                        <button className="btn-leave" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', boxShadow: 'none' }} onClick={() => handleCancelLeave(req.requestId)}>Cancel</button>
+                        <button className="btn-leave" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', boxShadow: 'none' }} onClick={() => handleCancelLeave(req.requestId)}>{t("Cancel")}</button>
                       )}
                     </td>
                   </tr>
@@ -415,7 +418,7 @@ export default function HRAttendancePage() {
         <div className="modal-backdrop" onClick={() => setIsLeaveModalOpen(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-head-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-              <h3 style={{ margin: 0 }}>Request Leave</h3>
+              <h3 style={{ margin: 0 }}>{t("Request Leave")}</h3>
               <button 
                 type="button"
                 onClick={() => setIsLeaveModalOpen(false)} 
@@ -425,7 +428,7 @@ export default function HRAttendancePage() {
               </button>
             </div>
             <form onSubmit={handleSubmitLeave} className="leave-form">
-              <label>Leave Type</label>
+              <label>{t("Leave Type")}</label>
               <select name="leaveTypeId" value={leaveForm.leaveTypeId} onChange={handleLeaveChange} required>
                 {quotas.map((q) => (
                   <option key={q.leaveTypeId} value={q.leaveTypeId}>
@@ -435,13 +438,16 @@ export default function HRAttendancePage() {
               </select>
 
               <div className="date-row">
-                <label>
-                  Start Date
-                  <DatePicker
+                <label>{t("Start Date")}                  <DatePicker
                     selected={leaveForm.startDate ? new Date(leaveForm.startDate) : null}
                     onChange={(date) => {
                       const dStr = moment(date).format("YYYY-MM-DD");
-                      handleLeaveChange({ target: { name: "startDate", value: dStr } });
+                      handleLeaveChange({ 
+                      target: { 
+                        name: "startDate",
+                        value: dStr 
+                      } 
+                    });
                     }}
                     minDate={new Date()}
                     filterDate={isWorkingDate} // 🔥 บล็อกวันที่ไม่ใช่วันทำงาน
@@ -452,13 +458,11 @@ export default function HRAttendancePage() {
                     required
                   />
                 </label>
-                <label>
-                  End Date
-                  <DatePicker
+                <label>{t("End Date")}                  <DatePicker
                     selected={leaveForm.endDate ? new Date(leaveForm.endDate) : null}
                     onChange={(date) => {
                       const dStr = moment(date).format("YYYY-MM-DD");
-                      handleLeaveChange({ target: { name: "endDate", value: dStr } });
+                      handleLeaveChange({ target: { name: t("endDate"), value: dStr } });
                     }}
                     minDate={leaveForm.startDate ? new Date(leaveForm.startDate) : new Date()}
                     filterDate={isWorkingDate} // 🔥 บล็อกวันที่ไม่ใช่วันทำงาน
@@ -477,24 +481,24 @@ export default function HRAttendancePage() {
                   padding: '12px', borderRadius: '12px', color: '#0369a1', fontSize: '14px'
                 }}>
                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <FiCalendar /> <span>Actual leave days: <strong>{previewDays} days</strong></span>
+                      <FiCalendar /> <span>{t("Actual leave days:")} <strong>{previewDays} days</strong></span>
                    </div>
-                   <p style={{ fontSize: '11px', color: '#0ea5e9', margin: '4px 0 0' }}>* Weekends and public holidays are excluded automatically</p>
+                   <p style={{ fontSize: '11px', color: '#0ea5e9', margin: '4px 0 0' }}>{t("* Weekends and public holidays are excluded automatically")}</p>
                 </div>
               )}
 
-              <label className="full">Detail<textarea name="detail" rows="3" value={leaveForm.detail} onChange={handleLeaveChange} placeholder="Reason." /></label>
+              <label className="full">{t("Detail")}<textarea name="detail" rows="3" value={leaveForm.detail} onChange={handleLeaveChange} placeholder={t("Reason.")} /></label>
               <label className="full">
-                <span className="field-label">ATTACHMENT (OPTIONAL)</span>
+                <span className="field-label">{t("ATTACHMENT (OPTIONAL)")}</span>
                 <div className="file-upload">
                   <input type="file" id="attachment" hidden onChange={(e) => setSelectedFile(e.target.files[0])} />
-                  <label htmlFor="attachment" className="file-upload-btn">Choose file</label>
-                  <span className={`file-upload-name ${selectedFile ? "active" : ""}`}>{selectedFile ? selectedFile.name : "No file selected"}</span>
+                  <label htmlFor="attachment" className="file-upload-btn">{t("Choose file")}</label>
+                  <span className={`file-upload-name ${selectedFile ? "active" : ""}`}>{selectedFile ? selectedFile.name : t("No file selected")}</span>
                 </div>
               </label>
               <div className="modal-actions">
-                <button type="button" className="outline-btn" onClick={() => setIsLeaveModalOpen(false)}>Cancel</button>
-                <button type="submit" className="primary-btn">Submit Request</button>
+                <button type="button" className="outline-btn" onClick={() => setIsLeaveModalOpen(false)}>{t("Cancel")}</button>
+                <button type="submit" className="primary-btn">{t("Submit Request")}</button>
               </div>
             </form>
           </div>

@@ -3,8 +3,11 @@ import { FiEdit2, FiSettings, FiRefreshCw, FiUserPlus, FiToggleLeft, FiToggleRig
 import "./HREmployees.css";
 import { alertConfirm, alertError, alertSuccess } from "../utils/sweetAlert";
 import axiosClient from "../api/axiosClient";
+import { useTranslation } from "react-i18next";
 
 export default function Employees() {
+
+  const { t, i18n } = useTranslation();
   const [employees, setEmployees] = useState([]);
   const [types, setTypes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -112,9 +115,7 @@ export default function Employees() {
   };
 
   const handleSyncQuotas = async () => {
-    const ok = await alertConfirm(
-      "Sync Default Quotas",
-      "Apply default leave quotas to all employees for the current year?",
+    const ok = await alertConfirm(t("Sync Default Quotas"), t("Apply default leave quotas to all employees for the current year?"),
       "Sync"
     );
     if (!ok) return;
@@ -122,10 +123,10 @@ export default function Employees() {
     try {
       setLoading(true);
       await axiosClient.post("/admin/hr/sync-quotas", {});
-      await alertSuccess("Done", "Default quotas have been synced.");
+      await alertSuccess(t("Done"), t("Default quotas have been synced."));
       fetchEmployees();
     } catch (err) {
-      await alertError("Error", err.response?.data?.message || "Unable to sync.");
+      await alertError("Error", err.response?.data?.message || t("Unable to sync."));
     } finally {
       setLoading(false);
     }
@@ -152,7 +153,7 @@ export default function Employees() {
       });
       setQuotaRows(rows);
     } catch (err) {
-      console.error("Fetch Quota Error:", err);
+      console.error(t("Fetch Quota Error:"), err);
       await alertError("Error", err.response?.data?.message || err.message);
     }
   };
@@ -167,9 +168,9 @@ export default function Employees() {
         })),
       });
       setQuotaOpen(false);
-      await alertSuccess("Done", "Leave quota updated.");
+      await alertSuccess(t("Done"), t("Leave quota updated."));
     } catch (err) {
-      await alertError("Error", err.response?.data?.message || "Unable to update quota.");
+      await alertError("Error", err.response?.data?.message || t("Unable to update quota."));
     }
   };
 
@@ -177,10 +178,10 @@ export default function Employees() {
   const toggleActive = async (emp) => {
     const next = !emp.isActive;
     const ok = await alertConfirm(
-      next ? "Activate Account" : "Deactivate Account",
+      next ? t("Activate Account") : t("Deactivate Account"),
       next
-        ? "Allow this employee to access the system?"
-        : "Disable login for this employee? (Does not delete data)",
+        ? t("Allow this employee to access the system?")
+        : t("Disable login for this employee? (Does not delete data)"),
       next ? "Activate" : "Deactivate"
     );
     if (!ok) return;
@@ -215,8 +216,8 @@ export default function Employees() {
     <div className="page-card emp">
       <div className="emp-head">
         <div>
-          <h2 className="emp-title">Employees</h2>
-          <p className="emp-sub">Manage employees and leave quotas</p>
+          <h2 className="emp-title">{t("Employees")}</h2>
+          <p className="emp-sub">{t("Manage employees and leave quotas")}</p>
         </div>
 
         <div className="emp-tools">
@@ -224,7 +225,7 @@ export default function Employees() {
             className="emp-input"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search name, email, role..."
+            placeholder={t("Search name, email, role...")}
           />
 
           <select
@@ -233,9 +234,9 @@ export default function Employees() {
             onChange={(e) => setRoleFilter(e.target.value)}
             style={{ maxWidth: 150 }}
           >
-            <option value="all">All roles</option>
-            <option value="HR">HR</option>
-            <option value="Worker">Worker</option>
+            <option value="all">{t("All roles")}</option>
+            <option value="HR">{t("HR")}</option>
+            <option value="Worker">{t("Worker")}</option>
           </select>
 
           <select
@@ -244,27 +245,25 @@ export default function Employees() {
             onChange={(e) => setActiveFilter(e.target.value)}
             style={{ maxWidth: 160 }}
           >
-            <option value="all">All status</option>
-            <option value="active">Active only</option>
-            <option value="inactive">Inactive only</option>
+            <option value="all">{t("All status")}</option>
+            <option value="active">{t("Active only")}</option>
+            <option value="inactive">{t("Inactive only")}</option>
           </select>
 
           <button
             className="emp-btn emp-btn-outline warn"
             onClick={handleSyncQuotas}
-            title="Sync Default Quotas"
+            title={t("Sync Default Quotas")}
             disabled={loading}
           >
-            <FiRefreshCw className={loading ? "spin" : ""} /> Sync Default
-          </button>
+            <FiRefreshCw className={loading ? "spin" : ""} />{t("Sync Default")}</button>
 
           <button className="emp-btn emp-btn-primary" onClick={openAddModal}>
-            <FiUserPlus /> Add New
-          </button>
+            <FiUserPlus />{t("Add New")}</button>
 
-          <button className="emp-btn emp-btn-outline" onClick={fetchEmployees} disabled={loading} title="Refresh List">
+          <button className="emp-btn emp-btn-outline" onClick={fetchEmployees} disabled={loading} title={t("Refresh List")}>
             <FiRefreshCw className={loading ? "spin" : ""} />
-            <span className="hidden-mobile">Refresh</span>
+            <span className="hidden-mobile">{t("Refresh")}</span>
           </button>
         </div>
       </div>
@@ -273,67 +272,61 @@ export default function Employees() {
         <table className="table">
           <thead>
             <tr>
-              <th style={{ width: 80 }}>ID</th>
-              <th>Name</th>
-              <th>Email / Role</th>
-              <th className="text-center" style={{ width: 320 }}>
-                Actions
-              </th>
+              <th style={{ width: 80 }}>{t("ID")}</th>
+              <th>{t("Name")}</th>
+              <th>{t("Email / Role")}</th>
+              <th className="text-center" style={{ width: 320 }}>{t("Actions")}</th>
             </tr>
           </thead>
 
           <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan="4" className="empty">
-                  Loading...
+          {loading ? (
+            <tr>
+              <td colSpan="4" className="empty">{t("Loading...")}</td>
+            </tr>
+          ) : filtered.length === 0 ? (
+            <tr>
+              <td colSpan="4" className="empty">{t("No employees found.")}</td>
+            </tr>
+          ) : (
+            filtered.map((emp) => (
+              <tr key={emp.employeeId}>
+                <td className="emp-mono emp-muted">{emp.employeeId}</td>
+                <td className="emp-strong">
+                  {emp.firstName} {emp.lastName}
+                </td>
+                <td>
+                  <div className="emp-muted mini">{emp.email}</div>
+                  <span className={`badge ${emp.role === "HR" ? "badge-role-hr" : "badge-role-worker"}`}>
+                    {emp.role}
+                  </span>
+                  {!emp.isActive && <span className="badge badge-danger">{t("Inactive")}</span>}
+                </td>
+
+                <td className="action-column">
+                  <div className="btn-group-row" style={{ justifyContent: "center", gap: 8 }}>
+                    <button className="emp-btn emp-btn-outline small info" onClick={() => openEditModal(emp)}>
+                      <FiEdit2 />{t("Edit")}
+                    </button>
+
+                    <button className="emp-btn emp-btn-outline small quota" onClick={() => openQuota(emp)}>
+                      <FiSettings />{t("Quota")}
+                    </button>
+
+                    <button
+                      className={`emp-btn emp-btn-outline small ${emp.isActive ? "warn" : "info"}`}
+                      onClick={() => toggleActive(emp)}
+                      title={emp.isActive ? t("Deactivate") : t("Activate")}
+                    >
+                      {emp.isActive ? <FiToggleLeft /> : <FiToggleRight />}
+                      {emp.isActive ? t("Deactivate") : t("Activate")}
+                    </button>
+                  </div>
                 </td>
               </tr>
-            ) : filtered.length === 0 ? (
-              <tr>
-                <td colSpan="4" className="empty">
-                  No employees found.
-                </td>
-              </tr>
-            ) : (
-              filtered.map((emp) => (
-                <tr key={emp.employeeId}>
-                  <td className="emp-mono emp-muted">{emp.employeeId}</td>
-                  <td className="emp-strong">
-                    {emp.firstName} {emp.lastName}
-                  </td>
-                  <td>
-                    <div className="emp-muted mini">{emp.email}</div>
-                    <span className={`badge ${emp.role === "HR" ? "badge-role-hr" : "badge-role-worker"}`}>
-                      {emp.role}
-                    </span>
-                    {!emp.isActive && <span className="badge badge-danger">Inactive</span>}
-                  </td>
-
-                  <td className="action-column">
-                    <div className="btn-group-row" style={{ justifyContent: "center", gap: 8 }}>
-                      <button className="emp-btn emp-btn-outline small info" onClick={() => openEditModal(emp)}>
-                        <FiEdit2 /> Edit
-                      </button>
-
-                      <button className="emp-btn emp-btn-outline small quota" onClick={() => openQuota(emp)}>
-                        <FiSettings /> Quota
-                      </button>
-
-                      <button
-                        className={`emp-btn emp-btn-outline small ${emp.isActive ? "warn" : "info"}`}
-                        onClick={() => toggleActive(emp)}
-                        title={emp.isActive ? "Deactivate" : "Activate"}
-                      >
-                        {emp.isActive ? <FiToggleLeft /> : <FiToggleRight />}
-                        {emp.isActive ? "Deactivate" : "Activate"}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
+            ))
+          )}
+        </tbody>
         </table>
       </div>
 
@@ -343,9 +336,9 @@ export default function Employees() {
           <form className="emp-modal" onClick={(e) => e.stopPropagation()} onSubmit={handleSaveEmployee}>
             <div className="emp-modal-head">
               <div>
-                <div className="emp-modal-title">{isEditMode ? "Edit Employee" : "Add New Employee"}</div>
+                <div className="emp-modal-title">{isEditMode ? t("Edit Employee") : t("Add New Employee")}</div>
                 <div className="emp-modal-sub">
-                  {isEditMode ? `ID: #${activeEmp.employeeId}` : "Fill in details to create a new account"}
+                  {isEditMode ? `ID: #${activeEmp.employeeId}` : t("Fill in details to create a new account")}
                 </div>
               </div>
               <button className="emp-x" type="button" onClick={() => setEmpModalOpen(false)}>
@@ -356,7 +349,7 @@ export default function Employees() {
             <div className="emp-modal-body">
               <div className="form-row">
                 <div className="form-col">
-                  <label>First Name</label>
+                  <label>{t("First Name")}</label>
                   <input
                     className="quota-input w-full"
                     value={empForm.firstName}
@@ -365,7 +358,7 @@ export default function Employees() {
                   />
                 </div>
                 <div className="form-col">
-                  <label>Last Name</label>
+                  <label>{t("Last Name")}</label>
                   <input
                     className="quota-input w-full"
                     value={empForm.lastName}
@@ -376,7 +369,7 @@ export default function Employees() {
               </div>
 
               <div className="form-col">
-                <label>Email Address</label>
+                <label>{t("Email Address")}</label>
                 <input
                   className="quota-input w-full"
                   type="email"
@@ -387,7 +380,7 @@ export default function Employees() {
               </div>
 
               <div className="form-col">
-                <label>Password {isEditMode && "(leave blank to keep current)"}</label>
+                <label>Password {isEditMode && t("(leave blank to keep current)")}</label>
                 <input
                   className="quota-input w-full"
                   type="password"
@@ -399,19 +392,19 @@ export default function Employees() {
 
               <div className="form-row">
                 <div className="form-col">
-                  <label>Role</label>
+                  <label>{t("Role")}</label>
                   <select
                     className="quota-input w-full"
                     value={empForm.role}
                     onChange={(e) => setEmpForm({ ...empForm, role: e.target.value })}
                   >
-                    <option value="Worker">Worker</option>
-                    <option value="HR">HR</option>
+                    <option value="Worker">{t("Worker")}</option>
+                    <option value="HR">{t("HR")}</option>
                   </select>
                 </div>
 
                 <div className="form-col">
-                  <label>Joining Date</label>
+                  <label>{t("Joining Date")}</label>
                   <input
                     type="date"
                     className="quota-input w-full"
@@ -436,9 +429,7 @@ export default function Employees() {
               <button className="emp-btn emp-btn-outline" type="button" onClick={() => setEmpModalOpen(false)}>
                 Cancel
               </button>
-              <button className="emp-btn emp-btn-primary" type="submit">
-                Save
-              </button>
+              <button className="emp-btn emp-btn-primary" type="submit">{t("Save")}</button>
             </div>
           </form>
         </div>
@@ -450,7 +441,7 @@ export default function Employees() {
           <div className="emp-modal" onClick={(e) => e.stopPropagation()}>
             <div className="emp-modal-head">
               <div>
-                <div className="emp-modal-title">Set Leave Quota</div>
+                <div className="emp-modal-title">{t("Set Leave Quota")}</div>
                 <div className="emp-modal-sub">
                   {activeEmp?.firstName} {activeEmp?.lastName}
                 </div>
@@ -472,9 +463,9 @@ export default function Employees() {
                   fontSize: 13,
                 }}
               >
-                <div style={{ flex: 1 }}>Leave Type / Used</div>
-                <div style={{ width: 85, textAlign: "center" }}>This Year</div>
-                <div style={{ width: 85, textAlign: "center" }}>Carried</div>
+                <div style={{ flex: 1 }}>{t("Leave Type / Used")}</div>
+                <div style={{ width: 85, textAlign: "center" }}>{t("This Year")}</div>
+                <div style={{ width: 85, textAlign: "center" }}>{t("Carried")}</div>
               </div>
 
               {quotaRows.map((r) => (
@@ -555,9 +546,7 @@ export default function Employees() {
               <button className="emp-btn emp-btn-outline" onClick={() => setQuotaOpen(false)}>
                 Cancel
               </button>
-              <button className="emp-btn emp-btn-primary" onClick={saveQuota}>
-                Save Quota
-              </button>
+              <button className="emp-btn emp-btn-primary" onClick={saveQuota}>{t("Save Quota")}</button>
             </div>
           </div>
         </div>

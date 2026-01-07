@@ -6,10 +6,12 @@ import Pagination from "../components/Pagination";
 import { alertConfirm, alertError, alertSuccess, alertInfo } from "../utils/sweetAlert";
 import axiosClient from "../api/axiosClient";
 import { buildFileUrl } from "../utils/fileUrl";
+import { useTranslation } from "react-i18next";
 
 const normStatus = (s) => String(s || "").trim().toLowerCase();
 
 export default function WorkerLeave() {
+  const { t } = useTranslation();
   const [quotas, setQuotas] = useState([]);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -49,18 +51,18 @@ export default function WorkerLeave() {
 
   // 🔥 ฟังก์ชันยกเลิกใบลา
   const handleCancelLeave = async (requestId) => {
-    if (!(await alertConfirm("Confirm cancellation", "Are you sure you want to cancel this leave request?", "Confirm"))) return;
+    if (!(await alertConfirm(t("Confirm cancellation"), t("Are you sure you want to cancel this leave request?"), "Confirm"))) return;
     try {
       const res = await axiosClient.patch(`/leave/${requestId}/cancel`, {});
       if (res.data.success) {
-        await alertSuccess("Success", "Leave request cancelled successfully.");
+        await alertSuccess(t("Success"), t("Leave request cancelled successfully."));
         fetchData(); 
       } else {
-        await alertError("Unable to cancel", res.data.message);
+        await alertError(t("Unable to cancel"), res.data.message);
       }
     } catch (err) {
-      console.error("Cancel Leave Error:", err);
-      await alertError("Error", "Failed to connect to server.");
+      console.error(t("Cancel Leave Error:"), err);
+      await alertError(t("Error"), t("Failed to connect to server."));
     }
   };
 
@@ -144,16 +146,16 @@ export default function WorkerLeave() {
     <div className="wl-page">
       <header className="wl-header">
         <div>
-          <h1 className="wl-title">My Leave</h1>
-          <p className="wl-subtitle">View your leave balances and request history</p>
+          <h1 className="wl-title">{t("My Leave")}</h1>
+          <p className="wl-subtitle">{t("View your leave balances and request history")}</p>
         </div>
       </header>
 
       <section className="wl-quota-row">
         {quotas.length === 0 ? (
           <div className="wl-card">
-            <h4 className="wl-card-title">No Quota Found</h4>
-            <div className="wl-muted">Ask HR to assign leave quota.</div>
+            <h4 className="wl-card-title">{t("No Quota Found")}</h4>
+            <div className="wl-muted">{t("Ask HR to assign leave quota.")}</div>
           </div>
         ) : (
           quotas.map((item) => (
@@ -169,11 +171,10 @@ export default function WorkerLeave() {
       <section className="wl-panel wl-panel-history">
         <div className="wl-panel-head wl-panel-head-row wl-panel-head-strong">
           <div>
-            <h3 className="wl-panel-title wl-panel-title-strong">Leave History</h3>
-            <div className="wl-panel-sub">Search, filter and sort your requests</div>
+            <h3 className="wl-panel-title wl-panel-title-strong">{t("Leave History")}</h3>
+            <div className="wl-panel-sub">{t("Search, filter and sort your requests")}</div>
           </div>
-          <div className="wl-chip wl-chip-strong">
-            Showing <strong>{filtered.length}</strong> / {history.length}
+          <div className="wl-chip wl-chip-strong">{t("Showing")} <strong>{filtered.length}</strong> / {history.length}
           </div>
         </div>
 
@@ -183,29 +184,31 @@ export default function WorkerLeave() {
               className="wl-search-input"
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Search type / reason / date (YYYY-MM-DD)"
+              placeholder={t("Search type / reason / date (YYYY-MM-DD)")}
             />
           </div>
           <div className="wl-filters">
             <select className="wl-select" value={status} onChange={(e) => setStatus(e.target.value)}>
-              <option value="all">All status</option>
-              <option value="pending">Pending</option>
-              <option value="approved">Approved</option>
-              <option value="rejected">Rejected</option>
-              <option value="cancelled">Cancelled</option>
+              <option value="all">{t("All status")}</option>
+              <option value="pending">{t("Pending")}</option>
+              <option value="approved">{t("Approved")}</option>
+              <option value="rejected">{t("Rejected")}</option>
+              <option value="cancelled">{t("Cancelled")}</option>
             </select>
             <select className="wl-select" value={type} onChange={(e) => setType(e.target.value)}>
-              {typeOptions.map((t) => (
-                <option key={t} value={t}>{t === "all" ? "All types" : t}</option>
-              ))}
+             {typeOptions.map((typeName) => (
+              <option key={typeName} value={typeName}>
+                {typeName === "all" ? t("All types") : typeName}
+              </option>
+            ))}
             </select>
             <select className="wl-select" value={sort} onChange={(e) => setSort(e.target.value)}>
-              <option value="newest">Newest first</option>
-              <option value="oldest">Oldest first</option>
-              <option value="start_desc">Start date ↓</option>
-              <option value="start_asc">Start date ↑</option>
+              <option value="newest">{t("Newest first")}</option>
+              <option value="oldest">{t("Oldest first")}</option>
+              <option value="start_desc">{t("Start date ↓")}</option>
+              <option value="start_asc">{t("Start date ↑")}</option>
             </select>
-            <button className="wl-btn wl-btn-ghost" type="button" onClick={clearFilters}>Reset</button>
+            <button className="wl-btn wl-btn-ghost" type="button" onClick={clearFilters}>{t("Reset")}</button>
           </div>
         </div>
 
@@ -224,23 +227,23 @@ export default function WorkerLeave() {
 
         <div className="wl-table-wrap wl-table-wrap-strong">
           {loading ? (
-            <div className="wl-empty">Loading...</div>
+            <div className="wl-empty">{t("Loading...")}</div>
           ) : (
             <table className="wl-table">
               <thead>
                 <tr>
-                  <th>Type</th>
-                  <th>Date Range</th>
-                  <th>Days</th>
-                  <th>Status</th>
-                  <th style={{ textAlign: "center" }}>Attachment</th>
-                  <th style={{ textAlign: "center" }}>Action</th>
+                  <th>{t("Type")}</th>
+                  <th>{t("Date Range")}</th>
+                  <th>{t("Days")}</th>
+                  <th>{t("Status")}</th>
+                  <th style={{ textAlign: "center" }}>{t("Attachment")}</th>
+                  <th style={{ textAlign: "center" }}>{t("Action")}</th>
                 </tr>
               </thead>
               <tbody>
                 {paged.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className="wl-empty">No results.</td>
+                    <td colSpan="6" className="wl-empty">{t("No results.")}</td>
                   </tr>
                 ) : (
                   paged.map((req) => (
@@ -252,7 +255,7 @@ export default function WorkerLeave() {
                       <td>
                         <div className="wl-days">
                           <span className="wl-days-main">{getDeductedDays(req)}</span>
-                          <span className="wl-days-sub">deducted</span>
+                          <span className="wl-days-sub">{t("deducted")}</span>
                         </div>
                       </td>
                       <td>
@@ -303,7 +306,7 @@ export default function WorkerLeave() {
             <div className="wl-modal" onClick={(e) => e.stopPropagation()}>
               <div className="wl-modal-head">
                 <div>
-                  <div className="wl-modal-title">Leave Request Details</div>
+                  <div className="wl-modal-title">{t("Leave Request Details")}</div>
                   <div className="wl-modal-sub">
                     {moment(active.startDate).format("DD MMM YYYY")} → {moment(active.endDate).format("DD MMM YYYY")}
                   </div>
@@ -316,21 +319,21 @@ export default function WorkerLeave() {
               <div className="wl-modal-grid">
                 <div className="wl-modal-block">
                   <div className="wl-kv">
-                    <div className="wl-k">Type</div>
+                    <div className="wl-k">{t("Type")}</div>
                     <div className="wl-v">{active.leaveType?.typeName || "-"}</div>
                   </div>
                   <div className="wl-kv">
-                    <div className="wl-k">Status</div>
+                    <div className="wl-k">{t("Status")}</div>
                     <div className="wl-v">
                       <span className={`wl-badge wl-badge-${normStatus(active.status)}`}>{active.status}</span>
                     </div>
                   </div>
                   <div className="wl-kv">
-                    <div className="wl-k">Days deducted</div>
+                    <div className="wl-k">{t("Days deducted")}</div>
                     <div className="wl-v"><strong>{getDeductedDays(active)}</strong></div>
                   </div>
                   <div className="wl-kv wl-kv-full">
-                    <div className="wl-k">Reason</div>
+                    <div className="wl-k">{t("Reason")}</div>
                     <div className="wl-v">{active.reason || "-"}</div>
                   </div>
 
@@ -354,32 +357,30 @@ export default function WorkerLeave() {
                 </div>
 
                 <div className="wl-modal-block">
-                  <div className="wl-modal-block-title">Attachment</div>
+                  <div className="wl-modal-block-title">{t("Attachment")}</div>
                   {active.attachmentUrl ? (() => {
                     const meta = getAttachmentMeta(active.attachmentUrl);
                     return (
                       <>
                         <div className="wl-attach-actions">
-                          <a className="wl-attach-btn" href={meta.href} target="_blank" rel="noreferrer">
-                            Open
-                          </a>
-                          <a className="wl-attach-btn" href={meta.href} download>
-                            Download
-                          </a>
+                          <a className="wl-attach-btn" href={meta.href} target="_blank" rel="noreferrer">{t("Open")}</a>
+                          <a className="wl-attach-btn" href={meta.href} download>{t("Download")}</a>
                         </div>
                         <div className="wl-preview">
                           {meta.kind === "image" ? (
-                            <img src={meta.href} alt="Attachment preview" crossOrigin="anonymous" />
-                          ) : meta.kind === "pdf" ? (
-                            <iframe title="PDF preview" src={meta.href} />
-                          ) : (
-                            <div className="wl-preview-empty">Preview not available for this file type.</div>
-                          )}
+                              <img src={meta.href} alt={t("Attachment preview")} />
+                            ) : meta.kind === "pdf" ? (
+                              <iframe title={t("PDF preview")} src={meta.href} />
+                            ) : (
+                              <div className="wl-preview-empty">
+                                {t("Preview not available for this file type.")}
+                              </div>
+                            )}
                         </div>
                       </>
                     );
                   })() : (
-                    <div className="wl-preview-empty">No attachment.</div>
+                    <div className="wl-preview-empty">{t("No attachment.")}</div>
                   )}
                 </div>
               </div>

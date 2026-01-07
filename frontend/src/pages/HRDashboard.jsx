@@ -14,6 +14,7 @@ import Pagination from "../components/Pagination";
 import axiosClient from "../api/axiosClient";
 import { alertError } from "../utils/sweetAlert";
 import AuditLogPanel from "../components/AuditLogPanel";
+import { useTranslation } from "react-i18next";
 
 /* ===== Helpers ===== */
 const pad2 = (n) => String(n).padStart(2, "0");
@@ -44,6 +45,8 @@ const parseWorkingDays = (str) => {
 };
 
 export default function HRDashboard() {
+
+  const { t, i18n } = useTranslation();
   const [tab, setTab] = useState("overview");
   const [viewYear, setViewYear] = useState(new Date().getFullYear());
   const [viewMonth, setViewMonth] = useState(new Date().getMonth());
@@ -110,7 +113,7 @@ export default function HRDashboard() {
         const ds = moment(hDate).format("YYYY-MM-DD");
         if (!mapping[ds]) mapping[ds] = [];
         mapping[ds].push({
-          name: "Company Holiday",
+          name: t("Company Holiday"),
           isHoliday: true,
           colorCode: "#64748b" // Slate-500
         });
@@ -135,7 +138,7 @@ export default function HRDashboard() {
         }
       });
       setMonthLeaveMap(mapping);
-    } catch (err) { console.error("Calendar Data Error:", err); }
+    } catch (err) { console.error(t("Calendar Data Error:"), err); }
   };
 
   const fetchDailyRecords = async () => {
@@ -147,7 +150,7 @@ export default function HRDashboard() {
       ]);
       setAttendanceRecords(attRes.data.records || []);
       setLeaveRequests(leaveRes.data.requests?.filter((r) => r.status === "Approved") || []);
-    } catch (err) { console.error("Daily Records Error:", err);
+    } catch (err) { console.error(t("Daily Records Error:"), err);
     } finally { setLoading(false); }
   };
 
@@ -176,14 +179,14 @@ export default function HRDashboard() {
       setLeaveChartData(leaveChartData);
       setReportPagination(pagination);
       setReportPage(targetPage);
-    } catch (err) { alertError("Error", "Unable to fetch report data.");
+    } catch (err) { alertError(t("Error"), t("Unable to fetch report data."));
     } finally { setLoading(false); }
   };
 
   /* ===== Handlers ===== */
   const handleExportPerformance = () => {
-    if (employeeReport.length === 0) return alertError("Error", "No data to export.");
-    let csv = 'Employee Name,Present (Days),Late (Times),Leave (Days),Absent (Days),Late Rate\n';
+    if (employeeReport.length === 0) return alertError(t("Error"), t("No data to export."));
+    let csv = t("Employee Name,Present (Days),Late (Times),Leave (Days),Absent (Days),Late Rate\\n");
     employeeReport.forEach(emp => {
       csv += `"${emp.name}",${emp.presentCount},${emp.lateCount},${emp.leaveCount},${emp.absentCount},${emp.lateRate}%\n`;
     });
@@ -209,7 +212,7 @@ export default function HRDashboard() {
       setDailyData(updatedData);
       setSelectedDate(dateStr);
       setDailyModalOpen(true);
-    } catch (err) { alertError("Error", "Unable to load data.");
+    } catch (err) { alertError(t("Error"), t("Unable to load data."));
     } finally { setLoading(false); }
   };
 
@@ -233,7 +236,7 @@ export default function HRDashboard() {
       role: r.employee.role,
       checkIn: r.checkInTime ? moment(r.checkInTime).format("HH:mm") : "--:--",
       checkOut: r.checkOutTime ? moment(r.checkOutTime).format("HH:mm") : "--:--",
-      status: r.isLate ? "Late" : "On Time",
+      status: r.isLate ? "Late" : t("On Time"),
     }));
     const leave = leaveRequests.map((l) => ({
       id: `leave-${l.requestId}`,
@@ -249,8 +252,8 @@ export default function HRDashboard() {
     <div className="page-card hr-dashboard">
       <header className="hr-header">
         <div>
-          <h1 className="hr-title">Management Dashboard</h1>
-          <p className="hr-subtitle">Oversee employee attendance, leaves and company holidays</p>
+          <h1 className="hr-title">{t("Management Dashboard")}</h1>
+          <p className="hr-subtitle">{t("Oversee employee attendance, leaves and company holidays")}</p>
         </div>
         <div className="hr-header-right">
           <div className="pill date-pill"><FiCalendar /> Selected: {moment(selectedDate).format("DD MMM YYYY")}</div>
@@ -258,15 +261,19 @@ export default function HRDashboard() {
       </header>
 
       <div className="hr-tabs">
-        {["overview", "reports", "audit"].map((t) => (
-          <button
-            key={t}
-            className={`btn small ${tab === t ? "primary" : "outline"}`}
-            onClick={() => setTab(t)}
-          >
-            {t === "overview" ? "Overview" : t === "reports" ? "Performance Reports" : "Audit Log"}
-          </button>
-        ))}
+        {["overview", "reports", "audit"].map((tabKey) => (
+            <button
+              key={tabKey}
+              className={`btn small ${tab === tabKey ? "primary" : "outline"}`}
+              onClick={() => setTab(tabKey)}
+            >
+              {tabKey === "overview"
+                ? t("Overview")
+                : tabKey === "reports"
+                ? t("Performance Reports")
+                : t("Audit Log")}
+            </button>
+          ))}
       </div>
 
       {tab === "overview" && (
@@ -278,7 +285,7 @@ export default function HRDashboard() {
                 <h2 className="month-label">{moment(new Date(viewYear, viewMonth, 1)).format("MMMM YYYY")}</h2>
                 <button className="nav-btn" onClick={() => setViewMonth(p => p === 11 ? 0 : p + 1)}>›</button>
               </div>
-              <button className="btn outline small today-btn" onClick={() => setSelectedDate(todayStr)}>Go to Today</button>
+              <button className="btn outline small today-btn" onClick={() => setSelectedDate(todayStr)}>{t("Go to Today")}</button>
             </div>
 
             <div className="calendar">
@@ -322,7 +329,7 @@ export default function HRDashboard() {
                                   textShadow: '0 1px 2px rgba(0,0,0,0.2)',
                                   fontWeight: x.isHoliday ? '700' : '400'
                                 }} 
-                                title={x.isHoliday ? "Company Holiday" : `${x.name} - ${x.typeName}`}
+                                title={x.isHoliday ? t("Company Holiday") : `${x.name} - ${x.typeName}`}
                               >
                                 {x.isHoliday ? "Holiday" : x.name}
                               </div>
@@ -339,17 +346,17 @@ export default function HRDashboard() {
 
           <section className="dashboard-section details-section">
             <div className="section-header">
-              <h3>Daily Attendance Records</h3>
-              <button className="btn outline small" onClick={fetchDailyRecords} disabled={loading}><FiRefreshCw className={loading ? "spin" : ""} /> Refresh</button>
+              <h3>{t("Daily Attendance Records")}</h3>
+              <button className="btn outline small" onClick={fetchDailyRecords} disabled={loading}><FiRefreshCw className={loading ? "spin" : ""} />{t("Refresh")}</button>
             </div>
             <div className="table-wrap">
               <table className="table">
                 <thead>
-                  <tr><th>Employee</th><th>Role</th><th>In</th><th>Out</th><th>Status</th></tr>
+                  <tr><th>{t("Employee")}</th><th>{t("Role")}</th><th>{t("In")}</th><th>{t("Out")}</th><th>{t("Status")}</th></tr>
                 </thead>
                 <tbody>
                   {dayRecords.length === 0 ? (
-                    <tr><td colSpan="5" className="empty">No records found for this date.</td></tr>
+                    <tr><td colSpan="5" className="empty">{t("No records found for this date.")}</td></tr>
                   ) : (
                     dayRecords.slice((page-1)*pageSize, page*pageSize).map((r) => (
                       <tr key={r.id}>
@@ -378,45 +385,45 @@ export default function HRDashboard() {
       {tab === "reports" && (
         <section className="dashboard-section">
             <div className="section-header reports-header">
-              <div><h3>HR Analytics</h3><p>Detailed performance and attendance trends</p></div>
+              <div><h3>{t("HR Analytics")}</h3><p>{t("Detailed performance and attendance trends")}</p></div>
               <div className="reports-controls">
                 <div className="input-group">
-                  <label>Start:</label>
+                  <label>{t("Start:")}</label>
                   <input type="date" value={rangeStart} max={todayStr} onChange={e => {setRangeStart(e.target.value); setRangeEnd(moment(e.target.value).endOf('month').format("YYYY-MM-DD"));}} />
                 </div>
                 <div className="input-group">
-                  <label>End:</label>
+                  <label>{t("End:")}</label>
                   <input type="date" value={rangeEnd} onChange={e => setRangeEnd(e.target.value)} />
                 </div>
-                <button className="btn primary small" onClick={fetchReport} disabled={loading}>Run Report</button>
-                <button className="btn outline small" onClick={handleExportPerformance} disabled={employeeReport.length === 0}><FiSave /> Export CSV</button>
+                <button className="btn primary small" onClick={fetchReport} disabled={loading}>{t("Run Report")}</button>
+                <button className="btn outline small" onClick={handleExportPerformance} disabled={employeeReport.length === 0}><FiSave />{t("Export CSV")}</button>
               </div>
             </div>
 
             <div className="stats-grid">
-              <Card title="Present" value={reportSummary.present} tone="green" icon={<FiCheckCircle />} />
-              <Card title="On Leave" value={reportSummary.leave} tone="blue" icon={<FiFileText />} />
-              <Card title="Late" value={reportSummary.late} tone="red" icon={<FiClock />} />
-              <Card title="Absent" value={reportSummary.absent} tone="gray" icon={<FiXCircle />} />
-              <Card title="Late Rate" value={`${reportSummary.lateRate}%`} tone="amber" icon={<FiTrendingUp />} />
+              <Card title={t("Present")} value={reportSummary.present} tone="green" icon={<FiCheckCircle />} />
+              <Card title={t("On Leave")} value={reportSummary.leave} tone="blue" icon={<FiFileText />} />
+              <Card title={t("Late")} value={reportSummary.late} tone="red" icon={<FiClock />} />
+              <Card title={t("Absent")} value={reportSummary.absent} tone="gray" icon={<FiXCircle />} />
+              <Card title={t("Late Rate")} value={`${reportSummary.lateRate}%`} tone="amber" icon={<FiTrendingUp />} />
             </div>
 
             <div className="table-wrap" style={{ marginTop: 25 }}>
-              <div className="table-header-title">Employee Performance Summary</div>
+              <div className="table-header-title">{t("Employee Performance Summary")}</div>
               <table className="table">
                 <thead>
                   <tr>
-                    <th>Employee</th>
-                    <th className="text-center">Days Present</th>
-                    <th className="text-center">Times Late</th>
-                    <th className="text-center">Days Leave</th>
-                    <th className="text-center">Days Absent</th>
-                    <th className="text-center">Rate</th>
+                    <th>{t("Employee")}</th>
+                    <th className="text-center">{t("Days Present")}</th>
+                    <th className="text-center">{t("Times Late")}</th>
+                    <th className="text-center">{t("Days Leave")}</th>
+                    <th className="text-center">{t("Days Absent")}</th>
+                    <th className="text-center">{t("Rate")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {employeeReport.length === 0 ? (
-                    <tr><td colSpan="6" className="empty">Click "Run Report" to load analytics.</td></tr>
+                    <tr><td colSpan="6" className="empty">{t('Click "Run Report" to load analytics.')}</td></tr>
                   ) : (
                     employeeReport.map(emp => (
                       <tr key={emp.employeeId}>
@@ -447,19 +454,19 @@ export default function HRDashboard() {
 
             <div className="charts-container">
               <div className="report-card">
-                <h5 className="card-title">🏆 Top Performance</h5>
+                <h5 className="card-title">{t("🏆 Top Performance")}</h5>
                 <div className="perfect-list">
                   {perfectEmployees.length > 0 ? perfectEmployees.map(emp => (
                     <div key={emp.employeeId} className="perfect-item">
                       <span className="fw-500">{emp.name}</span>
-                      <span className="badge badge-ok">EXCELLENT</span>
+                      <span className="badge badge-ok">{t("EXCELLENT")}</span>
                     </div>
-                  )) : <p className="empty-msg">No data available.</p>}
+                  )) : <p className="empty-msg">{t("No data available.")}</p>}
                 </div>
               </div>
 
               <div className="report-card">
-                <h5 className="card-title">📊 Leave Distribution</h5>
+                <h5 className="card-title">{t("📊 Leave Distribution")}</h5>
                 <div className="chart-box">
                   {leaveChartData.length > 0 ? (
                     <ResponsiveContainer width="100%" height={250}>
@@ -470,7 +477,7 @@ export default function HRDashboard() {
                         <Tooltip />
                       </PieChart>
                     </ResponsiveContainer>
-                  ) : <p className="empty-msg">No leave data found.</p>}
+                  ) : <p className="empty-msg">{t("No leave data found.")}</p>}
                 </div>
               </div>
             </div>

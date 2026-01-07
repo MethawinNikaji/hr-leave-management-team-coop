@@ -1,19 +1,22 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Pagination from "../components/Pagination";
 import { alertConfirm, alertError, alertSuccess } from "../utils/sweetAlert";
 import axiosClient from "../api/axiosClient";
 import { buildFileUrl } from "../utils/fileUrl";
 import "./HRLeaveApprovals.css";
+import { useTranslation } from "react-i18next";
 
 export default function HRLeaveApprovals() {
+  const { t } = useTranslation();
+
   const [leaveRequests, setLeaveRequests] = useState([]);
   const [selected, setSelected] = useState(new Set());
   const [isLoading, setIsLoading] = useState(false);
 
-  // ✅ Detail modal (Phase 2.3)
+  // Detail modal
   const [active, setActive] = useState(null);
 
-  // Phase 2: filters
+  // Filters
   const [q, setQ] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
 
@@ -21,7 +24,7 @@ export default function HRLeaveApprovals() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  // ✅ Days deducted (supports multiple possible backend field names)
+  // Days deducted (supports multiple possible backend field names)
   const getDeductedDays = (r) => {
     const candidates = [r?.deductedDays, r?.totalDaysDeducted, r?.totalDays, r?.totalDaysRequested];
     for (const v of candidates) {
@@ -31,23 +34,22 @@ export default function HRLeaveApprovals() {
     return 0;
   };
 
-  const fetchPendingRequests = async () => {
+  const fetchPendingRequests = useCallback(async () => {
     try {
       setIsLoading(true);
       const response = await axiosClient.get("/leave/admin/pending");
       setLeaveRequests(response.data.requests || []);
     } catch (err) {
       console.error("Error fetching requests:", err);
-      await alertError("Error", err.response?.data?.message || err.message);
+      await alertError(t("Error"), err.response?.data?.message || err.message);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [t]);
 
   useEffect(() => {
     fetchPendingRequests();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fetchPendingRequests]);
 
   useEffect(() => {
     setPage(1);
@@ -65,10 +67,14 @@ export default function HRLeaveApprovals() {
     const idArray = Array.isArray(ids) ? ids : [ids];
     if (idArray.length === 0) return;
 
-    const label = actionType === "approve" ? "Approve" : "Reject";
+    const label = actionType === "approve" ? t("Approve") : t("Reject");
+
     const ok = await alertConfirm(
-      `Confirm ${label}`,
-      `Do you want to ${label.toLowerCase()} ${idArray.length} request(s)?`,
+      t("Confirm {{label}}", { label }),
+      t("Do you want to {{action}} {{count}} request(s)?", {
+        action: label.toLowerCase(),
+        count: idArray.length,
+      }),
       label
     );
     if (!ok) return;
@@ -80,12 +86,12 @@ export default function HRLeaveApprovals() {
         )
       );
 
-      await alertSuccess("Done", `Successfully ${label.toLowerCase()}d.`);
+      await alertSuccess(t("Done"), t("Successfully {{action}}d.", { action: label.toLowerCase() }));
       setSelected(new Set());
       fetchPendingRequests();
     } catch (err) {
       console.error(err);
-      await alertError("Error", err.response?.data?.message || err.message);
+      await alertError(t("Error"), err.response?.data?.message || err.message);
     }
   };
 
@@ -94,47 +100,44 @@ export default function HRLeaveApprovals() {
     return new Date(dateString).toLocaleDateString("en-GB");
   };
 
-  // ✅ Attachment meta (for preview)
-  const getAttachmentMeta = (url) => {
-    if (!url) return { kind: "none", href: "" };
-    
-    // สร้าง URL เต็มรูปแบบไปยัง Backend
-    const href = `http://localhost:8000/uploads/${url}`;
-    const lower = url.toLowerCase();
+  // Attachment meta (for preview)
+  const getAttachmentMeta = (fileName) => {
+    if (!fileName) return { kind: "none", href: "", label: "" };
 
-    // ตรวจสอบประเภทไฟล์
-    if (/(\.png|\.jpg|\.jpeg|\.gif|\.webp)$/i.test(lower)) {
-      return { kind: "image", href, label: "🖼️ Image" };
-    }
-    if (lower.endsWith(".pdf")) {
-      return { kind: "pdf", href, label: "📄 PDF" };
-    }
-    if (lower.endsWith(".doc") || lower.endsWith(".docx")) {
-      return { kind: "word", href, label: "📝 Word Document" };
-    }
-    if (lower.endsWith(".zip")) {
-      return { kind: "zip", href, label: "📦 ZIP Archive" };
-    }
-    
-    return { kind: "file", href, label: "📁 File" };
+    // ✅ ใช้ helper ของโปรเจค (กัน hardcode localhost)
+    const href = buildFileUrl(fileName);
+    const lower = String(fileName).toLowerCase();
+
+    if (/(\.png|\.jpg|\.jpeg|\.gif|\.webp)$/i.test(lower)) return { kind: "image", href, label: "Image" };
+    if (lower.endsWith(".pdf")) return { kind: "pdf", href, label: "PDF" };
+    if (lower.endsWith(".doc") || lower.endsWith(".docx")) return { kind: "word", href, label: "Word" };
+    if (lower.endsWith(".zip")) return { kind: "zip", href, label: "ZIP" };
+    return { kind: "file", href, label: "File" };
   };
 
+  // ✅ ห้ามเรียก useTranslation ในฟังก์ชันย่อย — ใช้ t จาก scope component ได้เลย
   const renderAttachment = (fileName) => {
-    if (!fileName) return <span style={{ color: "#9ca3af" }}>No file</span>;
+    if (!fileName) return <span style={{ color: "#9ca3af" }}>{t("No file")}</span>;
 
-    const href = `http://localhost:8000/uploads/${fileName}`;
-    const lower = href.toLowerCase();
-    const isImage = /(\.png|\.jpg|\.jpeg|\.gif|\.webp)$/i.test(lower);
-    const isPDF = lower.endsWith(".pdf");
+    const meta = getAttachmentMeta(fileName);
+    const icon =
+      meta.kind === "image" ? "🖼️" :
+      meta.kind === "pdf" ? "📄" :
+      meta.kind === "word" ? "📝" :
+      meta.kind === "zip" ? "📦" : "📁";
 
     return (
-      <a className="hrla-link" href={href} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
-        {isImage ? "🖼️ Image" : isPDF ? "📄 PDF" : "📁 File"}
+      <a
+        className="hrla-link"
+        href={meta.href}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {icon} {t(meta.label)}
       </a>
     );
   };
-
-  // (duplicate getAttachmentMeta removed)
 
   const leaveTypes = useMemo(() => {
     const set = new Set(leaveRequests.map((r) => r.leaveType?.typeName).filter(Boolean));
@@ -152,7 +155,6 @@ export default function HRLeaveApprovals() {
     });
   }, [leaveRequests, q, typeFilter]);
 
-  // Pagination apply
   const total = filtered.length;
   const startIdx = (page - 1) * pageSize;
   const paged = useMemo(() => filtered.slice(startIdx, startIdx + pageSize), [filtered, startIdx, pageSize]);
@@ -161,43 +163,34 @@ export default function HRLeaveApprovals() {
 
   return (
     <div className="page-card hr-leave-approvals">
-      <h1 style={{ margin: 0 }}>Leave Approvals</h1>
+      <h1 style={{ margin: 0 }}>{t("Leave Approvals")}</h1>
       <p style={{ marginTop: 6, color: "#4b5563" }}>
-        Review and bulk approve/reject leave requests.
+        {t("Review and bulk approve/reject leave requests.")}
       </p>
 
-      {/* Filters (Phase 2) */}
+      {/* Filters */}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "10px 0 14px" }}>
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search employee / type / reason..."
-          style={{
-            padding: "8px 10px",
-            borderRadius: 10,
-            border: "1px solid #e5e7eb",
-            minWidth: 280,
-          }}
+          placeholder={t("Search employee / type / reason...")}
+          style={{ padding: "8px 10px", borderRadius: 10, border: "1px solid #e5e7eb", minWidth: 280 }}
         />
 
         <select
           value={typeFilter}
           onChange={(e) => setTypeFilter(e.target.value)}
-          style={{
-            padding: "8px 10px",
-            borderRadius: 10,
-            border: "1px solid #e5e7eb",
-          }}
+          style={{ padding: "8px 10px", borderRadius: 10, border: "1px solid #e5e7eb" }}
         >
-          {leaveTypes.map((t) => (
-            <option key={t} value={t}>
-              {t === "all" ? "All types" : t}
+          {leaveTypes.map((typeName) => (
+            <option key={typeName} value={typeName}>
+              {typeName === "all" ? t("All types") : typeName}
             </option>
           ))}
         </select>
 
         <button className="btn outline" onClick={fetchPendingRequests} disabled={isLoading}>
-          {isLoading ? "Loading..." : "Refresh"}
+          {isLoading ? t("Loading...") : t("Refresh")}
         </button>
 
         <div style={{ flex: 1 }} />
@@ -207,14 +200,14 @@ export default function HRLeaveApprovals() {
           onClick={() => handleAction(Array.from(selected), "reject")}
           disabled={selected.size === 0}
         >
-          Reject Selected
+          {t("Reject Selected")}
         </button>
         <button
           className="btn primary"
           onClick={() => handleAction(Array.from(selected), "approve")}
           disabled={selected.size === 0}
         >
-          Approve Selected
+          {t("Approve Selected")}
         </button>
       </div>
 
@@ -232,15 +225,15 @@ export default function HRLeaveApprovals() {
                   checked={allChecked}
                 />
               </th>
-              <th>ID</th>
-              <th>Employee</th>
-              <th>Type</th>
-              <th>Date</th>
-              <th style={{ width: 90 }}>Days</th>
-              <th>Reason</th>
-              <th>Attachment</th>
-              <th>Status</th>
-              <th style={{ width: 200, textAlign: "right" }}>Action</th>
+              <th>{t("ID")}</th>
+              <th>{t("Employee")}</th>
+              <th>{t("Type")}</th>
+              <th>{t("Date")}</th>
+              <th style={{ width: 90 }}>{t("Days")}</th>
+              <th>{t("Reason")}</th>
+              <th>{t("Attachment")}</th>
+              <th>{t("Status")}</th>
+              <th style={{ width: 200, textAlign: "right" }}>{t("Action")}</th>
             </tr>
           </thead>
 
@@ -248,7 +241,7 @@ export default function HRLeaveApprovals() {
             {isLoading ? (
               <tr>
                 <td colSpan="10" style={{ textAlign: "center", padding: 20 }}>
-                  Loading...
+                  {t("Loading...")}
                 </td>
               </tr>
             ) : paged.length > 0 ? (
@@ -268,7 +261,7 @@ export default function HRLeaveApprovals() {
                   <td>{r.employee ? `${r.employee.firstName} ${r.employee.lastName || ""}` : `ID: ${r.employeeId}`}</td>
 
                   <td>
-                    <span className="badge">{r.leaveType?.typeName || "Leave"}</span>
+                    <span className="badge">{r.leaveType?.typeName || t("Leave")}</span>
                   </td>
 
                   <td>
@@ -278,7 +271,7 @@ export default function HRLeaveApprovals() {
                   <td>
                     <div className="hrla-days">
                       <div className="hrla-days-main">{getDeductedDays(r)}</div>
-                      <div className="hrla-days-sub">deducted</div>
+                      <div className="hrla-days-sub">{t("deducted")}</div>
                     </div>
                   </td>
 
@@ -295,13 +288,13 @@ export default function HRLeaveApprovals() {
                   <td style={{ textAlign: "right" }}>
                     <div style={{ display: "inline-flex", gap: 8 }} onClick={(e) => e.stopPropagation()}>
                       <button className="btn small outline" onClick={() => setActive(r)}>
-                        Details
+                        {t("Details")}
                       </button>
                       <button className="btn small outline" onClick={() => handleAction(r.requestId, "reject")}>
-                        Reject
+                        {t("Reject")}
                       </button>
                       <button className="btn small primary" onClick={() => handleAction(r.requestId, "approve")}>
-                        Approve
+                        {t("Approve")}
                       </button>
                     </div>
                   </td>
@@ -310,7 +303,7 @@ export default function HRLeaveApprovals() {
             ) : (
               <tr>
                 <td colSpan="10" style={{ textAlign: "center", padding: 20 }}>
-                  No pending requests.
+                  {t("No pending requests.")}
                 </td>
               </tr>
             )}
@@ -326,13 +319,13 @@ export default function HRLeaveApprovals() {
         />
       </div>
 
-      {/* ✅ Detail Modal (Phase 2.3) */}
+      {/* Detail Modal */}
       {active && (
         <div className="hrla-modal-backdrop" onClick={() => setActive(null)}>
           <div className="hrla-modal" onClick={(e) => e.stopPropagation()}>
             <div className="hrla-modal-head">
               <div>
-                <div className="hrla-modal-title">Leave Request Details</div>
+                <div className="hrla-modal-title">{t("Leave Request Details")}</div>
                 <div className="hrla-modal-sub">
                   {formatDate(active.startDate)} → {formatDate(active.endDate)}
                 </div>
@@ -345,69 +338,83 @@ export default function HRLeaveApprovals() {
             <div className="hrla-modal-grid">
               <div className="hrla-block">
                 <div className="hrla-kv">
-                  <div className="hrla-k">Employee</div>
+                  <div className="hrla-k">{t("Employee")}</div>
                   <div className="hrla-v">
                     {active.employee ? `${active.employee.firstName} ${active.employee.lastName || ""}` : `ID: ${active.employeeId}`}
                   </div>
                 </div>
+
                 <div className="hrla-kv">
-                  <div className="hrla-k">Type</div>
-                  <div className="hrla-v">{active.leaveType?.typeName || "Leave"}</div>
+                  <div className="hrla-k">{t("Type")}</div>
+                  <div className="hrla-v">{active.leaveType?.typeName || t("Leave")}</div>
                 </div>
+
                 <div className="hrla-kv">
-                  <div className="hrla-k">Days deducted</div>
-                  <div className="hrla-v"><strong>{getDeductedDays(active)}</strong></div>
+                  <div className="hrla-k">{t("Days deducted")}</div>
+                  <div className="hrla-v">
+                    <strong>{getDeductedDays(active)}</strong>
+                  </div>
                 </div>
+
                 <div className="hrla-kv hrla-kv-full">
-                  <div className="hrla-k">Reason</div>
+                  <div className="hrla-k">{t("Reason")}</div>
                   <div className="hrla-v">{active.reason || "-"}</div>
                 </div>
 
                 <div className="hrla-modal-actions">
                   <button className="btn outline" type="button" onClick={() => setActive(null)}>
-                    Close
+                    {t("Close")}
                   </button>
                   <button className="btn outline" type="button" onClick={() => handleAction(active.requestId, "reject")}>
-                    Reject
+                    {t("Reject")}
                   </button>
                   <button className="btn primary" type="button" onClick={() => handleAction(active.requestId, "approve")}>
-                    Approve
+                    {t("Approve")}
                   </button>
                 </div>
               </div>
 
               <div className="hrla-block">
-                <div className="hrla-block-title">Attachment</div>
+                <div className="hrla-block-title">{t("Attachment")}</div>
+
                 {active.attachmentUrl ? (() => {
                   const meta = getAttachmentMeta(active.attachmentUrl);
+
                   return (
                     <>
                       <div className="hrla-attach-actions">
-                        <a className="hrla-attach-btn" href={meta.href} target="_blank" rel="noreferrer">Open</a>
-                        <a className="hrla-attach-btn" href={meta.href} download>Download</a>
+                        <a className="hrla-attach-btn" href={meta.href} target="_blank" rel="noreferrer">
+                          {t("Open")}
+                        </a>
+                        <a className="hrla-attach-btn" href={meta.href} download>
+                          {t("Download")}
+                        </a>
                       </div>
+
                       <div className="hrla-preview">
                         {meta.kind === "image" ? (
-                          <img src={meta.href} alt="Attachment preview" crossOrigin="anonymous" />
+                          <img src={meta.href} alt={t("Attachment preview")} crossOrigin="anonymous" />
                         ) : meta.kind === "pdf" ? (
-                          /* 🔥 เปลี่ยนมาใช้ <embed> และระบุ type ให้ชัดเจน */
-                          <embed 
-                            src={`${meta.href}#toolbar=0&navpanes=0`} 
-                            type="application/pdf" 
-                            width="100%" 
-                            height="500px" 
-                            style={{ borderRadius: '8px' }}
+                          // ✅ คอมเมนต์ธรรมดา ห้ามใส่ t() ใน comment
+                          <embed
+                            src={`${meta.href}#toolbar=0&navpanes=0`}
+                            type="application/pdf"
+                            width="100%"
+                            height="500px"
+                            style={{ borderRadius: "8px" }}
                           />
                         ) : (
-                          /* สำหรับ Word, ZIP แสดงเป็น Icon ตามเดิม */
-                          <div className="hrla-preview-empty" style={{ flexDirection: 'column', gap: '10px' }}>
-                            <div style={{ fontSize: '48px' }}>
+                          <div className="hrla-preview-empty" style={{ flexDirection: "column", gap: "10px" }}>
+                            <div style={{ fontSize: "48px" }}>
                               {meta.kind === "word" ? "📝" : meta.kind === "zip" ? "📦" : "📁"}
                             </div>
-                            <div style={{ fontWeight: 'bold' }}>File type: {meta.kind.toUpperCase()}</div>
-                            <div style={{ fontSize: '13px', color: '#6b7280', textAlign: 'center' }}>
-                              This browser can't preview this file type.<br/> 
-                              Please click <b>Download</b> or <b>Open</b> above.
+                            <div style={{ fontWeight: "bold" }}>
+                              {t("File type")}: {String(meta.kind).toUpperCase()}
+                            </div>
+                            <div style={{ fontSize: "13px", color: "#6b7280", textAlign: "center" }}>
+                              {t("This browser can't preview this file type.")}
+                              <br />
+                              {t("Please click")} <b>{t("Download")}</b> {t("or")} <b>{t("Open")}</b> {t("above.")}
                             </div>
                           </div>
                         )}
@@ -415,7 +422,7 @@ export default function HRLeaveApprovals() {
                     </>
                   );
                 })() : (
-                  <div className="hrla-preview-empty">No attachment.</div>
+                  <div className="hrla-preview-empty">{t("No attachment.")}</div>
                 )}
               </div>
             </div>
