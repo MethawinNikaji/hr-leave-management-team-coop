@@ -4,11 +4,14 @@ import { FiPlus, FiEdit2, FiTrash2, FiSave, FiRefreshCw, FiCalendar } from "reac
 import "./HRLeaveTypeSettings.css";
 import Swal from "sweetalert2"; 
 import { alertError, alertSuccess } from "../utils/sweetAlert";
+import { useTranslation } from "react-i18next";
 
 const api = axios.create({ baseURL: "http://localhost:8000" });
 const authHeader = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } });
 
 export default function LeaveSettings() {
+  const { t } = useTranslation();
+
   const [types, setTypes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -31,7 +34,7 @@ export default function LeaveSettings() {
       setTypes(res.data.types || []);
     } catch (err) {
       console.error(err);
-      alertError("Error", "Unable to fetch leave types");
+      alertError(t("Error"), t("Unable to fetch leave types"));
     } finally {
       setLoading(false);
     }
@@ -49,26 +52,26 @@ export default function LeaveSettings() {
       title: `<span style="color: #b45309;">Year-End Processing Policy ${currentYear}</span>`,
       html: `
         <div style="text-align: left; font-size: 14px; line-height: 1.6; color: #475569; background: #fffbeb; padding: 15px; border-radius: 8px; border: 1px solid #fde68a;">
-          <p><b>Please read and understand the following policies:</b></p>
+          <p><b>{t("Please read and understand the following policies:")}</b></p>
           <ul style="padding-left: 20px;">
-            <li>The system will use <b>"Remaining Days"</b> from ${currentYear} for calculation.</li>
-            <li>Carry-forward only applies to types with <b>Carry Forward</b> enabled.</li>
-            <li>Days carried over will not exceed the <b>Max Carry Days</b> defined for each type.</li>
+            <li>{t("The system will use")} <b>{t("\t("Remaining Days\\")")}</b> from ${currentYear} for calculation.</li>
+            <li>{t("Carry-forward only applies to types with")} <b>{t("Carry Forward")}</b> {t("enabled.")}</li>
+            <li>{t("Days carried over will not exceed the")} <b>{t("Max Carry Days")}</b> {t("defined for each type.")}</li>
             <li>New quotas for ${nextYear} will be automatically created for all employees.</li>
-            <li><b>Warning:</b> This action cannot be undone. Ensure all pending leave requests are processed first.</li>
+            <li><b>{t("Warning:")}</b> {t("This action cannot be undone. Ensure all pending leave requests are processed first.")}</li>
           </ul>
         </div>
       `,
       icon: 'warning',
       input: 'checkbox',
       inputValue: 0,
-      inputPlaceholder: 'I have read and accept the year-end processing policy',
-      confirmButtonText: 'Start Processing <i class="fa fa-arrow-right"></i>',
+      inputPlaceholder: t("I have read and accept the year-end processing policy"),
+      confirmButtonText: t("confirmButtonText"),
       confirmButtonColor: '#f59e0b',
       showCancelButton: true,
-      cancelButtonText: 'Cancel',
+      cancelButtonText: t("cancelButtonText"),
       inputValidator: (result) => {
-        return !result && 'You must accept the policy before proceeding'
+        return !result && t("You must accept the policy before proceeding")
       }
     });
 
@@ -79,7 +82,7 @@ export default function LeaveSettings() {
         await alertSuccess("Success", res.data.message || `Carry-forward to year ${nextYear} completed successfully`);
       } catch (err) {
         console.error(err);
-        await alertError("Error", err.response?.data?.message || "Unable to process year-end carry forward");
+        await alertError("Error", err.response?.data?.message || t("Unable to process year-end carry forward"));
       } finally {
         setLoading(false);
       }
@@ -126,7 +129,7 @@ export default function LeaveSettings() {
       }
       setModalOpen(false);
       fetchTypes();
-      await alertSuccess("Success", "Leave type saved successfully");
+      await alertSuccess(t("Success"), t("Leave type saved successfully"));
     } catch (err) {
       await alertError("Error", err.response?.data?.message || "Unable to save leave type");
     }
@@ -134,20 +137,20 @@ export default function LeaveSettings() {
 
   const handleDelete = async (id) => {
     const confirm = await Swal.fire({
-      title: 'Confirm Delete',
-      text: "Are you sure you want to delete this leave type?",
+      title: t("title"),
+      text: t("text"),
       icon: 'error',
       showCancelButton: true,
-      confirmButtonText: 'Delete',
-      cancelButtonText: 'Cancel'
+      confirmButtonText: t("confirmButtonText"),
+      cancelButtonText: t("cancelButtonText")
     });
     if (confirm.isConfirmed) {
       try {
         await api.delete(`/api/admin/leavetype/${id}`, authHeader());
         fetchTypes();
-        await alertSuccess("Success", "Leave type deleted successfully");
+        await alertSuccess(t("Success"), t("Leave type deleted successfully"));
       } catch (err) {
-        await alertError("Error", "Unable to delete. Please try again later");
+        await alertError(t("Error"), t("Unable to delete. Please try again later"));
       }
     }
   };
@@ -156,8 +159,8 @@ export default function LeaveSettings() {
     <div className="page-card ls">
       <div className="emp-head">
         <div>
-          <h2 className="emp-title">Leave Settings</h2>
-          <p className="emp-sub">Define standard leave quotas and carry-forward policies for employees</p>
+          <h2 className="emp-title">{t("Leave Settings")}</h2>
+          <p className="emp-sub">{t("Define standard leave quotas and carry-forward policies for employees")}</p>
         </div>
 
         <div className="emp-tools">
@@ -165,17 +168,14 @@ export default function LeaveSettings() {
             className="emp-btn emp-btn-outline warn" 
             onClick={handleProcessCarryForward} 
             disabled={loading}
-            title="Process carry forward for next year"
+            title={t("Process carry forward for next year")}
             style={{ borderColor: '#f59e0b', color: '#b45309' }}
           >
-            <FiCalendar /> Process Year-End
-          </button>
+            <FiCalendar />{t("Process Year-End")}</button>
           <button className="emp-btn emp-btn-outline" onClick={fetchTypes} disabled={loading}>
-            <FiRefreshCw className={loading ? "spin" : ""} /> Refresh
-          </button>
+            <FiRefreshCw className={loading ? "spin" : ""} />{t("Refresh")}</button>
           <button className="emp-btn emp-btn-primary" onClick={openAdd}>
-            <FiPlus /> Add Type
-          </button>
+            <FiPlus />{t("Add Type")}</button>
         </div>
       </div>
 
@@ -183,48 +183,79 @@ export default function LeaveSettings() {
         <table className="table">
           <thead>
             <tr>
-              <th>Type Name & Policy</th>
-              <th>Paid Status</th>
-              <th>Default Days</th>
-              <th>Theme Color</th>
-              <th style={{ width: 150, textAlign: "right" }}>Actions</th>
+              <th>{t("Type Name & Policy")}</th>
+              <th>{t("Paid Status")}</th>
+              <th>{t("Default Days")}</th>
+              <th>{t("Theme Color")}</th>
+              <th style={{ width: 150, textAlign: "right" }}>{t("Actions")}</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan="5" className="empty">Loading...</td></tr>
-            ) : types.length === 0 ? (
-              <tr><td colSpan="5" className="empty">No leave types found.</td></tr>
-            ) : (
-              types.map((t) => (
-                <tr key={t.leaveTypeId}>
-                  <td className="emp-strong">
-                    {t.typeName}
-                    {t.canCarryForward ? (
-                      <div className="policy-badge carry-yes">Carry-forward Enabled (Max {Number(t.maxCarryDays)} Days)</div>
-                    ) : (
-                      <div className="policy-badge carry-no">Carry-forward Disabled</div>
-                    )}
-                  </td>
-                  <td>
-                    <span className={`badge ${t.isPaid ? "badge-leave" : "badge-danger"}`}>{t.isPaid ? "Paid Leave" : "Unpaid Leave"}</span>
-                  </td>
-                  <td className="days-cell"><span className="days-pill">{Number(t.defaultDays)} days</span></td>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <div style={{ width: '24px', height: '24px', borderRadius: '4px', background: t.colorCode || '#3b82f6', border: '1px solid #e2e8f0' }}></div>
-                      <span style={{ fontSize: '12px', color: '#64748b', fontFamily: 'monospace' }}>{t.colorCode || '#3b82f6'}</span>
-                    </div>
-                  </td>
-                  <td style={{ textAlign: "right" }}>
-                    <div className="btn-group-row right">
-                      <button className="emp-btn emp-btn-outline small" onClick={() => openEdit(t)}><FiEdit2 /></button>
-                      <button className="emp-btn emp-btn-outline small danger" onClick={() => handleDelete(t.leaveTypeId)}><FiTrash2 /></button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
+  <tr>
+    <td colSpan="5" className="empty">{t("Loading...")}</td>
+  </tr>
+) : types.length === 0 ? (
+  <tr>
+    <td colSpan="5" className="empty">{t("No leave types found.")}</td>
+  </tr>
+) : (
+  types.map((lt) => (
+    <tr key={lt.leaveTypeId}>
+      <td className="emp-strong">
+        {lt.typeName}
+        {lt.canCarryForward ? (
+          <div className="policy-badge carry-yes">
+            {t("Carry-forward Enabled")} (Max {Number(lt.maxCarryDays)} {t("Days")})
+          </div>
+        ) : (
+          <div className="policy-badge carry-no">{t("Carry-forward Disabled")}</div>
+        )}
+      </td>
+
+      <td>
+        <span className={`badge ${lt.isPaid ? "badge-leave" : "badge-danger"}`}>
+          {lt.isPaid ? t("Paid Leave") : t("Unpaid Leave")}
+        </span>
+      </td>
+
+      <td className="days-cell">
+        <span className="days-pill">{Number(lt.defaultDays)} {t("days")}</span>
+      </td>
+
+      <td>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <div
+            style={{
+              width: "24px",
+              height: "24px",
+              borderRadius: "4px",
+              background: lt.colorCode || "#3b82f6",
+              border: "1px solid #e2e8f0",
+            }}
+          />
+          <span style={{ fontSize: "12px", color: "#64748b", fontFamily: "monospace" }}>
+            {lt.colorCode || "#3b82f6"}
+          </span>
+        </div>
+      </td>
+
+      <td style={{ textAlign: "right" }}>
+        <div className="btn-group-row right">
+          <button className="emp-btn emp-btn-outline small" onClick={() => openEdit(lt)}>
+            <FiEdit2 />
+          </button>
+          <button
+            className="emp-btn emp-btn-outline small danger"
+            onClick={() => handleDelete(lt.leaveTypeId)}
+          >
+            <FiTrash2 />
+          </button>
+        </div>
+      </td>
+    </tr>
+  ))
+)}
           </tbody>
         </table>
       </div>
@@ -234,46 +265,46 @@ export default function LeaveSettings() {
           <form className="emp-modal" onClick={(e) => e.stopPropagation()} onSubmit={handleSave}>
             <div className="emp-modal-head">
               <div>
-                <div className="emp-modal-title">{isEdit ? "Edit Leave Type" : "Add Leave Type"}</div>
-                <div className="emp-modal-sub">{isEdit ? "Modify details and leave policies" : "Create a new leave type category"}</div>
+                <div className="emp-modal-title">{isEdit ? t("Edit Leave Type") : t("Add Leave Type")}</div>
+                <div className="emp-modal-sub">{isEdit ? t("Modify details and leave policies") : t("Create a new leave type category")}</div>
               </div>
               <button className="emp-x" type="button" onClick={() => setModalOpen(false)}>×</button>
             </div>
             <div className="emp-modal-body">
               <div className="form-col">
-                <label>Type Name</label>
-                <input className="quota-input w-full" value={form.typeName} onChange={(e) => setForm({ ...form, typeName: e.target.value })} required placeholder="e.g. Sick Leave, Vacation" />
+                <label>{t("Type Name")}</label>
+                <input className="quota-input w-full" value={form.typeName} onChange={(e) => setForm({ ...form, typeName: e.target.value })} required placeholder={t("e.g. Sick Leave, Vacation")} />
               </div>
               <div className="form-col">
-                <label>Default Quota (Days Per Year)</label>
+                <label>{t("Default Quota (Days Per Year)")}</label>
                 <input className="quota-input w-full" type="number" step="0.5" min="0" value={form.defaultDays} onChange={(e) => setForm({ ...form, defaultDays: e.target.value })} required />
               </div>
               <label className="checkbox-label" style={{ marginBottom: '20px' }}>
-                <input type="checkbox" checked={form.isPaid} onChange={(e) => setForm({ ...form, isPaid: e.target.checked })} /> Paid Leave
+                <input type="checkbox" checked={form.isPaid} onChange={(e) => setForm({ ...form, isPaid: e.target.checked })} /> {t("Paid Leave")}
               </label>
               <hr style={{ border: '0', borderTop: '1px solid #eee', margin: '20px 0' }} />
               <div className="carry-forward-section" style={{ background: '#f8fafc', padding: '15px', borderRadius: '8px' }}>
                 <label className="checkbox-label" style={{ fontWeight: '600', color: '#1e293b' }}>
-                  <input type="checkbox" checked={form.canCarryForward} onChange={(e) => setForm({ ...form, canCarryForward: e.target.checked })} /> Enable Carry Forward
+                  <input type="checkbox" checked={form.canCarryForward} onChange={(e) => setForm({ ...form, canCarryForward: e.target.checked })} /> {t("Enable Carry Forward")}
                 </label>
                 {form.canCarryForward && (
                   <div className="form-col" style={{ marginTop: '15px', paddingLeft: '25px' }}>
-                    <label>Maximum Carry-over Days (Max Carry Days)</label>
+                    <label>{t("Maximum Carry-over Days (Max Carry Days)")}</label>
                     <input className="quota-input w-full" type="number" step="0.5" min="0" value={form.maxCarryDays} onChange={(e) => setForm({ ...form, maxCarryDays: e.target.value })} required={form.canCarryForward} />
                   </div>
                 )}
               </div>
               <div className="form-col" style={{ marginTop: '20px' }}>
-                <label>Theme Color for Calendar & Charts</label>
+                <label>{t("Theme Color for Calendar & Charts")}</label>
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                   <input type="color" value={form.colorCode} onChange={(e) => setForm({ ...form, colorCode: e.target.value })} style={{ width: '50px', height: '38px', padding: '0', border: '1px solid #e2e8f0', borderRadius: '4px', cursor: 'pointer' }} />
-                  <input className="quota-input" style={{ flex: 1 }} value={form.colorCode} onChange={(e) => setForm({ ...form, colorCode: e.target.value })} placeholder="#HEXCODE" />
+                  <input className="quota-input" style={{ flex: 1 }} value={form.colorCode} onChange={(e) => setForm({ ...form, colorCode: e.target.value })} placeholder={t("#HEXCODE")} />
                 </div>
               </div>
             </div>
             <div className="emp-modal-actions">
-              <button className="emp-btn emp-btn-outline" type="button" onClick={() => setModalOpen(false)}>Cancel</button>
-              <button className="emp-btn emp-btn-primary" type="submit"><FiSave /> Save Policy</button>
+              <button className="emp-btn emp-btn-outline" type="button" onClick={() => setModalOpen(false)}>{t("Cancel")}</button>
+              <button className="emp-btn emp-btn-primary" type="submit"><FiSave />{t("Save Policy")}</button>
             </div>
           </form>
         </div>

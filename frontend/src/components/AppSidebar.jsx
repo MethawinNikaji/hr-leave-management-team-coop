@@ -1,43 +1,57 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import i18n from "../i18n";
 import "./AppSidebar.css";
 
-import { FiGrid, FiCalendar, FiClipboard, FiBell, FiUser, FiUsers, FiCheckSquare, FiLogOut, FiMenu, FiX, FiSettings } from "react-icons/fi";
+import {
+  FiGrid,
+  FiCalendar,
+  FiClipboard,
+  FiBell,
+  FiUser,
+  FiUsers,
+  FiCheckSquare,
+  FiLogOut,
+  FiMenu,
+  FiX,
+  FiSettings
+} from "react-icons/fi";
 
 const MENUS = {
   Worker: [
     {
-      section: "MAIN MENU",
+      sectionKey: "sidebar.sections.main",
       items: [
-        { to: "/worker/dashboard", label: "Dashboard", icon: <FiGrid /> },
-        { to: "/worker/attendance", label: "My Attendance", icon: <FiCalendar /> },
-        { to: "/worker/calendar", label: "My Calendar", icon: <FiCalendar /> },
-        { to: "/worker/leave", label: "My Leaves", icon: <FiClipboard /> },
-        { to: "/worker/notifications", label: "Notifications", icon: <FiBell />, badgeKey: "worker_unread_notifications" },
-      ],
+        { to: "/worker/dashboard", labelKey: "sidebar.items.dashboard", icon: <FiGrid /> },
+        { to: "/worker/attendance", labelKey: "sidebar.items.myAttendance", icon: <FiCalendar /> },
+        { to: "/worker/calendar", labelKey: "sidebar.items.myCalendar", icon: <FiCalendar /> },
+        { to: "/worker/leave", labelKey: "sidebar.items.myLeaves", icon: <FiClipboard /> },
+        { to: "/worker/notifications", labelKey: "sidebar.items.notifications", icon: <FiBell />, badgeKey: "worker_unread_notifications" }
+      ]
     },
-    { section: "ACCOUNT", items: [{ to: "/worker/profile", label: "Profile", icon: <FiUser /> }] },
+    { sectionKey: "sidebar.sections.account", items: [{ to: "/worker/profile", labelKey: "sidebar.items.profile", icon: <FiUser /> }] }
   ],
   HR: [
     {
-      section: "MAIN MENU",
+      sectionKey: "sidebar.sections.main",
       items: [
-        { to: "/hr/dashboard", label: "Dashboard", icon: <FiGrid /> },
-        { to: "/hr/attendance", label: "Employee Attendance", icon: <FiCalendar /> },
-        { to: "/hr/notifications", label: "Notifications", icon: <FiBell />, badgeKey: "hr_unread_notifications" },
-      ],
+        { to: "/hr/dashboard", labelKey: "sidebar.items.dashboard", icon: <FiGrid /> },
+        { to: "/hr/attendance", labelKey: "sidebar.items.employeeAttendance", icon: <FiCalendar /> },
+        { to: "/hr/notifications", labelKey: "sidebar.items.notifications", icon: <FiBell />, badgeKey: "hr_unread_notifications" }
+      ]
     },
     {
-      section: "HR MANAGEMENT",
+      sectionKey: "sidebar.sections.hrManagement",
       items: [
-        { to: "/hr/profile-requests", label: "Profile Requests", icon: <FiUser />, badgeKey: "profile_request_unread" },
-        { to: "/hr/leave-approvals", label: "Leave Approvals", icon: <FiCheckSquare /> },
-        { to: "/hr/employees", label: "Employees", icon: <FiUsers /> },
-        { to: "/hr/leave-settings", label: "Leave Quota Settings", icon: <FiSettings /> },
-        { to: "/hr/attendance-policy", label: "Attendance Settings", icon: <FiSettings /> },
-      ],
-    },
-  ],
+        { to: "/hr/profile-requests", labelKey: "sidebar.items.profileRequests", icon: <FiUser />, badgeKey: "profile_request_unread" },
+        { to: "/hr/leave-approvals", labelKey: "sidebar.items.leaveApprovals", icon: <FiCheckSquare /> },
+        { to: "/hr/employees", labelKey: "sidebar.items.employees", icon: <FiUsers /> },
+        { to: "/hr/leave-settings", labelKey: "sidebar.items.leaveQuotaSettings", icon: <FiSettings /> },
+        { to: "/hr/attendance-policy", labelKey: "sidebar.items.attendanceSettings", icon: <FiSettings /> }
+      ]
+    }
+  ]
 };
 
 const safeJSON = (v, fallback = {}) => {
@@ -49,15 +63,16 @@ const safeJSON = (v, fallback = {}) => {
 };
 
 export default function AppSidebar() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
 
   const user = useMemo(() => safeJSON(localStorage.getItem("user") || "{}", {}), []);
   const role = user.role === "HR" ? "HR" : "Worker";
-  const sections = MENUS[role];
+  const sections = MENUS[role] || [];
 
   const notificationKey = role === "HR" ? "hr_unread_notifications" : "worker_unread_notifications";
-  const fullName = `${user.firstName || user.first_name || "User"} ${user.lastName || user.last_name || ""}`.trim();
+  const fullName = `${user.firstName || user.first_name || t("common.user")} ${user.lastName || user.last_name || ""}`.trim();
   const initials = (fullName || "U").charAt(0).toUpperCase();
 
   // Mobile drawer
@@ -70,10 +85,10 @@ export default function AppSidebar() {
       const n = Number(localStorage.getItem(notificationKey) || "0");
       setUnread(Number.isFinite(n) ? n : 0);
     };
-    const t = setInterval(tick, 700);
+    const tmr = setInterval(tick, 700);
     window.addEventListener("storage", tick);
     return () => {
-      clearInterval(t);
+      clearInterval(tmr);
       window.removeEventListener("storage", tick);
     };
   }, [notificationKey]);
@@ -90,35 +105,71 @@ export default function AppSidebar() {
     navigate("/login");
   };
 
+  const currentLang = (i18n.language || "en").startsWith("th") ? "th" : "en";
+  const toggleLang = () => {
+    i18n.changeLanguage(currentLang === "en" ? "th" : "en");
+  };
+
   return (
     <>
-      <button className="sb-mobile-toggle" type="button" onClick={() => setMobileOpen((v) => !v)} aria-label="Toggle sidebar">
+      <button
+        className="sb-mobile-toggle"
+        type="button"
+        onClick={() => setMobileOpen((v) => !v)}
+        aria-label={t("sidebar.toggleSidebar")}
+        title={t("sidebar.toggleSidebar")}
+      >
         {mobileOpen ? <FiX /> : <FiMenu />}
       </button>
 
       {mobileOpen && <div className="sb-overlay" onClick={() => setMobileOpen(false)} />}
 
-      <aside className={`sb ${mobileOpen ? "sb-mobile-open" : ""}`} aria-label="App Sidebar">
+      <aside className={`sb ${mobileOpen ? "sb-mobile-open" : ""}`} aria-label={t("sidebar.toggleSidebar")}>
         <div className="sb-top">
           <div className="sb-profile">
             <div className="sb-avatar">{initials}</div>
 
             <div className="sb-profile-info">
               <div className="sb-name">{fullName}</div>
-              <div className="sb-role">{role}</div>
+              <div className="sb-role">{t(`common.role.${role}`)}</div>
             </div>
 
-            <button className="sb-bell" type="button" title="Notifications" onClick={() => navigate(`/${role.toLowerCase()}/notifications`)}>
+            <button
+              className="sb-bell"
+              type="button"
+              title={t("common.notifications")}
+              onClick={() => navigate(`/${role.toLowerCase()}/notifications`)}
+            >
               <FiBell />
               {unread > 0 && <span className="sb-badge">{unread > 99 ? "99+" : unread}</span>}
+            </button>
+          </div>
+
+          {/* simple language toggle (theme-safe, no new CSS needed) */}
+          <div style={{ padding: "0 14px 12px", display: "flex", gap: 10, alignItems: "center" }}>
+            <div style={{ fontSize: 11, opacity: 0.75 }}>{t("common.language")}</div>
+            <button
+              type="button"
+              onClick={toggleLang}
+              className="sb-logout"
+              style={{
+                marginLeft: "auto",
+                padding: "6px 10px",
+                borderRadius: 999,
+                fontSize: 12,
+                width: "auto"
+              }}
+              title={`${t("common.language")}: ${currentLang === "en" ? t("common.english") : t("common.thai")}`}
+            >
+              {currentLang === "en" ? "EN" : "TH"}
             </button>
           </div>
         </div>
 
         <nav className="sb-nav">
           {sections.map((sec) => (
-            <div className="sb-section" key={sec.section}>
-              <div className="sb-section-label">{sec.section}</div>
+            <div className="sb-section" key={sec.sectionKey}>
+              <div className="sb-section-label">{t(sec.sectionKey)}</div>
 
               {sec.items.map((item) => {
                 const showBadge = item.badgeKey === notificationKey;
@@ -130,7 +181,7 @@ export default function AppSidebar() {
                       {item.icon}
                       {badgeCount > 0 && <span className="sb-item-badge">{badgeCount > 99 ? "99+" : badgeCount}</span>}
                     </span>
-                    <span className="sb-item-text">{item.label}</span>
+                    <span className="sb-item-text">{t(item.labelKey)}</span>
                   </NavLink>
                 );
               })}
@@ -141,7 +192,7 @@ export default function AppSidebar() {
         <div className="sb-bottom">
           <button className="sb-logout" onClick={logout} type="button">
             <FiLogOut className="sb-logout-ico" />
-            <span className="sb-logout-text">Logout</span>
+            <span className="sb-logout-text">{t("common.logout")}</span>
           </button>
         </div>
       </aside>

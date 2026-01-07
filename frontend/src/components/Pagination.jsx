@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 export default function Pagination({
   total,
@@ -8,6 +9,8 @@ export default function Pagination({
   onPageSizeChange,
   pageSizeOptions = [5, 10, 20, 50],
 }) {
+  const { t } = useTranslation();
+
   const totalPages = Math.max(1, Math.ceil((total || 0) / (pageSize || 1)));
   const safePage = Math.min(Math.max(1, page), totalPages);
 

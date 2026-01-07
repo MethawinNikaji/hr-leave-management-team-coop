@@ -26,6 +26,7 @@ import HRAttendancePolicy from "./pages/HRAttendancePolicy";
 import LoginPage from "./pages/LoginPage";
 
 export default function App() {
+
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />

@@ -8,26 +8,42 @@ import { alertError, alertSuccess } from "../utils/sweetAlert";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { enUS } from 'date-fns/locale';
+import { useTranslation } from "react-i18next";
 
 // Helper: Format date to YYYY-MM-DD
 const pad2 = (n) => String(n).padStart(2, "0");
 const toYMD = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 
 // CSV Builder
-const buildCSV = (rows) => {
+const buildCSV = (rows, t) => {
   const escape = (v) => {
     const s = String(v ?? "");
     if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
     return s;
   };
-  const header = ["Date", "Check In", "Check Out", "Status", "Note"].join(",");
+
+  const header = [
+    t("Date"),
+    t("Check In"),
+    t("Check Out"),
+    t("Status"),
+    t("Note")
+  ].join(",");
+
   const body = rows
-    .map((r) => [r.date, r.in, r.out, r.late ? "LATE" : "ON TIME", r.note].map(escape).join(","))
+    .map((r) =>
+      [r.date, r.in, r.out, r.late ? t("Late") : t("On Time"), r.note]
+        .map(escape)
+        .join(",")
+    )
     .join("\n");
+
   return `${header}\n${body}`;
 };
 
+
 export default function WorkerAttendancePage() {
+  const { t } = useTranslation();
   const today = useMemo(() => new Date(), []);
   
   // State
@@ -62,7 +78,7 @@ export default function WorkerAttendancePage() {
       setLateInfo(lateRes.data || null);
     } catch (err) {
       console.error(err);
-      await alertError("Fetch Failed", "Could not retrieve attendance records.");
+      await alertError(t("Fetch Failed"), t("Could not retrieve attendance records."));
     } finally {
       setLoading(false);
     }
@@ -125,9 +141,9 @@ export default function WorkerAttendancePage() {
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      await alertSuccess("Export Successful", "CSV file has been downloaded.");
+      await alertSuccess(t("Export Successful"), t("CSV file has been downloaded."));
     } catch (e) {
-      await alertError("Export Failed", "Could not generate CSV file.");
+      await alertError(t("Export Failed"), t("Could not generate CSV file."));
     }
   };
 
@@ -137,24 +153,21 @@ export default function WorkerAttendancePage() {
     <div className="wa-page">
       <header className="wa-header">
         <div>
-          <h1 className="wa-title">My Attendance</h1>
-          <p className="wa-subtitle">Attendance history with search, filter, and export options</p>
+          <h1 className="wa-title">{t("My Attendance")}</h1>
+          <p className="wa-subtitle">{t("Attendance history with search, filter, and export options")}</p>
         </div>
 
         <div className="wa-header-right">
-          <div className={`wa-pill ${isExceeded ? "danger" : ""}`}>
-            Late this month: <strong>{lateCount ?? "-"}</strong> / {lateLimit}
+          <div className={`wa-pill ${isExceeded ? "danger" : ""}`}>{t("Late this month:")} <strong>{lateCount ?? "-"}</strong> / {lateLimit}
           </div>
-          <button className="wa-btn wa-btn-primary" type="button" onClick={handleExportCSV} disabled={loading}>
-            Export CSV
-          </button>
+          <button className="wa-btn wa-btn-primary" type="button" onClick={handleExportCSV} disabled={loading}>{t("Export CSV")}</button>
         </div>
       </header>
 
       <section className="wa-panel">
         <div className="wa-controls">
           <div className="wa-control">
-            <label>Start Date</label>
+            <label>{t("Start Date")}</label>
             <DatePicker
               selected={new Date(range.start)}
               onChange={(date) => setRange((p) => ({ ...p, start: toYMD(date) }))}
@@ -166,7 +179,7 @@ export default function WorkerAttendancePage() {
           </div>
 
           <div className="wa-control">
-            <label>End Date</label>
+            <label>{t("End Date")}</label>
             <DatePicker
               selected={new Date(range.end)}
               onChange={(date) => setRange((p) => ({ ...p, end: toYMD(date) }))}
@@ -179,60 +192,58 @@ export default function WorkerAttendancePage() {
           </div>
 
           <div className="wa-control wa-search">
-            <label>Search</label>
+            <label>{t("Search")}</label>
             <input
               type="text"
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Filter by date, note, or time..."
+              placeholder={t("Filter by date, note, or time...")}
             />
           </div>
 
           <label className="wa-toggle">
             <input type="checkbox" checked={onlyLate} onChange={(e) => setOnlyLate(e.target.checked)} />
-            <span>Show only late</span>
+            <span>{t("Show only late")}</span>
           </label>
 
-          <button className="wa-btn wa-btn-ghost" type="button" onClick={fetchData} disabled={loading}>
-            Refresh
-          </button>
+          <button className="wa-btn wa-btn-ghost" type="button" onClick={fetchData} disabled={loading}>{t("Refresh")}</button>
         </div>
 
         <div className="wa-table-wrap">
-          {loading ? (
-            <div className="wa-empty">Loading records...</div>
-          ) : total === 0 ? (
-            <div className="wa-empty">No records found for the selected range.</div>
-          ) : (
-            <table className="wa-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Check In</th>
-                  <th>Check Out</th>
-                  <th>Status</th>
-                  <th>Note</th>
+        {loading ? (
+          <div className="wa-empty">{t("Loading records...")}</div>
+        ) : total === 0 ? (
+          <div className="wa-empty">{t("No records found for the selected range.")}</div>
+        ) : (
+          <table className="wa-table">
+            <thead>
+              <tr>
+                <th>{t("Date")}</th>
+                <th>{t("Check In")}</th>
+                <th>{t("Check Out")}</th>
+                <th>{t("Status")}</th>
+                <th>{t("Note")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pagedRecords.map((r) => (
+                <tr key={r.id}>
+                  <td className="wa-mono">{r.date}</td>
+                  <td className="wa-mono">{r.in}</td>
+                  <td className="wa-mono">{r.out}</td>
+                  <td>
+                    <span className={`wa-badge ${r.late ? t("Late") : t("On Time")} "ok"}`}>
+                      {r.late ? t("Late") : t("On Time")}
+                    </span>
+                  </td>
+                  <td className="wa-note">{r.note || "-"}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {pagedRecords.map((r) => (
-                  <tr key={r.id}>
-                    <td className="wa-mono">{r.date}</td>
-                    <td className="wa-mono">{r.in}</td>
-                    <td className="wa-mono">{r.out}</td>
-                    <td>
-                      <span className={`wa-badge ${r.late ? "late" : "ok"}`}>
-                        {r.late ? "Late" : "On Time"}
-                      </span>
-                    </td>
-                    <td className="wa-note">{r.note || "-"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+      
         <div className="wa-pagination">
           <Pagination
             total={total}

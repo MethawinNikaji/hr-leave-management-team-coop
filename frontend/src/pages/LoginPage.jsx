@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate, useLocation } from "react-router-dom";
 import "./LoginPage.css";
 import { alertError, alertSuccess } from "../utils/sweetAlert";
@@ -6,6 +7,7 @@ import { useAuth } from "../context/AuthContext";
 import { useNotification } from "../context/NotificationContext";
 
 export default function LoginPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -62,20 +64,20 @@ export default function LoginPage() {
       }
 
       await alertSuccess(
-        "Login successful",
-        `Welcome back ${user?.firstName || "User"}`
+        t("alerts.loginSuccessTitle"),
+        t("alerts.welcomeBack", { name: user?.firstName || t("common.user") })
       );
 
       goAfterLogin(user?.role);
     } catch (err) {
-      console.error("Login Error:", err);
+      console.error(t("Login Error:"), err);
 
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        "Unable to connect to server or invalid email/password.";
+        t("alerts.loginFailedDefault");
 
-      await alertError("Login failed", msg);
+      await alertError(t("alerts.loginFailedTitle"), msg);
     } finally {
       setSubmitting(false);
     }
@@ -86,18 +88,18 @@ export default function LoginPage() {
       <div className="auth-card">
         <div className="auth-header">
           <div className="brand">
-            <span className="brand-title">Login</span>
+            <span className="brand-title">{t("auth.login.title")}</span>
           </div>
         </div>
 
         <form className="auth-form" onSubmit={handleSubmit}>
           <label className="field">
-            <span className="label">Email</span>
+            <span className="label">{t("auth.login.email")}</span>
             <input
               className="input"
               type="email"
               name="email"
-              placeholder="you@example.com"
+              placeholder={t("auth.login.placeholders.email")}
               value={form.email}
               onChange={handleChange}
               autoComplete="email"
@@ -106,13 +108,13 @@ export default function LoginPage() {
 
           <label className="field">
             <div className="label-row">
-              <span className="label">Password</span>
+              <span className="label">{t("auth.login.password")}</span>
               <button
                 type="button"
                 className="link-btn"
                 onClick={() => setShowPw((s) => !s)}
               >
-                {showPw ? "Hide" : "Show"}
+                {showPw ? t("auth.login.hide") : t("auth.login.show")}
               </button>
             </div>
 
@@ -135,7 +137,7 @@ export default function LoginPage() {
                 checked={form.remember}
                 onChange={handleChange}
               />
-              <span>Remember me</span>
+              <span>{t("auth.login.rememberMe")}</span>
             </label>
           </div>
 
@@ -144,26 +146,26 @@ export default function LoginPage() {
             type="submit"
             disabled={!isValid || submitting}
           >
-            {submitting ? "Signing in..." : "Sign in"}
+            {submitting ? t("auth.login.signingIn") : t("auth.login.signIn")}
           </button>
         </form>
 
         <div className="divider" />
 
         <div className="test-accounts">
-          <div className="title">Test Accounts</div>
+          <div className="title">{t("auth.login.testAccounts")}</div>
           <div className="list">
             <div className="row">
-              <span className="label">HR</span>
-              <code>hr.manager@company.com</code>
+              <span className="label">{t("auth.login.hr")}</span>
+              <code>{t("hr.manager@company.com")}</code>
             </div>
             <div className="row">
-              <span className="label">Worker</span>
-              <code>worker.a@company.com</code>
+              <span className="label">{t("auth.login.worker")}</span>
+              <code>{t("worker.a@company.com")}</code>
             </div>
             <div className="row">
-              <span className="label">Password</span>
-              <code>Password123</code>
+              <span className="label">{t("auth.login.password")}</span>
+              <code>{t("Password123")}</code>
             </div>
           </div>
         </div>

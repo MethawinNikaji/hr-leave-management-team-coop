@@ -1,8 +1,11 @@
 import React from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useTranslation } from "react-i18next";
 
 export default function RoleRoute({ allow = [], children }) {
+  const { t } = useTranslation();
+
   const { isReady, user } = useAuth();
 
   if (!isReady) return null;

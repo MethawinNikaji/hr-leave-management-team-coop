@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import AppSidebar from "../components/AppSidebar";
 import "./AppLayout.css";
+import { useTranslation } from "react-i18next";
 
 // สร้าง WS URL จาก VITE_API_URL (เช่น http://localhost:8000/api -> ws://localhost:8000)
 const buildWsUrl = () => {
@@ -13,6 +14,7 @@ const buildWsUrl = () => {
 };
 
 export default function AppLayout() {
+  const { t } = useTranslation();
   // ดึงข้อมูล User เพื่อเช็ค Role (ใช้ localStorage เพื่อให้ sidebar ใช้ค่าเดียวกัน)
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   const role = user.role === "HR" ? "HR" : "Worker";

@@ -13,6 +13,7 @@ import "./WorkerNotifications.css";
 import Pagination from "../components/Pagination";
 import { alertConfirm, alertError, alertSuccess } from "../utils/sweetAlert";
 import QuickActionModal from "../components/QuickActionModal";
+import { useTranslation } from "react-i18next";
 
 const api = axios.create({ baseURL: "http://localhost:8000" });
 const getAuthHeader = () => ({
@@ -23,6 +24,8 @@ const LAST_SEEN_KEY = "worker_notifications_last_seen";
 const SIDEBAR_UNREAD_KEY = "worker_unread_notifications";
 
 export default function WorkerNotifications() {
+  const { t } = useTranslation();
+
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -53,7 +56,7 @@ export default function WorkerNotifications() {
       setSidebarUnreadZero();
       localStorage.setItem(LAST_SEEN_KEY, String(Date.now()));
     } catch (err) {
-      alertError("Error", "Failed to load notifications.");
+      alertError(t("Error"), t("Failed to load notifications."));
     } finally {
       setLoading(false);
     }
@@ -84,7 +87,7 @@ export default function WorkerNotifications() {
           status: profileReq.status, 
           oldName: `${profileReq.oldFirstName} ${profileReq.oldLastName}`,
           newName: `${profileReq.newFirstName} ${profileReq.newLastName}`,
-          reason: profileReq.reason || "Requested via profile settings",
+          reason: profileReq.reason || t("Requested via profile settings"),
           attachmentUrl: profileReq.attachmentUrl,
           isReadOnly: true,
         });
@@ -99,11 +102,11 @@ export default function WorkerNotifications() {
       setSelectedRequest({
         type: 'LEAVE', // ✅ เพิ่ม Flag
         requestId: noti.relatedRequestId,
-        employeeName: "Your Request",
+        employeeName: t("Your Request"),
         leaveType: rr.leaveType?.typeName || "Unknown",
         startDate: rr.startDate,
         endDate: rr.endDate,
-        reason: rr?.reason || "No reason provided.",
+        reason: rr?.reason || t("No reason provided."),
         status: rr.status,
         attachmentUrl: rr.attachmentUrl,
         isReadOnly: true,
@@ -143,7 +146,7 @@ export default function WorkerNotifications() {
     try {
       await api.put("/api/notifications/mark-all-read", {}, getAuthHeader());
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-      await alertSuccess("Success", "All notifications marked as read.");
+      await alertSuccess(t("Success"), t("All notifications marked as read."));
       setSidebarUnreadZero();
     } catch (err) {
       console.error(err);
@@ -152,9 +155,7 @@ export default function WorkerNotifications() {
 
   const deleteNoti = async (id) => {
     if (
-      !(await alertConfirm(
-        "Delete Notification",
-        "Are you sure you want to delete this?",
+      !(await alertConfirm(t("Delete Notification"), t("Are you sure you want to delete this?"),
         "Delete"
       ))
     )
@@ -166,39 +167,39 @@ export default function WorkerNotifications() {
         prev.filter((n) => n.notificationId !== id)
       );
     } catch (err) {
-      alertError("Error", "Failed to delete notification.");
+      alertError(t("Error"), t("Failed to delete notification."));
     }
   };
 
   const handleClearAll = async () => {
-    if (!(await alertConfirm("Clear All", "Delete all notifications?", "Clear All")))
+    if (!(await alertConfirm(t("Clear All"), t("Delete all notifications?"), t("Clear All"))))
       return;
 
     try {
       await api.delete("/api/notifications/clear-all", getAuthHeader());
       setNotifications([]);
-      await alertSuccess("Success", "All notifications cleared.");
+      await alertSuccess(t("Success"), t("All notifications cleared."));
       setSidebarUnreadZero();
     } catch (err) {
-      alertError("Error", "Failed to clear notifications.");
+      alertError(t("Error"), t("Failed to clear notifications."));
     }
   };
 
   const getTitle = (type, message) => {
     if (message?.includes("profile update") || message?.includes("change name")) {
-      return "Profile Update Update";
+      return t("Profile Update Update");
     }
-    if (type === "NewRequest") return "New Request Submitted";
-    if (type === "Approved") return "Leave Request Approved";
-    if (type === "Rejected") return "Leave Request Rejected";
-    return "System Notification";
+    if (type === "NewRequest") return t("New Request Submitted");
+    if (type === "Approved") return t("Leave Request Approved");
+    if (type === "Rejected") return t("Leave Request Rejected");
+    return t("System Notification");
   };
 
   return (
     <div className="page-card wn">
       <div className="wn-head">
         <div>
-          <h2 className="wn-title">Notifications</h2>
+          <h2 className="wn-title">{t("Notifications")}</h2>
           <p className="wn-sub">
             Your personal activity and leave updates (Page {page})
           </p>
@@ -213,30 +214,28 @@ export default function WorkerNotifications() {
             onClick={handleClearAll}
             disabled={notifications.length === 0}
           >
-            <FiTrash2 /> Clear All
-          </button>
+            <FiTrash2 />{t("Clear All")}</button>
           <button
             className="emp-btn emp-btn-primary small"
             onClick={markAllAsRead}
             disabled={notifications.length === 0}
           >
-            <FiCheck /> Mark all read
-          </button>
+            <FiCheck />{t("Mark all read")}</button>
         </div>
       </div>
 
       <div className="wn-list">
         {loading ? (
-          <div className="wn-empty">
-            <FiRefreshCw className="spin" size={24} />
-            <p>Loading...</p>
-          </div>
-        ) : pagedNotifications.length === 0 ? (
-          <div className="wn-empty">
-            <FiBell style={{ opacity: 0.5 }} size={32} />
-            <p>No notifications found.</p>
-          </div>
-        ) : (
+            <div className="wn-empty">
+              <FiRefreshCw className="spin" size={24} />
+              <p>{t("Loading...")}</p>
+            </div>
+          ) : pagedNotifications.length === 0 ? (
+            <div className="wn-empty">
+              <FiBell style={{ opacity: 0.5 }} size={32} />
+              <p>{t("No notifications found.")}</p>
+            </div>
+          ) : (
           pagedNotifications.map((n) => (
             <div
               key={n.notificationId}
@@ -251,19 +250,19 @@ export default function WorkerNotifications() {
             >
               <div className="wn-row">
                 <div className="noti-icon-box">
-                  {n.notificationType === "Approved" ? (
-                    <FiCheckCircle className="noti-ico ok" />
-                  ) : n.notificationType === "Rejected" ? (
-                    <FiAlertCircle className="noti-ico danger" />
-                  ) : (
-                    <FiInfo className="noti-ico info" />
-                  )}
+                 {n.notificationType === "Approved" ? (
+                  <FiCheckCircle className="noti-ico ok" />
+                ) : n.notificationType === "Rejected" ? (
+                  <FiAlertCircle className="noti-ico danger" />
+                ) : (
+                  <FiInfo className="noti-ico info" />
+                )}
                 </div>
 
                 <div className="wn-body">
                   <div className="wn-item-title">
                     {getTitle(n.notificationType, n.message)}
-                    {n._isNewSinceLastSeen && <span className="badge-new">NEW</span>}
+                    {n._isNewSinceLastSeen && <span className="badge-new">{t("NEW")}</span>}
                   </div>
                   <div className="wn-item-msg">{n.message}</div>
                   <div className="wn-item-time">

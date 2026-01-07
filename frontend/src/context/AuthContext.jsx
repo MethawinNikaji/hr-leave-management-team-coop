@@ -1,9 +1,12 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import axiosClient from "../api/axiosClient";
+import { useTranslation } from "react-i18next";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
+  const { t } = useTranslation();
+
   const [isReady, setIsReady] = useState(false);
   const [user, setUser] = useState(() => {
     const raw = localStorage.getItem("user");
@@ -43,7 +46,7 @@ export function AuthProvider({ children }) {
     const t = data?.token || data?.accessToken;
     const u = data?.user || data?.employee || data?.data?.user;
 
-    if (!t) throw new Error("Token not found in response");
+    if (!t) throw new Error(t("Token not found in response"));
 
     localStorage.setItem("token", t);
     if (u) persistUser(u);

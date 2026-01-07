@@ -1,14 +1,19 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import {
-  FiBell, FiTrash2, FiCheckCircle, FiRefreshCw,
-  FiAlertCircle, FiCheck, FiInfo,
+  FiBell,
+  FiTrash2,
+  FiCheckCircle,
+  FiRefreshCw,
+  FiAlertCircle,
+  FiCheck,
 } from "react-icons/fi";
 import "./WorkerNotifications.css";
 import Pagination from "../components/Pagination";
 import { alertConfirm, alertError, alertSuccess } from "../utils/sweetAlert";
 import QuickActionModal from "../components/QuickActionModal";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 const api = axios.create({ baseURL: "http://localhost:8000" });
 const getAuthHeader = () => ({
@@ -18,6 +23,9 @@ const getAuthHeader = () => ({
 const LAST_SEEN_KEY = "hr_notifications_last_seen";
 
 export default function HRNotifications() {
+  // ✅ ใช้ useTranslation แค่ครั้งเดียว
+  const { t } = useTranslation();
+
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -38,27 +46,81 @@ export default function HRNotifications() {
       const res = await api.get("/api/notifications/my", getAuthHeader());
       const fetched = res.data.notifications || [];
 
-      setNotifications(fetched.map(n => ({
-        ...n,
-        _isNewSinceLastSeen: new Date(n.createdAt).getTime() > lastSeen,
-      })));
+      setNotifications(
+        fetched.map((n) => ({
+          ...n,
+          _isNewSinceLastSeen: new Date(n.createdAt).getTime() > lastSeen,
+        }))
+      );
 
       setSidebarUnreadZero();
       localStorage.setItem(LAST_SEEN_KEY, String(Date.now()));
     } catch (err) {
-      alertError("Error", "Failed to load notifications.");
+      alertError(t("Error"), t("Failed to load notifications."));
     } finally {
       setLoading(false);
     }
   };
 
+  const markAsRead = async (id) => {
+    try {
+      await api.put(`/api/notifications/${id}/read`, {}, getAuthHeader());
+      setNotifications((prev) =>
+        prev.map((n) => (n.notificationId === id ? { ...n, isRead: true } : n))
+      );
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      await api.put("/api/notifications/mark-all-read", {}, getAuthHeader());
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      await alertSuccess(t("Success"), t("All notifications marked as read."));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const deleteNoti = async (id) => {
+    if (!(await alertConfirm(t("Delete"), t("Delete this notification?"), "Delete")))
+      return;
+    try {
+      await api.delete(`/api/notifications/${id}`, getAuthHeader());
+      setNotifications((prev) => prev.filter((n) => n.notificationId !== id));
+    } catch (err) {
+      alertError(t("Error"), t("Failed to delete."));
+    }
+  };
+
+  const handleClearAll = async () => {
+    if (!(await alertConfirm(t("Clear All"), t("Delete all notifications?"), t("Clear All"))))
+      return;
+    try {
+      await api.delete("/api/notifications/clear-all", getAuthHeader());
+      setNotifications([]);
+      await alertSuccess(t("Success"), t("Cleared all notifications."));
+    } catch (err) {
+      alertError(t("Error"), t("Failed to clear data."));
+    }
+  };
+
+  const getTitle = (type, message) => {
+    if (message?.includes(t("Profile Update"))) {
+      return t("Profile Update Request");
+    }
+    if (type === "NewRequest") return t("New Leave Request");
+    if (type === "Approved") return t("Request Approved");
+    return t("System Alert");
+  };
+
   const handleNotiClick = (noti) => {
     if (!noti.isRead) markAsRead(noti.notificationId);
 
-    if (noti.message?.includes("Profile Update")) {
-      // นำทางไปยังหน้า Profile Requests โดยส่ง state ไปบอกว่าให้เปิดดู ID ไหน
-      navigate("/hr/profile-requests", { 
-        state: { autoOpenId: noti.message.match(/ID: (\d+)/)?.[1] } 
+    if (noti.message?.includes(t("Profile Update"))) {
+      navigate("/hr/profile-requests", {
+        state: { autoOpenId: noti.message.match(/ID: (\d+)/)?.[1] },
       });
       return;
     }
@@ -66,16 +128,17 @@ export default function HRNotifications() {
     if (noti.relatedRequestId && noti.relatedRequest) {
       setSelectedRequest({
         requestId: noti.relatedRequestId,
-        employeeName: noti.notificationType === "NewRequest" 
-          ? (noti.message.split('from ')[1]?.split(' (')[0] || "Employee")
-          : "Employee Request", 
+        employeeName:
+          noti.notificationType === "NewRequest"
+            ? noti.message.split("from ")[1]?.split(" (")[0] || "Employee"
+            : t("Employee Request"),
         leaveType: noti.relatedRequest.leaveType?.typeName || "Unknown",
         startDate: noti.relatedRequest.startDate,
         endDate: noti.relatedRequest.endDate,
-        reason: noti.relatedRequest?.reason || "No reason provided.",
+        reason: noti.relatedRequest?.reason || t("No reason provided."),
         status: noti.relatedRequest.status,
-        attachmentUrl: noti.relatedRequest.attachmentUrl, 
-        isReadOnly: noti.relatedRequest.status !== "Pending" 
+        attachmentUrl: noti.relatedRequest.attachmentUrl,
+        isReadOnly: noti.relatedRequest.status !== "Pending",
       });
       setIsModalOpen(true);
     }
@@ -83,6 +146,7 @@ export default function HRNotifications() {
 
   useEffect(() => {
     fetchNotifications();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const startIdx = (page - 1) * pageSize;
@@ -91,77 +155,87 @@ export default function HRNotifications() {
     [notifications, startIdx, pageSize]
   );
 
-  const markAsRead = async (id) => {
-    try {
-      await api.put(`/api/notifications/${id}/read`, {}, getAuthHeader());
-      setNotifications(prev => prev.map(n => n.notificationId === id ? { ...n, isRead: true } : n));
-    } catch (err) { console.error(err); }
-  };
-
-  const markAllAsRead = async () => {
-    try {
-      await api.put("/api/notifications/mark-all-read", {}, getAuthHeader());
-      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-      await alertSuccess("Success", "All notifications marked as read.");
-    } catch (err) { console.error(err); }
-  };
-
-  const deleteNoti = async (id) => {
-    if (!(await alertConfirm("Delete", "Delete this notification?", "Delete"))) return;
-    try {
-      await api.delete(`/api/notifications/${id}`, getAuthHeader());
-      setNotifications(prev => prev.filter(n => n.notificationId !== id));
-    } catch (err) { alertError("Error", "Failed to delete."); }
-  };
-
-  const handleClearAll = async () => {
-    if (!(await alertConfirm("Clear All", "Delete all notifications?", "Clear All"))) return;
-    try {
-      await api.delete("/api/notifications/clear-all", getAuthHeader());
-      setNotifications([]);
-      await alertSuccess("Success", "Cleared all notifications.");
-    } catch (err) { alertError("Error", "Failed to clear data."); }
-  };
-
-  const getTitle = (type, message) => {
-    if (message?.includes("Profile Update")) {
-      return "Profile Update Request";
-    }
-    if (type === "NewRequest") return "New Leave Request";
-    if (type === "Approved") return "Request Approved";
-    return "System Alert";
-  };
-
   return (
     <div className="page-card wn">
       <div className="wn-head">
         <div>
-          <h2 className="wn-title">HR Notifications</h2>
-          <p className="wn-sub">Employee requests and system alerts (Page {page})</p>
+          <h2 className="wn-title">{t("HR Notifications")}</h2>
+          <p className="wn-sub">
+            {t("Employee requests and system alerts")} ({t("Page")} {page})
+          </p>
         </div>
         <div className="wn-actions">
-          <button className="emp-btn emp-btn-outline small" onClick={fetchNotifications}><FiRefreshCw className={loading ? "spin" : ""} /></button>
-          <button className="emp-btn emp-btn-outline small" onClick={handleClearAll} disabled={notifications.length === 0}><FiTrash2 /> Clear All</button>
-          <button className="emp-btn emp-btn-primary small" onClick={markAllAsRead} disabled={notifications.length === 0}><FiCheck /> Mark all read</button>
+          <button className="emp-btn emp-btn-outline small" onClick={fetchNotifications}>
+            <FiRefreshCw className={loading ? "spin" : ""} />
+          </button>
+          <button
+            className="emp-btn emp-btn-outline small"
+            onClick={handleClearAll}
+            disabled={notifications.length === 0}
+          >
+            <FiTrash2 />
+            {t("Clear All")}
+          </button>
+          <button
+            className="emp-btn emp-btn-primary small"
+            onClick={markAllAsRead}
+            disabled={notifications.length === 0}
+          >
+            <FiCheck />
+            {t("Mark all read")}
+          </button>
         </div>
       </div>
 
       <div className="wn-list">
         {loading ? (
-          <div className="wn-empty"><FiRefreshCw className="spin" size={24} /><p>Loading...</p></div>
+          <div className="wn-empty">
+            <FiRefreshCw className="spin" size={24} />
+            <p>{t("Loading...")}</p>
+          </div>
         ) : pagedNotifications.length === 0 ? (
-          <div className="wn-empty"><FiBell style={{ opacity: 0.5 }} size={32} /><p>No notifications.</p></div>
+          <div className="wn-empty">
+            <FiBell style={{ opacity: 0.5 }} size={32} />
+            <p>{t("No notifications.")}</p>
+          </div>
         ) : (
           pagedNotifications.map((n) => (
-            <div key={n.notificationId} className={`wn-item ${n.notificationType === "NewRequest" ? "danger" : "ok"} ${n.isRead ? "read" : "unread"}`} onClick={() => handleNotiClick(n)}>
+            <div
+              key={n.notificationId}
+              className={`wn-item ${
+                n.notificationType === "NewRequest" ? "danger" : "ok"
+              } ${n.isRead ? "read" : "unread"}`}
+              onClick={() => handleNotiClick(n)}
+            >
               <div className="wn-row">
-                <div className="noti-icon-box">{n.notificationType === "NewRequest" ? <FiAlertCircle className="noti-ico danger" /> : <FiCheckCircle className="noti-ico ok" />}</div>
-                <div className="wn-body">
-                  <div className="wn-item-title">{getTitle(n.notificationType, n.message)} {n._isNewSinceLastSeen && <span className="badge-new">NEW</span>}</div>
-                  <div className="wn-item-msg">{n.message}</div>
-                  <div className="wn-item-time">{new Date(n.createdAt).toLocaleString("en-GB")}</div>
+                <div className="noti-icon-box">
+                  {n.notificationType === "NewRequest" ? (
+                    <FiAlertCircle className="noti-ico danger" />
+                  ) : (
+                    <FiCheckCircle className="noti-ico ok" />
+                  )}
                 </div>
-                <button className="delete-btn-icon" onClick={(e) => { e.stopPropagation(); deleteNoti(n.notificationId); }}><FiTrash2 size={16} /></button>
+
+                <div className="wn-body">
+                  <div className="wn-item-title">
+                    {getTitle(n.notificationType, n.message)}{" "}
+                    {n._isNewSinceLastSeen && <span className="badge-new">{t("NEW")}</span>}
+                  </div>
+                  <div className="wn-item-msg">{n.message}</div>
+                  <div className="wn-item-time">
+                    {new Date(n.createdAt).toLocaleString("en-GB")}
+                  </div>
+                </div>
+
+                <button
+                  className="delete-btn-icon"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteNoti(n.notificationId);
+                  }}
+                >
+                  <FiTrash2 size={16} />
+                </button>
               </div>
             </div>
           ))
@@ -170,15 +244,21 @@ export default function HRNotifications() {
 
       {!loading && notifications.length > 0 && (
         <div className="wn-footer">
-          <Pagination total={notifications.length} page={page} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={setPageSize} />
+          <Pagination
+            total={notifications.length}
+            page={page}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+          />
         </div>
       )}
 
-      <QuickActionModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
+      <QuickActionModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
         requestData={selectedRequest}
-        onActionSuccess={fetchNotifications} 
+        onActionSuccess={fetchNotifications}
       />
     </div>
   );

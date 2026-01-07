@@ -4,6 +4,7 @@ import axios from "axios";
 import moment from "moment";
 import "./WorkerCalendar.css";
 import WorkerDateModal from "../components/WorkerModal";
+import { useTranslation } from "react-i18next";
 
 const pad2 = (n) => String(n).padStart(2, "0");
 const toISODate = (d) =>
@@ -34,6 +35,7 @@ const parseWorkingDays = (str) => {
 };
 
 export default function WorkerCalendar() {
+  const { t } = useTranslation();
   const [viewYear, setViewYear] = useState(new Date().getFullYear());
   const [viewMonth, setViewMonth] = useState(new Date().getMonth());
   const [selectedDate, setSelectedDate] = useState(toISODate(new Date()));
@@ -178,7 +180,7 @@ export default function WorkerCalendar() {
     if (isHoliday) {
       modalData = {
         type: "holiday",
-        status: "Company Holiday",
+        status: t("Company Holiday"),
         reason: "This is a pre-announced company non-working day.",
       };
     } else if (leave) {
@@ -198,8 +200,8 @@ export default function WorkerCalendar() {
       // 🔥 วันหยุดประจำสัปดาห์ (ตาม Setting)
       modalData = {
         type: "weekend",
-        status: "Non-Working Day",
-        reason: "Off-day according to company schedule.",
+        status: t("Non-Working Day"),
+        reason: t("Off-day according to company schedule."),
       };
     } else if (isFuture) {
       modalData = {
@@ -233,7 +235,7 @@ export default function WorkerCalendar() {
     <div className="page-card wc">
       <header className="wc-head">
         <div>
-          <h1 className="wc-title">My Calendar</h1>
+          <h1 className="wc-title">{t("My Calendar")}</h1>
           <p className="wc-sub">
             Attendance + Leave (monthly view){loading ? " • Loading..." : ""}
           </p>
@@ -254,7 +256,7 @@ export default function WorkerCalendar() {
 
       <div className="calendar">
         <div className="calendar-head">
-          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+          {[t("Sun"), t("Mon"), t("Tue"), t("Wed"), t("Thu"), t("Fri"), t("Sat")].map((d) => (
             <div className="cal-cell head" key={d}>{d}</div>
           ))}
         </div>
@@ -320,9 +322,7 @@ export default function WorkerCalendar() {
                         display: "block",
                         marginTop: "2px"
                       }}
-                    >
-                      Company Holiday
-                    </span>
+                    >{t("Company Holiday")}</span>
                   )}
                 </div>
               </div>
