@@ -1,5 +1,13 @@
 {
   "common": {
+    "status": {
+      "pending": "Pending",
+      "waiting": "Waiting",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "late": "Late",
+      "onTime": "On time"
+    },
     "all": "All",
     "success": "Success",
     "approve": "Approve",
@@ -57,10 +65,6 @@
     "previous": "Previous",
     "next": "Next",
     "leaveWithType": "Leave ({{type}})",
-    "status": {
-      "late": "Late",
-      "onTime": "On time"
-    },
     "daysShort": {
       "sun": "SUN",
       "mon": "MON",
@@ -687,6 +691,17 @@
     }
   },
   "components": {
+    "pagination": {
+      "range": "{{start}}-{{end}} of {{total}}",
+      "perPage": "{{n}} / page",
+      "pageXofY": "{{page}} / {{totalPages}}",
+      "first": "First",
+      "prev": "Prev",
+      "next": "Next",
+      "last": "Last",
+      "pageSizeAria": "Select page size",
+      "pageSizeTitle": "Items per page"
+    },
     "sidebar": {
       "App Sidebar": "App Sidebar"
     },
@@ -814,23 +829,28 @@
           "weekendBreakDesc": "Enjoy the weekend! This is a scheduled non-working day."
     },
     "quickActionModal": {
-      "Close Window": "Close Window",
-      "Type:": "Type:",
-      "Reason / Note": "Reason / Note",
-      "New Name:": "New Name:",
-      "Employee:": "Employee:",
-      "Current Name:": "Current Name:",
-      "View Supporting Document": "View Supporting Document",
-      "Period:": "Period:",
-      "leaveTitle": "Leave Request Detail",
-      "profileTitle": "Profile Update Detail",
       "missingRequestId": "Missing request id.",
       "confirmApproveTitle": "Approve Request",
       "confirmRejectTitle": "Reject Request",
+      "confirmApproveProfileText": "Approve this profile update request?",
+      "confirmRejectProfileText": "Reject this profile update request?",
       "confirmApproveText": "Are you sure you want to approve this leave request?",
       "confirmRejectText": "Are you sure you want to reject this leave request?",
       "actionSuccess": "Action completed successfully.",
-      "actionFailed": "Failed to process request."
+      "actionFailed": "Failed to process request.",
+      "profileTitle": "Profile Update Detail",
+      "leaveTitle": "Leave Request Detail",
+      "currentName": "Current Name",
+      "newName": "New Name",
+      "employee": "Employee",
+      "type": "Type",
+      "period": "Period",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "viewDoc": "View Supporting Document",
+      "reason": "Reason / Note",
+      "noReason": "No reason provided.",
+      "close": "Close"
     },
     "workerModal": {
       "Check In:": "Check In:",

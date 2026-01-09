@@ -317,8 +317,10 @@ export default function Employees() {
                   <td>
                     <div className="emp-muted mini">{emp.email}</div>
                     <span className={`badge ${emp.role === "HR" ? "badge-role-hr" : "badge-role-worker"}`}>
-                      {emp.role}
-                    </span>
+                    {emp.role === "HR"
+                      ? t("pages.hrEmployees.filters.hr")
+                      : t("pages.hrEmployees.filters.worker")}
+                  </span>
                     {!emp.isActive && (
                       <span className="badge badge-danger">{t("pages.hrEmployees.badge.inactive")}</span>
                     )}

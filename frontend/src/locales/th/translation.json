@@ -1,5 +1,13 @@
 {
   "common": {
+    "status": {
+      "pending": "รอดำเนินการ",
+      "waiting": "รอการตรวจสอบ",
+      "approved": "อนุมัติแล้ว",
+      "rejected": "ปฏิเสธแล้ว",
+      "late": "มาสาย",
+      "onTime": "ตรงเวลา"
+    },
     "all": "ทั้งหมด",
     "success": "สำเร็จ",
     "approve": "อนุมัติ",
@@ -10,7 +18,7 @@
     "thai": "ไทย",
     "somethingWentWrong": "Something went wrong.",
     "role": {
-      "HR": "HR",
+      "HR": "ฝ่ายบุคคล (HR)",
       "Worker": "พนักงาน"
     },
     "user": "ผู้ใช้",
@@ -56,13 +64,8 @@
     },
      "previous": "ก่อนหน้า",
     "next": "ถัดไป",
-    "error": "เกิดข้อผิดพลาด",
     "leave": "ลา",
     "leaveWithType": "ลา ({{type}})",
-    "status": {
-      "late": "มาสาย",
-      "onTime": "ตรงเวลา"
-    },
     "daysShort": {
       "sun": "อา",
       "mon": "จ",
@@ -693,6 +696,17 @@
     }
   },
   "components": {
+    "pagination": {
+      "range": "{{start}}-{{end}} จาก {{total}}",
+      "perPage": "{{n}} / หน้า",
+      "pageXofY": "{{page}} / {{totalPages}}",
+      "first": "หน้าแรก",
+      "prev": "ก่อนหน้า",
+      "next": "ถัดไป",
+      "last": "หน้าสุดท้าย",
+      "pageSizeAria": "เลือกจำนวนรายการต่อหน้า",
+      "pageSizeTitle": "รายการต่อหน้า"
+    },
     "sidebar": {
       "App Sidebar": "แถบเมนู"
     },
@@ -821,14 +835,28 @@
       "weekendBreakDesc": "พักผ่อนให้เต็มที่ วันนี้เป็นวันหยุดตามปฏิทิน"
     },
     "quickActionModal": {
-      "Close Window": "ปิดหน้าต่าง",
-      "Type:": "ประเภท:",
-      "Reason / Note": "เหตุผล / หมายเหตุ",
-      "New Name:": "ชื่อใหม่:",
-      "Employee:": "พนักงาน:",
-      "Current Name:": "ชื่อปัจจุบัน:",
-      "View Supporting Document": "ดูเอกสารประกอบ",
-      "Period:": "ช่วงเวลา:"
+      "missingRequestId": "ไม่พบรหัสคำขอ (request id)",
+      "confirmApproveTitle": "ยืนยันอนุมัติ",
+      "confirmRejectTitle": "ยืนยันปฏิเสธ",
+      "confirmApproveProfileText": "ต้องการอนุมัติคำขอแก้ไขโปรไฟล์นี้หรือไม่?",
+      "confirmRejectProfileText": "ต้องการปฏิเสธคำขอแก้ไขโปรไฟล์นี้หรือไม่?",
+      "confirmApproveText": "ต้องการอนุมัติคำขอลานี้หรือไม่?",
+      "confirmRejectText": "ต้องการปฏิเสธคำขอลานี้หรือไม่?",
+      "actionSuccess": "ดำเนินการสำเร็จ",
+      "actionFailed": "ดำเนินการไม่สำเร็จ",
+      "profileTitle": "รายละเอียดคำขอแก้ไขโปรไฟล์",
+      "leaveTitle": "รายละเอียดคำขอลา",
+      "currentName": "ชื่อปัจจุบัน",
+      "newName": "ชื่อใหม่",
+      "employee": "พนักงาน",
+      "type": "ประเภท",
+      "period": "ช่วงเวลา",
+      "approved": "อนุมัติแล้ว",
+      "rejected": "ปฏิเสธแล้ว",
+      "viewDoc": "ดูเอกสารประกอบ",
+      "reason": "เหตุผล / หมายเหตุ",
+      "noReason": "ไม่ได้ระบุเหตุผล",
+      "close": "ปิด"
     },
     "workerModal": {
       "leaveTitle": "รายละเอียดคำขอลา",
