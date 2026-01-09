@@ -8,7 +8,7 @@ import {
   FiCheck,
   FiInfo,
 } from "react-icons/fi";
-import "./WorkerNotifications.css"; // ✅ เรียกใช้ไฟล์ CSS ที่สร้างใหม่
+import "./WorkerNotifications.css"; // เรียกใช้ CSS ล่าสุดที่แยกไฟล์ไว้
 import Pagination from "../components/Pagination";
 import { alertConfirm, alertError, alertSuccess } from "../utils/sweetAlert";
 import QuickActionModal from "../components/QuickActionModal";
@@ -167,6 +167,17 @@ export default function WorkerNotifications() {
     }
   };
 
+  const deleteNoti = async (id) => {
+    const ok = await alertConfirm(t("common.confirm"), t("pages.workerNotifications.alert.clearAllText"), t("common.confirm"));
+    if (!ok) return;
+    try {
+      await axiosClient.delete(`/notifications/${id}`);
+      setNotifications((prev) => prev.filter((n) => n.notificationId !== id));
+    } catch (err) {
+      alertError(t("common.error"), t("common.somethingWentWrong"));
+    }
+  };
+
   const openQuick = (n) => {
     setSelected(normalizeForModal(n));
     setQuickOpen(true);
@@ -198,11 +209,6 @@ export default function WorkerNotifications() {
     return t("pages.workerNotifications.type.general");
   };
 
-  const renderTime = (ts) => {
-    if (!ts) return "-";
-    return moment(ts).locale(mLocale).format("DD MMM YYYY, HH:mm");
-  };
-
   return (
     <div className="page-card">
       <header className="worker-header">
@@ -212,17 +218,17 @@ export default function WorkerNotifications() {
         </div>
 
         <div style={{ display: "flex", gap: 8 }}>
-          <button className="btn outline" onClick={fetchNotifications} disabled={loading}>
+          <button className="btn outline small" onClick={fetchNotifications} disabled={loading}>
             <FiRefreshCw className={loading ? "spin" : ""} />
             <span>{t("pages.workerNotifications.refresh")}</span>
           </button>
 
-          <button className="btn outline" onClick={handleMarkAllRead} disabled={notifications.length === 0}>
+          <button className="btn outline small" onClick={handleMarkAllRead} disabled={notifications.length === 0}>
             <FiCheckCircle />
             <span>{t("pages.workerNotifications.markAllRead")}</span>
           </button>
 
-          <button className="btn danger" onClick={handleClearAll} disabled={notifications.length === 0}>
+          <button className="btn danger small" onClick={handleClearAll} disabled={notifications.length === 0}>
             <FiTrash2 />
             <span>{t("pages.workerNotifications.clearAll")}</span>
           </button>
@@ -247,7 +253,7 @@ export default function WorkerNotifications() {
               <tr><td colSpan="4" className="empty">{t("pages.workerNotifications.noNotificationsFound")}</td></tr>
             ) : (
               pagedNotifications.map((n) => (
-                <tr key={n.notificationId || n.id || `${n.notificationType}-${n._ts}`}>
+                <tr key={n.notificationId || n.id || `${n.notificationType}-${n._ts}`} className={n.isRead ? "read" : "unread"}>
                   <td>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                       {renderTypeIcon(n.notificationType)}
@@ -256,12 +262,23 @@ export default function WorkerNotifications() {
                     </div>
                   </td>
                   <td style={{ color: "#334155", lineHeight: "1.5" }}>{n.message}</td>
-                  <td style={{ color: "#64748b", fontSize: "13px" }}>{renderTime(n.createdAt)}</td>
+                  <td style={{ color: "#64748b", fontSize: "13px" }}>
+                    {moment(n.createdAt).locale(mLocale).format("DD MMM YYYY, HH:mm")}
+                  </td>
                   <td style={{ textAlign: "center" }}>
-                    <button className="btn outline small" onClick={() => openQuick(n)}>
-                      <FiCheck />
-                      <span>{t("pages.workerNotifications.view")}</span>
-                    </button>
+                    <div className="action-btns-group">
+                      <button className="btn outline small" onClick={() => openQuick(n)}>
+                        <FiCheck />
+                        <span>{t("pages.workerNotifications.view")}</span>
+                      </button>
+                      <button 
+                        className="btn danger small" 
+                        style={{ padding: '6px' }} 
+                        onClick={(e) => { e.stopPropagation(); deleteNoti(n.notificationId); }}
+                      >
+                        <FiTrash2 size={14} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -270,7 +287,7 @@ export default function WorkerNotifications() {
         </table>
       </div>
 
-      <div style={{ marginTop: 24, display: "flex", justifyContent: "flex-end" }}>
+      <div className="pagination-footer">
         <Pagination
           total={notifications.length}
           page={page}
