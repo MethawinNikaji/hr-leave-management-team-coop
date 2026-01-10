@@ -10,6 +10,8 @@ import { useTranslation } from "react-i18next";
 const defaultPolicy = {
   startTime: "09:00",
   endTime: "18:00",
+  breakStartTime: "12:00",
+  breakEndTime: "13:00",
   graceMinutes: 5,
   workingDays: { mon: true, tue: true, wed: true, thu: true, fri: true, sat: false, sun: false },
   specialHolidays: [],
@@ -72,6 +74,28 @@ export default function HRAttendancePolicy() {
   }, [policy.workingDays, DAYS]);
 
   const save = async () => {
+    // 1. Validation Logic: ตรวจสอบลำดับเวลาให้ถูกต้อง
+    // กฎ: START TIME < BREAK START < BREAK END < END TIME
+    if (policy.breakStartTime <= policy.startTime) {
+      return alertError(
+        t("common.error"),
+        "เวลาเริ่มพัก (Break Start) ต้องอยู่หลังเวลาเริ่มงาน (Start Time)"
+      );
+    }
+    if (policy.breakEndTime <= policy.breakStartTime) {
+      return alertError(
+        t("common.error"),
+        "เวลาจบพัก (Break End) ต้องอยู่หลังเวลาเริ่มพัก (Break Start)"
+      );
+    }
+    if (policy.endTime <= policy.breakEndTime) {
+      return alertError(
+        t("common.error"),
+        "เวลาเลิกงาน (End Time) ต้องอยู่หลังเวลาจบพัก (Break End)"
+      );
+    }
+
+    // 2. ถามยืนยันการบันทึก
     const ok = await alertConfirm(
       t("pages.attendancePolicy.saveTitle"),
       t("pages.attendancePolicy.saveDesc"),
@@ -86,9 +110,12 @@ export default function HRAttendancePolicy() {
         .filter((key) => policy.workingDays[key])
         .join(",");
 
+      // 3. ส่งข้อมูลไปยัง Backend (ตรวจสอบว่า Controller รับค่าเหล่านี้แล้ว)
       await axiosClient.put("/admin/attendance-policy", {
         startTime: policy.startTime,
         endTime: policy.endTime,
+        breakStartTime: policy.breakStartTime,
+        breakEndTime: policy.breakEndTime,
         graceMinutes: policy.graceMinutes,
         workingDays: daysStr,
         leaveGapDays: policy.leaveGapDays,
@@ -185,6 +212,30 @@ export default function HRAttendancePolicy() {
                 type="time"
                 value={policy.endTime}
                 onChange={(e) => setPolicy((p) => ({ ...p, endTime: e.target.value }))}
+              />
+            </div>
+          </div>
+
+          <div className="hrp-row">
+            <div className="hrp-field">
+              <label>เวลาเริ่มพัก (Break Start)</label>
+              <input
+                type="time"
+                min={policy.startTime}
+                max={policy.breakEndTime}
+                value={policy.breakStartTime}
+                onChange={(e) => setPolicy((p) => ({ ...p, breakStartTime: e.target.value }))}
+              />
+            </div>
+
+            <div className="hrp-field">
+              <label>เวลาจบพัก (Break End)</label>
+              <input
+                type="time"
+                min={policy.breakStartTime}
+                max={policy.endTime}
+                value={policy.breakEndTime}
+                onChange={(e) => setPolicy((p) => ({ ...p, breakEndTime: e.target.value }))}
               />
             </div>
           </div>
