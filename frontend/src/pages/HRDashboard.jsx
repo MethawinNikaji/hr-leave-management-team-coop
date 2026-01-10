@@ -632,7 +632,7 @@ export default function HRDashboard() {
 
       {tab === "audit" && <AuditLogPanel />}
 
-      <DailyDetailModal isOpen={dailyModalOpen} onClose={() => setDailyModalOpen(false)} date={selectedDate} data={dailyData} />
+      <DailyDetailModal isOpen={dailyModalOpen} onClose={() => setDailyModalOpen(false)} date={selectedDate} data={dailyData} workingDays={workingDays} />
     </div>
   );
 }

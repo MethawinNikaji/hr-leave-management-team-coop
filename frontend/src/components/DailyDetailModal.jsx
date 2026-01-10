@@ -13,7 +13,7 @@ import moment from "moment";
 import "moment/locale/th";
 import { useTranslation } from "react-i18next";
 
-export default function DailyDetailModal({ isOpen, onClose, date, data }) {
+export default function DailyDetailModal({ isOpen, onClose, date, data, workingDays = [1,2,3,4,5] }) {
   const { t, i18n } = useTranslation();
 
   // ✅ locale สำหรับ moment (ให้คงที่เสมอ)
@@ -38,13 +38,13 @@ export default function DailyDetailModal({ isOpen, onClose, date, data }) {
     const today = moment().startOf("day");
 
     const isFuture = selected.isAfter(today);
-    const isWeekend = selected.day() === 0 || selected.day() === 6;
+    const isWeekend = !workingDays.includes(selected.day());
 
     // ตรวจสอบว่าเป็นวันหยุดพิเศษหรือไม่
     const isSpecialHoliday = data?.isSpecialHoliday || false;
 
     return { isFuture, isWeekend, isSpecialHoliday };
-  }, [date, data]);
+  }, [date, data, workingDays]);
 
   const { isFuture, isWeekend, isSpecialHoliday } = dateStatus;
   const isHoliday = isWeekend || isSpecialHoliday;

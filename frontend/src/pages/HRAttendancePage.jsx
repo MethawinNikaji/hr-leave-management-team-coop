@@ -87,6 +87,8 @@ export default function HRAttendancePage() {
   const [policy, setPolicy] = useState({ endTime: "18:00" });
   const [workingDays, setWorkingDays] = useState([1, 2, 3, 4, 5]);
   const [specialHolidays, setSpecialHolidays] = useState([]);
+  const todayStr = moment().format("YYYY-MM-DD");
+  const [isHalfDayAfternoon, setIsHalfDayAfternoon] = useState(false);
 
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -119,16 +121,34 @@ export default function HRAttendancePage() {
         setSpecialHolidays(pRes.data.policy.specialHolidays || []);
       }
 
+      // 2) ส่วนของ Attendance Records
       const records = attRes.data.records || [];
       setHistory(records);
-      const todayStr = new Date().toISOString().split("T")[0];
+      
       const todayRecord = records.find(r => r.workDate && r.workDate.startsWith(todayStr));
       if (todayRecord) {
         if (todayRecord.checkInTime) setCheckedInAt(new Date(todayRecord.checkInTime));
         if (todayRecord.checkOutTime) setCheckedOutAt(new Date(todayRecord.checkOutTime));
       }
 
-      setLeaveHistory(leaveRes.data.requests || []);
+      // 3) ส่วนของ Leave Requests
+      const requests = leaveRes.data.requests || [];
+      setLeaveHistory(requests);
+
+      // --- Logic เช็คลาครึ่งบ่าย ---
+      // (ลบ const todayStr ตรงนี้ออก เพราะเราประกาศไว้ข้างบนแล้ว)
+      const hasHalfDayAfternoon = requests.some(req => 
+        req.status === "Approved" && 
+        moment(req.startDate).isSameOrBefore(todayStr, 'day') && 
+        moment(req.endDate).isSameOrAfter(todayStr, 'day') &&
+        (
+          (moment(req.endDate).isSame(todayStr, 'day') && req.endDuration === "HalfAfternoon") ||
+          (moment(req.startDate).isSame(todayStr, 'day') && req.startDuration === "HalfAfternoon" && moment(req.startDate).isSame(req.endDate, 'day'))
+        )
+      );
+      setIsHalfDayAfternoon(hasHalfDayAfternoon);
+
+      // 4) ส่วนของ Quotas และอื่นๆ
       const qs = qRes.data.quotas || [];
       setQuotas(qs);
       if (qs.length > 0 && !leaveForm.leaveTypeId) {
@@ -169,10 +189,11 @@ export default function HRAttendancePage() {
 
   const handleAttendance = async (type) => {
     if (type === 'out') {
-        if (!policy?.endTime) return;
-        const [h, m] = policy.endTime.split(":").map(Number);
+        if (!policy?.endTime || !policy?.breakStartTime) return;
+        const targetTimeStr = isHalfDayAfternoon ? policy.breakStartTime : policy.endTime;
+        const [h, m] = targetTimeStr.split(":").map(Number);
         if (moment().isBefore(moment().hour(h).minute(m).second(0))) {
-            return alertError(t("pages.hrAttendancePage.alert.notTimeCheckOutTitle"), t("pages.hrAttendancePage.alert.policyCheckOutFrom", { time: policy.endTime }));
+            return alertError(t("pages.hrAttendancePage.alert.notTimeCheckOutTitle"), t("pages.hrAttendancePage.alert.policyCheckOutFrom", { time: targetTimeStr }));
         }
     }
     try {
@@ -241,16 +262,32 @@ export default function HRAttendancePage() {
   const formatDate = (s) => s ? new Date(s).toLocaleDateString(uiLocale, { day: "2-digit", month: "short", year: "numeric" }) : "-";
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   const isBeforeEndTime = useMemo(() => {
-    if (!policy?.endTime) return false;
-    const [h, m] = policy.endTime.split(":").map(Number);
-    return moment().isBefore(moment().hour(h).minute(m));
-  }, [policy?.endTime]);
+    if (!policy?.endTime || !policy?.breakStartTime) return false;
+    const targetTimeStr = isHalfDayAfternoon ? policy.breakStartTime : policy.endTime;
+    const [h, m] = targetTimeStr.split(":").map(Number);
+    const targetMoment = moment().hour(h).minute(m).second(0);
+    return moment().isBefore(targetMoment);
+  }, [policy, isHalfDayAfternoon]);
 
   const isWorkingDate = (date) => {
     const day = date.getDay();
     const dateStr = moment(date).format("YYYY-MM-DD");
     return workingDays.includes(day) && !specialHolidays.includes(dateStr);
   };
+
+  const isFullDayLeave = useMemo(() => {
+    if (!todayStr || !leaveHistory) return false;
+    return leaveHistory.some(req => 
+      req.status === "Approved" && 
+      moment(req.startDate).isSameOrBefore(todayStr, 'day') && 
+      moment(req.endDate).isSameOrAfter(todayStr, 'day') &&
+      (req.startDuration === 'Full' || (req.startDuration === 'HalfMorning' && req.endDuration === 'HalfAfternoon'))
+    );
+  }, [leaveHistory, todayStr]);
+
+  const isTodaySpecialHoliday = useMemo(() => {
+    return specialHolidays.includes(todayStr);
+  }, [specialHolidays, todayStr]);
 
   return (
     <div className="page-card">
@@ -268,7 +305,7 @@ export default function HRAttendancePage() {
 
       <section className="action-row">
         {[
-          { label: "checkIn", time: checkedInAt, disabled: !!checkedInAt, handler: () => handleAttendance('in'), btnText: checkedInAt ? "checkedIn" : "checkInNow" },
+          { label: "checkIn", time: checkedInAt, disabled: !!checkedInAt || isFullDayLeave || isTodaySpecialHoliday, handler: () => handleAttendance('in'), btnText: isFullDayLeave ? "On Leave" : isTodaySpecialHoliday ? "Holiday" : (checkedInAt ? "checkedIn" : "checkInNow") },
           { label: "checkOut", time: checkedOutAt, disabled: !checkedInAt || !!checkedOutAt || isBeforeEndTime, handler: () => handleAttendance('out'), btnText: "checkOutBtn" }
         ].map((action, idx) => (
           <div className="action-card" key={idx}>
