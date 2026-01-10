@@ -263,10 +263,19 @@ const getDailyDetail = async (req, res, next) => {
         endDate: { gte: targetDate }
       },
       include: {
-        employee: true,
+        employee: { select: { employeeId: true, firstName: true, lastName: true, role: true } },
         leaveType: true,
         approvedByHR: { select: { firstName: true, lastName: true } }
       }
+    });
+
+    const enrichedAttendance = attendance.map(att => {
+      const relatedLeave = leaves.find(l => l.employeeId === att.employeeId);
+      return {
+        ...att,
+        // ส่งข้อมูลกะที่ลาไปให้หน้าบ้านแสดงผลในแถบ Present ด้วย
+        halfDayStatus: relatedLeave ? (relatedLeave.startDuration === 'HalfMorning' ? 'MorningLeave' : 'AfternoonLeave') : null
+      };
     });
 
     const presentIds = attendance.map(a => a.employeeId);
@@ -279,7 +288,7 @@ const getDailyDetail = async (req, res, next) => {
     res.status(200).json({
       success: true,
       data: {
-        present: attendance,
+        present: enrichedAttendance,
         leaves: leaves,
         absent: absent,
         isSpecialHoliday: isSpecialHoliday,
