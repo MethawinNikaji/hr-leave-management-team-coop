@@ -4,6 +4,7 @@ import { alertConfirm, alertError, alertSuccess } from "../utils/sweetAlert";
 import axiosClient from "../api/axiosClient";
 import { buildFileUrl } from "../utils/fileUrl";
 import "./HRLeaveApprovals.css";
+import moment from "moment";
 import { useTranslation } from "react-i18next";
 
 export default function HRLeaveApprovals() {
@@ -283,7 +284,19 @@ export default function HRLeaveApprovals() {
                   </td>
 
                   <td>
-                    {formatDate(r.startDate)} → {formatDate(r.endDate)}
+                    {(() => {
+                      const isSameDay = moment(r.startDate).isSame(r.endDate, 'day');
+                      let durText = "";
+                      
+                      if (isSameDay) {
+                        if (r.startDuration === "HalfMorning") durText = ` (${t("common.morning", "Morning")})`;
+                        else if (r.startDuration === "HalfAfternoon") durText = ` (${t("common.afternoon", "Afternoon")})`;
+                      }
+
+                      return isSameDay 
+                        ? `${formatDate(r.startDate)}${durText}`
+                        : `${formatDate(r.startDate)} → ${formatDate(r.endDate)}`;
+                    })()}
                   </td>
 
                   <td>
@@ -343,7 +356,8 @@ export default function HRLeaveApprovals() {
               <div>
                 <div className="hrla-modal-title">{t("pages.hrLeaveApprovals.modal.title")}</div>
                 <div className="hrla-modal-sub">
-                  {formatDate(active.startDate)} → {formatDate(active.endDate)}
+                  {formatDate(active.startDate)} 
+                  {moment(active.startDate).isSame(active.endDate, 'day') ? "" : ` → ${formatDate(active.endDate)}`}
                 </div>
               </div>
               <button className="hrla-x" type="button" onClick={() => setActive(null)}>
@@ -359,6 +373,16 @@ export default function HRLeaveApprovals() {
                     {active.employee ? `${active.employee.firstName} ${active.employee.lastName || ""}` : `ID: ${active.employeeId}`}
                   </div>
                 </div>
+                {(active.startDuration !== 'Full' || active.endDuration !== 'Full') && (
+                  <div className="hrla-kv">
+                    <div className="hrla-k">{t("pages.workerLeave.Duration", "Duration")}</div>
+                    <div className="hrla-v">
+                      {moment(active.startDate).isSame(active.endDate, 'day')
+                        ? t(`common.${active.startDuration.toLowerCase().replace('half','')}`, active.startDuration)
+                        : `${t("common.start", "Start")}: ${active.startDuration}, ${t("common.end", "End")}: ${active.endDuration}`}
+                    </div>
+                  </div>
+                )}
                 <div className="hrla-kv">
                   <div className="hrla-k">{t("pages.hrLeaveApprovals.Type")}</div>
                   <div className="hrla-v">{active.leaveType?.typeName || t("pages.hrLeaveApprovals.defaults.leave")}</div>
