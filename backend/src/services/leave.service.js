@@ -231,9 +231,13 @@ const checkQuotaAvailability = async (employeeId, leaveTypeId, requestedDays, ye
 
     if (requestedDays > available) {
         throw CustomError.conflict(
-            `Insufficient quota. You have ${pendingDays} days currently pending approval. ` +
-            `(Total available including carry-over: ${available} days, requested: ${requestedDays} days)`
-        );
+            "errors.leave.insufficientQuota",
+            {
+                pendingDays,
+                available,
+                requestedDays
+            }
+            );
     }
 
     return quota;

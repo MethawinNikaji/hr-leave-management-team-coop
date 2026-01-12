@@ -1,4 +1,9 @@
 {
+  "errors": {
+    "leave": {
+      "insufficientQuota": "Insufficient quota. You currently have {{pendingDays}} day(s) pending approval. (Available including carry-over: {{available}} day(s), requested: {{requestedDays}} day(s))"
+    }
+  },
   "common": {
     "leave": "Leave",
     "requestStatus": {

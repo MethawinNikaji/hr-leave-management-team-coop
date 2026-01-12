@@ -155,7 +155,12 @@ const requestLeave = async (req, res, next) => {
     });
   } catch (error) {
     if (error.statusCode === 409 || error.statusCode === 400) {
-      return res.status(200).json({ success: false, message: error.message });
+      return res.status(200).json({
+        success: false,
+        message: error.message,
+        meta: error.meta || undefined,
+        statusCode: error.statusCode
+      });
     }
     next(error);
   }
@@ -396,7 +401,12 @@ const handleApproval = async (req, res, next) => {
     });
   } catch (error) {
     if (error.statusCode === 409 || error.statusCode === 400) {
-      return res.status(200).json({ success: false, message: error.message });
+      return res.status(200).json({
+        success: false,
+        message: error.message,
+        meta: error.meta || undefined,
+        statusCode: error.statusCode
+      });
     }
     next(error);
   }

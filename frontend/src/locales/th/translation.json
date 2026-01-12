@@ -1,4 +1,9 @@
 {
+  "errors": {
+    "leave": {
+      "insufficientQuota": "โควต้าการลาไม่เพียงพอ ขณะนี้คุณมี {{pendingDays}} วัน ที่รอการอนุมัติ (จำนวนวันที่ใช้ได้รวมวันสะสม: {{available}} วัน, ขอใช้ {{requestedDays}} วัน)"
+    }
+  },
   "common": {
      "leave": "ลา",
       "requestStatus": {

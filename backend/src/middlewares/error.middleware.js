@@ -1,6 +1,6 @@
 // backend/src/middlewares/error.middleware.js
 
-const CustomError = require('../utils/customError');
+const CustomError = require("../utils/customError");
 
 /**
  * Global Error Handling Middleware.
@@ -8,48 +8,54 @@ const CustomError = require('../utils/customError');
  */
 // ต้องรับ 4 arguments (err, req, res, next) เพื่อให้ Express รู้ว่าเป็น Error Middleware
 const errorMiddleware = (err, req, res, next) => {
-    // Log error stack สำหรับ Debug ใน Server
-    if (process.env.NODE_ENV === 'development') {
-        console.error('--- Global Error Handler Activated ---');
-        console.error(err.stack); 
-        console.error('--------------------------------------');
+  // Debug log
+  if (process.env.NODE_ENV === "development") {
+    console.error("--- Global Error Handler Activated ---");
+    console.error(err);
+    console.error("--------------------------------------");
+  }
+
+  let statusCode = 500;
+  let message = "Internal server error.";
+  let meta = null;
+
+  // ✅ CustomError (รองรับ i18n key + meta)
+  if (err instanceof CustomError) {
+    statusCode = err.statusCode || 500;
+    message = err.message || message;
+    meta = err.meta || null;
+  } else {
+    // Multer / Upload
+    if (err?.name === "MulterError") {
+      statusCode = 400;
+      message = err.message || "Invalid file upload.";
+    } else if (err?.name === "PrismaClientKnownRequestError") {
+      // Prisma known errors (กันไว้แบบคร่าว ๆ)
+      statusCode = 400;
+      message = err.message || "Database error.";
+    } else if (err?.name === "ValidationError") {
+      statusCode = 422;
+      message = err.message || "Validation failed.";
+    } else if (err?.statusCode) {
+      statusCode = err.statusCode;
+      message = err.message || message;
+    } else if (err?.message) {
+      message = err.message;
     }
 
-    let statusCode = err.statusCode || 500;
-    let message = 'Internal Server Error. Please try again later.';
-
-    // 1. จัดการ CustomError
-    if (err instanceof CustomError) {
-        statusCode = err.statusCode;
-        message = err.message;
-    } 
-    
-    // 2. จัดการ Prisma Error (เช่น Unique Constraint P2002)
-    else if (err.code && err.code.startsWith('P')) {
-        if (err.code === 'P2002') { // Unique constraint violation
-            const field = err.meta?.target?.join(', ') || 'data';
-            statusCode = 409; // Conflict
-            message = `Duplicate entry for ${field}. This record already exists.`;
-        }
-        // เพิ่มการจัดการ Prisma Error อื่นๆ ตามความจำเป็น
+    // ถ้าเป็น error ที่ไม่ชัดเจน ให้กันไว้ไม่ส่ง 500 แบบเละ ๆ (optional)
+    if (statusCode === 500 && (err?.name === "MulterError")) {
+      statusCode = 400;
     }
+  }
 
-    // 🔥 3. เพิ่มส่วนนี้: จัดการ Standard Error อื่นๆ (เช่น Error จาก Multer)
-    else if (err.message) {
-        // ถ้า err มี message ติดมา ให้ใช้ message นั้น (เช่น ข้อความภาษาไทยจาก fileFilter)
-        message = err.message;
-        // ถ้าเป็น Error จาก Multer มักจะเป็นเรื่องไฟล์ไม่ถูกต้อง ควรใช้ 400
-        if (err.name === 'MulterError' || statusCode === 500) {
-            statusCode = 400; 
-        }
-    }
-
-    // ส่ง Response กลับไปยัง Client
-    res.status(statusCode).json({
-        success: false,
-        message: message,
-        statusCode: statusCode,
-    });
+  // ส่ง Response กลับไปยัง Client (✅ ส่ง meta ไปด้วยถ้ามี)
+  res.status(statusCode).json({
+    success: false,
+    message,
+    meta: meta || undefined,
+    statusCode,
+  });
 };
 
 module.exports = errorMiddleware;
