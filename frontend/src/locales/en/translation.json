@@ -220,71 +220,71 @@
       "Time Expired": "Time Expired",
       "Too Early": "Too Early",
       "duration": {
-            "full": "Full Day",
-            "halfMorning": "Half Day (Morning)",
-            "halfAfternoon": "Half Day (Afternoon)"
-          },
-        "hello": "Hello",
-        "hrFallback": "HR",
-        "lateThisMonth": "Late this month:",
-        "checkIn": "Check In",
-        "checkOut": "Check Out",
-        "checkedIn": "Checked In",
-        "checkInNow": "Check In Now",
-        "checkOutBtn": "Check Out",
-        "waitUntil": "Wait until {{time}}",
-        "leave": "Leave",
-        "manageLeaves": "Manage Leaves",
-        "requestLeave": "Request Leave",
-        "yourLeaveBalanceIncludingCarryOver": "Your Leave Balance (Including Carry-over)",
-        "yourPersonalTimeHistory": "Your Personal Time History",
-        "yourPersonalLeaveHistory": "Your Personal Leave History",
-        "used": "Used",
-        "available": "Available",
-        "remaining": "Remaining",
-        "carriedOverBadge": "+{{days}} Carried Over",
-        "date": "Date",
-        "in": "In",
-        "out": "Out",
-        "status": "Status",
-        "type": "Type",
-        "dateRange": "Date Range",
-        "days": "Days",
-        "action": "Action",
-        "noAttendanceRecords": "No attendance records",
-        "noLeaveHistoryYet": "No leave history yet",
-        "cancel": "Cancel",
-        "leaveType": "Leave Type",
-        "remainingDaysInOption": "(Remaining: {{remaining}} days)",
-        "startDate": "Start Date",
-        "endDate": "End Date",
-        "datePlaceholder": "YYYY-MM-DD",
-        "actualLeaveDaysLabel": "Actual leave days:",
-        "weekendsHolidaysExcluded": "* Weekends and public holidays are excluded automatically",
-        "detail": "Detail",
-        "attachmentOptional": "Attachment (optional)",
-        "chooseFile": "Choose file",
-        "noFileSelected": "No file selected",
-        "submitRequest": "Submit Request",
-        "daysCount": "{{count}} days",
-        "alert": {
-          "successTitle": "Success",
-          "failedTitle": "Failed",
-          "somethingWentWrong": "Something went wrong",
-          "connectServerFailed": "Failed to connect to server.",
-          "checkInSuccess": "Check-in successful",
-          "checkInFailedTitle": "Check-in failed",
-          "checkOutSuccess": "Check-out successful",
-          "checkOutFailedTitle": "Check-out failed",
-          "unableLoadPolicy": "Unable to load attendance policy.",
-          "notTimeCheckOutTitle": "Not time to check out yet",
-          "policyCheckOutFrom": "Policy allows check-out starting from {{time}}.",
-          "confirmCancelTitle": "Confirm cancellation",
-          "confirmCancelMsg": "Are you sure you want to cancel this leave request?",
-          "cancelLeaveSuccess": "Leave request cancelled successfully.",
-          "unableCancelTitle": "Unable to cancel",
-          "leaveSubmitSuccess": "Leave request submitted successfully."
-        }
+        "full": "Full Day",
+        "halfMorning": "Half Day (Morning)",
+        "halfAfternoon": "Half Day (Afternoon)"
+      },
+      "hello": "Hello",
+      "hrFallback": "HR",
+      "lateThisMonth": "Late this month:",
+      "checkIn": "Check In",
+      "checkOut": "Check Out",
+      "checkedIn": "Checked In",
+      "checkInNow": "Check In Now",
+      "checkOutBtn": "Check Out",
+      "waitUntil": "Wait until {{time}}",
+      "leave": "Leave",
+      "manageLeaves": "Manage Leaves",
+      "requestLeave": "Request Leave",
+      "yourLeaveBalanceIncludingCarryOver": "Your Leave Balance (Including Carry-over)",
+      "yourPersonalTimeHistory": "Your Personal Time History",
+      "yourPersonalLeaveHistory": "Your Personal Leave History",
+      "used": "Used",
+      "available": "Available",
+      "remaining": "Remaining",
+      "carriedOverBadge": "+{{days}} Carried Over",
+      "date": "Date",
+      "in": "In",
+      "out": "Out",
+      "status": "Status",
+      "type": "Type",
+      "dateRange": "Date Range",
+      "days": "Days",
+      "action": "Action",
+      "noAttendanceRecords": "No attendance records",
+      "noLeaveHistoryYet": "No leave history yet",
+      "cancel": "Cancel",
+      "leaveType": "Leave Type",
+      "remainingDaysInOption": "(Remaining: {{remaining}} days)",
+      "startDate": "Start Date",
+      "endDate": "End Date",
+      "datePlaceholder": "YYYY-MM-DD",
+      "actualLeaveDaysLabel": "Actual leave days:",
+      "weekendsHolidaysExcluded": "* Weekends and public holidays are excluded automatically",
+      "detail": "Detail",
+      "attachmentOptional": "Attachment (optional)",
+      "chooseFile": "Choose file",
+      "noFileSelected": "No file selected",
+      "submitRequest": "Submit Request",
+      "daysCount": "{{count}} days",
+      "alert": {
+        "successTitle": "Success",
+        "failedTitle": "Failed",
+        "somethingWentWrong": "Something went wrong",
+        "connectServerFailed": "Failed to connect to server.",
+        "checkInSuccess": "Check-in successful",
+        "checkInFailedTitle": "Check-in failed",
+        "checkOutSuccess": "Check-out successful",
+        "checkOutFailedTitle": "Check-out failed",
+        "unableLoadPolicy": "Unable to load attendance policy.",
+        "notTimeCheckOutTitle": "Not time to check out yet",
+        "policyCheckOutFrom": "Policy allows check-out starting from {{time}}.",
+        "confirmCancelTitle": "Confirm cancellation",
+        "confirmCancelMsg": "Are you sure you want to cancel this leave request?",
+        "cancelLeaveSuccess": "Leave request cancelled successfully.",
+        "unableCancelTitle": "Unable to cancel",
+        "leaveSubmitSuccess": "Leave request submitted successfully."
+      }
     },
     "hrLeaveApprovals": {
       "Leave Approvals": "Leave Approvals",
@@ -306,7 +306,7 @@
       "Attachment preview": "Attachment preview",
       "No file": "No file",
       "label": "Attachment",
-       "title": "Leave Approvals",
+      "title": "Leave Approvals",
       "filters": {
         "allTypes": "All types"
       },
@@ -364,7 +364,6 @@
         "edit": "Edit",
         "delete": "Delete"
       },
-
       "table": {
         "typeNamePolicy": "Type Name & Policy",
         "paidStatus": "Paid Status",
@@ -372,26 +371,21 @@
         "themeColor": "Theme Color",
         "actions": "Actions"
       },
-
       "paid": {
         "paidLeave": "Paid Leave",
         "unpaidLeave": "Unpaid Leave"
       },
-
       "daysLabel": "{{days}} days",
-
       "badges": {
         "carryForwardEnabled": "Carry-forward Enabled (Max {{max}} Days)",
         "carryForwardDisabled": "Carry-forward Disabled"
       },
-
       "modal": {
         "addTitle": "Add Leave Type",
         "addSubtitle": "Create a new leave type category",
         "editTitle": "Edit Leave Type",
         "editSubtitle": "Modify details and leave policies"
       },
-
       "form": {
         "typeName": "Type Name",
         "defaultQuotaDaysPerYear": "Default Quota (Days Per Year)",
@@ -438,11 +432,11 @@
       "top5LateEmployees": "Top 5 Late Employees",
       "monthlyPerformanceComparison": "Monthly Performance Comparison",
       "series": {
-      "present": "Present",
-      "late": "Late",
-      "leave": "Leave",
-      "absent": "Absent"
-    },
+        "present": "Present",
+        "late": "Late",
+        "leave": "Leave",
+        "absent": "Absent"
+      },
       "selectedDateLabel": "Selected",
       "goToToday": "Go to Today",
       "tabs": {
@@ -597,13 +591,13 @@
       "Search": "Search",
       "Check In": "Check In",
       "noRecordsInRange": "No records found for the selected range.",
-      "Late this month":"Late this month",
+      "Late this month": "Late this month",
       "status": {
-          "late": "Late",
-          "onTime": "On Time"
-        }
+        "late": "Late",
+        "onTime": "On Time"
+      }
     },
-   "workerCalendar": {
+    "workerCalendar": {
       "title": "My Calendar",
       "subtitle": "Attendance + Leave (monthly view)",
       "today": "Today",
@@ -668,13 +662,10 @@
       "title": "Profile Requests",
       "alert": {
         "loadFailed": "Failed to load profile update requests.",
-
         "confirmApproveTitle": "Approve profile update?",
         "confirmApproveText": "Are you sure you want to approve this profile update request?",
-
         "confirmRejectTitle": "Reject profile update?",
         "confirmRejectText": "Are you sure you want to reject this profile update request?",
-
         "approved": "Profile update request approved successfully.",
         "rejected": "Profile update request rejected successfully."
       }
@@ -752,7 +743,7 @@
         "approved": "Approved",
         "rejected": "Rejected",
         "general": "General"
-       },
+      },
       "alert": {
         "loadFailed": "Failed to load notifications.",
         "markedRead": "All notifications marked as read.",
@@ -770,7 +761,9 @@
       "markAllRead": "Mark all read",
       "clearAll": "Clear All",
       "noNotificationsFound": "No notifications found.",
-      "badge": { "new": "NEW" },
+      "badge": {
+        "new": "NEW"
+      },
       "table": {
         "type": "Type",
         "message": "Message",
@@ -779,7 +772,9 @@
       },
       "view": "View",
       "open": "Open",
-      "modal": { "title": "Notification" },
+      "modal": {
+        "title": "Notification"
+      },
       "type": {
         "lateWarning": "Late Warning",
         "leave": "Leave",
@@ -892,7 +887,7 @@
       "General Information": "General Information",
       "User:": "User:",
       "searchPlaceholder": "Search user, ID...",
-       "title": "Audit Log",
+      "title": "Audit Log",
       "subtitle": "System activities and history",
       "category": "Category",
       "action": "Action",
@@ -918,7 +913,6 @@
         "ip": "IP Address",
         "target": "Target"
       },
-
       "categories": {
         "Leave": "Leave Management",
         "Attendance": "Attendance",
@@ -931,7 +925,6 @@
         "Report": "Reports",
         "Other": "Other"
       },
-
       "actions": {
         "LEAVE_REQUEST_CREATE": "Leave Requested",
         "LEAVE_REQUEST_CANCEL": "Leave Cancelled",
@@ -967,29 +960,29 @@
       }
     },
     "dailyDetailModal": {
-       "dailyDetailsFor": "Daily Details for",
-          "workingOT": "Working (OT)",
-          "present": "Present",
-          "onLeave": "On Leave",
-          "absent": "Absent",
-          "upcomingDate": "Upcoming Date",
-          "companyHoliday": "Company Holiday",
-          "weekend": "Weekend",
-          "regularWorkingDay": "Regular Working Day",
-          "futureNoData": "No attendance data expected yet for this future date.",
-          "employee": "Employee",
-          "checkIn": "Check In",
-          "checkOut": "Check Out",
-          "status": "Status",
-          "otWork": "OT Work",
-          "leaveType": "Leave Type",
-          "approvedBy": "Approved By",
-          "noEmployeesOnLeave": "No employees on leave for this date.",
-          "allAccounted": "All employees are accounted for today.",
-          "companySpecialHolidayTitle": "Company Special Holiday",
-          "companySpecialHolidayDesc": "Today is an officially announced non-working day.",
-          "weekendBreakTitle": "Weekend Break",
-          "weekendBreakDesc": "Enjoy the weekend! This is a scheduled non-working day."
+      "dailyDetailsFor": "Daily Details for",
+      "workingOT": "Working (OT)",
+      "present": "Present",
+      "onLeave": "On Leave",
+      "absent": "Absent",
+      "upcomingDate": "Upcoming Date",
+      "companyHoliday": "Company Holiday",
+      "weekend": "Weekend",
+      "regularWorkingDay": "Regular Working Day",
+      "futureNoData": "No attendance data expected yet for this future date.",
+      "employee": "Employee",
+      "checkIn": "Check In",
+      "checkOut": "Check Out",
+      "status": "Status",
+      "otWork": "OT Work",
+      "leaveType": "Leave Type",
+      "approvedBy": "Approved By",
+      "noEmployeesOnLeave": "No employees on leave for this date.",
+      "allAccounted": "All employees are accounted for today.",
+      "companySpecialHolidayTitle": "Company Special Holiday",
+      "companySpecialHolidayDesc": "Today is an officially announced non-working day.",
+      "weekendBreakTitle": "Weekend Break",
+      "weekendBreakDesc": "Enjoy the weekend! This is a scheduled non-working day."
     },
     "quickActionModal": {
       "missingRequestId": "Missing request id.",
@@ -1043,5 +1036,39 @@
       "checkOut": "Check Out",
       "closeWindow": "Close Window"
     }
+  },
+  "auditFields": {
+    "startTime": "Start Time",
+    "endTime": "End Time",
+    "graceMinutes": "Grace Minutes",
+    "workingDays": "Working Days",
+    "specialHolidays": "Special Holidays",
+    "policyId": "Policy ID",
+    "leaveGapDays": "Leave Gap Days",
+    "updatedAt": "Updated At",
+    "createdAt": "Created At",
+    "deletedAt": "Deleted At",
+    "id": "ID",
+    "employeeId": "Employee ID",
+    "type": "Type",
+    "status": "Status",
+    "reason": "Reason",
+    "amount": "Amount",
+    "days": "Days",
+    "firstName": "First Name",
+    "lastName": "Last Name",
+    "email": "Email",
+    "role": "Role",
+    "isActive": "Is Active",
+    "password": "Password",
+    "address": "Address",
+    "phone": "Phone",
+    "gender": "Gender",
+    "maxCarryOverDays": "Max Carry Over Days",
+    "defaultQuotaDaysPerYear": "Default Quota (Days/Year)",
+    "enableCarryForward": "Enable Carry Forward",
+    "typeName": "Type Name",
+    "colorCode": "Color Code",
+    "isPaid": "Is Paid"
   }
 }

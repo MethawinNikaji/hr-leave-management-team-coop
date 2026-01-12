@@ -79,6 +79,43 @@ const getCategoryByAction = (action = "") => {
   return "Other";
 };
 
+const formatAuditValue = (val, t) => {
+  if (val === null || val === undefined || val === "") return "-";
+  if (typeof val === "boolean") return val ? t("common.true", "Yes") : t("common.false", "No");
+  if (Array.isArray(val)) {
+    if (val.length === 0) return "-";
+    // If array of strings/numbers
+    return val.join(", ");
+  }
+  // Date check
+  if (typeof val === "string" && /^\d{4}-\d{2}-\d{2}T/.test(val)) {
+    return moment(val).format("DD MMM YYYY, HH:mm");
+  }
+  return String(val);
+};
+
+const ReadableChangeView = ({ data, t }) => {
+  if (!data || typeof data !== "object") return <JsonBlock value={data} />;
+
+  const keys = Object.keys(data);
+  if (keys.length === 0) return <div style={{ color: "#999", fontStyle: "italic", fontSize: "12px" }}>-</div>;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "6px", background: "#fafafa", borderRadius: "8px", padding: "10px", border: "1px solid #f1f5f9" }}>
+      {keys.map((key) => (
+        <div key={key} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px", fontSize: "12px" }}>
+          <span style={{ fontWeight: 600, color: "#64748b", minWidth: "120px" }}>
+            {t(`auditFields.${key}`, key)}
+          </span>
+          <span style={{ color: "#334155", fontWeight: 500, wordBreak: "break-word", textAlign: "right", flex: 1 }}>
+            {formatAuditValue(data[key], t)}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 const JsonBlock = ({ value }) => (
   <pre
     style={{
@@ -160,14 +197,14 @@ export default function AuditLogPanel() {
       const id = entityKey.match(/LeaveRequest:(\d+)/i)?.[1];
       return id
         ? t(
-            "components.auditLogPanel.entity.leaveRequestWithId",
-            "Leave Request #{{id}}",
-            { id }
-          )
+          "components.auditLogPanel.entity.leaveRequestWithId",
+          "Leave Request #{{id}}",
+          { id }
+        )
         : t(
-            "components.auditLogPanel.entity.leaveRequest",
-            "Leave Request"
-          );
+          "components.auditLogPanel.entity.leaveRequest",
+          "Leave Request"
+        );
     }
 
     if (entity === "TimeRecord") {
@@ -186,9 +223,9 @@ export default function AuditLogPanel() {
       const partDate = dateStr ? ` (${dateStr})` : "";
       const partEmp = empId
         ? ` • ${t(
-            "components.auditLogPanel.entity.empShort",
-            "Emp"
-          )} #${empId}`
+          "components.auditLogPanel.entity.empShort",
+          "Emp"
+        )} #${empId}`
         : "";
 
       return `${base}${partDate}${partEmp}`;
@@ -638,7 +675,7 @@ export default function AuditLogPanel() {
                           "Before"
                         )}
                       </label>
-                      <JsonBlock value={selected.oldValue} />
+                      <ReadableChangeView data={selected.oldValue} t={t} />
                     </div>
 
                     <div>
@@ -654,7 +691,7 @@ export default function AuditLogPanel() {
                           "After"
                         )}
                       </label>
-                      <JsonBlock value={selected.newValue} />
+                      <ReadableChangeView data={selected.newValue} t={t} />
                     </div>
                   </div>
                 </div>
