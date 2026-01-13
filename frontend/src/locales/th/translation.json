@@ -1,5 +1,54 @@
 {
+  "success": {
+    "leave": {
+      "requestSubmittedAndHrNotified": "ส่งคำขอลาสำเร็จ และแจ้ง HR แล้ว",
+      "requestCancelledAndAttachmentRemoved": "ยกเลิกคำขอลาสำเร็จ และลบไฟล์แนบ (ถ้ามี) แล้ว",
+      "requestProcessed": "ดำเนินการคำขอลาเป็นสถานะ {{status}} แล้ว",
+      "requestAndAttachmentDeleted": "ลบคำขอลาสำเร็จ และลบไฟล์แนบ (ถ้ามี) แล้ว"
+    }
+  },
+  "notifications": {
+    "leave": {
+      "newRequestFromEmployee": "มีคำขอลาใหม่: {{leaveTypeName}} จาก {{employeeName}}",
+      "newRequestReceivedWithId": "ได้รับคำขอลาใหม่ (รหัส: {{requestId}})",
+      "requestStatusUpdatedWithId": "คำขอลาของคุณ (รหัส: {{requestId}}) ถูกเปลี่ยนสถานะเป็น {{status}} แล้ว"
+    }
+  },
+  "errors": {
+    "common": {
+      "accessDenied": "ไม่อนุญาตให้เข้าถึง"
+    },
+    "leave": {
+      "requestOnNonWorkingDay": "ไม่สามารถขอลาในวันนอกวันทำงานได้ ({{fullText}})",
+      "requestedDaysMustBeGreaterThanZero": "จำนวนวันลาที่ขอต้องมากกว่า 0",
+      "requestNotFound": "ไม่พบคำขอลา",
+      "canOnlyCancelOwnRequest": "คุณสามารถยกเลิกได้เฉพาะคำขอลาของตัวเองเท่านั้น",
+      "cannotCancelAlreadyProcessed": "ไม่สามารถยกเลิกคำขอนี้ได้ เนื่องจากสถานะเป็น {{status}} แล้ว",
+      "requestNotFoundOrProcessed": "ไม่พบคำขอลานี้ หรือถูกดำเนินการไปแล้ว",
+      "insufficientQuotaOnApproval": "โควต้าการลาไม่เพียงพอสำหรับการอนุมัติคำขอนี้ (คงเหลือ: {{availableDays}} วัน, ขอใช้: {{requestedDays}} วัน)",
+      "leaveGapFromPrevious": "ต้องเว้นระยะอย่างน้อย {{gapDays}} วันจากการลาครั้งก่อนเมื่อ {{lastLeaveDate}}",
+      "leaveGapBeforeNext": "ต้องเว้นระยะอย่างน้อย {{gapDays}} วันก่อนการลาครั้งถัดไปในวันที่ {{nextLeaveDate}}",
+      "overlappingRequest": "คุณมีคำขอลาซ้ำซ้อนในช่วงเวลานี้ (รออนุมัติหรืออนุมัติแล้ว)",
+      "startAfterEnd": "วันที่เริ่มต้นต้องไม่อยู่หลังวันที่สิ้นสุด",
+      "quotaNotSet": "ยังไม่ได้ตั้งค่าโควต้าการลาสำหรับปีปัจจุบัน",
+      "insufficientQuota": "โควต้าการลาไม่เพียงพอ  (จำนวนวันที่ใช้ได้รวมวันสะสม: {{available}} วัน, ขอใช้ {{requestedDays}} วัน)"
+    }
+  },
   "common": {
+    "morning": "ครึ่งวันเช้า",
+    "afternoon": "ครึ่งวันบ่าย",
+    "start": "เริ่ม",
+    "end": "สิ้นสุด",
+    "full": "เต็มวัน",
+    "leave": "ลา",
+    "requestStatus": {
+      "pending": "รออนุมัติ",
+      "approved": "อนุมัติแล้ว",
+      "rejected": "ถูกปฏิเสธ",
+      "cancelled": "ยกเลิกแล้ว"
+    },
+    "refreshList": "รีเฟรชรายการ",
+    "details": "รายละเอียด",
     "status": {
       "pending": "รอดำเนินการ",
       "waiting": "รอการตรวจสอบ",
@@ -62,9 +111,8 @@
       "searchEmployeeTypeReason": "ค้นหาพนักงาน / ประเภท / เหตุผล...",
       "searchEmployeeNameOrProposed": "ค้นหาชื่อพนักงานหรือชื่อที่ขอแก้ไข..."
     },
-     "previous": "ก่อนหน้า",
+    "previous": "ก่อนหน้า",
     "next": "ถัดไป",
-    "leave": "ลา",
     "leaveWithType": "ลา ({{type}})",
     "daysShort": {
       "sun": "อา",
@@ -126,6 +174,11 @@
   },
   "pages": {
     "workerLeave": {
+      "Duration": "ระยะเวลา",
+      "Cancel Request": "ยกเลิกคำขอนี้",
+      "Remaining from {{total}} days": "คงเหลือจากทั้งหมด {{total}} วัน",
+      "Details": "รายละเอียด",
+      "All types": "ทุกประเภท",
       "Days deducted": "จำนวนวันที่หัก",
       "My Leave": "การลาของฉัน",
       "Leave Request Details": "รายละเอียดคำขอลา",
@@ -159,7 +212,16 @@
       "askHrAssignQuota": "กรุณาติดต่อ HR เพื่อกำหนดโควต้าวันลาให้"
     },
     "hrAttendancePage": {
-       "hello": "สวัสดี",
+      "On Leave": "อยู่ระหว่างลา",
+      "Holiday": "วันหยุด",
+      "Time Expired": "หมดเวลาแล้ว",
+      "Too Early": "เร็วเกินไป",
+      "duration": {
+        "full": "เต็มวัน",
+        "halfMorning": "ครึ่งวัน (เช้า)",
+        "halfAfternoon": "ครึ่งวัน (บ่าย)"
+      },
+      "hello": "สวัสดี",
       "hrFallback": "HR",
       "lateThisMonth": "มาสายเดือนนี้:",
       "checkIn": "เช็คอิน",
@@ -241,7 +303,7 @@
       "Attachment preview": "ตัวอย่างไฟล์แนบ",
       "No file": "ไม่มีไฟล์",
       "label": "ไฟล์แนบ",
-       "title": "อนุมัติการลา",
+      "title": "อนุมัติการลา",
       "filters": {
         "allTypes": "ทุกประเภท"
       },
@@ -288,9 +350,8 @@
       }
     },
     "leaveTypeSettings": {
-     "title": "ตั้งค่าประเภทการลา",
+      "title": "ตั้งค่าประเภทการลา",
       "subtitle": "กำหนดโควต้าการลามาตรฐานและนโยบายการยกยอดสำหรับพนักงาน",
-
       "buttons": {
         "processYearEnd": "ประมวลผลปลายปี",
         "processCarryForwardTooltip": "ประมวลผลยกยอดไปปีถัดไป",
@@ -300,7 +361,6 @@
         "edit": "แก้ไข",
         "delete": "ลบ"
       },
-
       "table": {
         "typeNamePolicy": "ชื่อประเภท & นโยบาย",
         "paidStatus": "การจ่ายเงิน",
@@ -308,26 +368,21 @@
         "themeColor": "สีธีม",
         "actions": "การจัดการ"
       },
-
       "paid": {
         "paidLeave": "ลาแบบมีค่าจ้าง",
         "unpaidLeave": "ลาแบบไม่รับค่าจ้าง"
       },
-
       "daysLabel": "{{days}} วัน",
-
       "badges": {
         "carryForwardEnabled": "เปิดยกยอด (สูงสุด {{max}} วัน)",
         "carryForwardDisabled": "ปิดยกยอด"
       },
-
       "modal": {
         "addTitle": "เพิ่มประเภทการลา",
         "addSubtitle": "สร้างหมวดหมู่ประเภทการลาใหม่",
         "editTitle": "แก้ไขประเภทการลา",
         "editSubtitle": "แก้ไขรายละเอียดและนโยบายการลา"
       },
-
       "form": {
         "typeName": "ชื่อประเภทการลา",
         "defaultQuotaDaysPerYear": "โควต้ามาตรฐาน (วัน/ปี)",
@@ -337,14 +392,12 @@
         "themeColor": "สีธีมสำหรับปฏิทิน & กราฟ",
         "hexPlaceholder": "#HEXCODE"
       },
-
       "yearEndPolicyTitle": "นโยบายปลายปี ({{year}})",
       "yearEndPolicyIntro": "โปรดอ่านและทำความเข้าใจนโยบายต่อไปนี้:",
       "yearEndPolicyAccept": "ฉันเข้าใจและยินยอมให้ดำเนินการต่อ",
       "yearEndPolicyMustAccept": "คุณต้องยอมรับนโยบายก่อนจึงจะดำเนินการต่อได้",
       "confirmButtonText": "ยืนยัน",
       "cancelButtonText": "ยกเลิก",
-
       "yearEndPolicy": {
         "bullet1": "ระบบจะใช้จำนวนวันคงเหลือของปี {{year}} ในการคำนวณ",
         "bullet2": "การยกยอดจะมีผลเฉพาะประเภทที่เปิดการยกยอดเท่านั้น",
@@ -353,18 +406,14 @@
         "warningLabel": "คำเตือน:",
         "bullet5": "การดำเนินการนี้ไม่สามารถย้อนกลับได้ กรุณาตรวจสอบให้แน่ใจว่าได้จัดการคำขอลาที่ค้างอยู่เรียบร้อยแล้ว"
       },
-
       "examples": {
         "leaveTypeName": "เช่น ลาป่วย"
       },
-
       "noLeaveTypesFound": "ไม่พบประเภทการลา",
-
       "delete": {
         "title": "ลบประเภทการลา",
         "text": "คุณต้องการลบประเภทการลานี้ใช่หรือไม่?"
       },
-
       "alert": {
         "fetchFailed": "ไม่สามารถดึงข้อมูลประเภทการลาได้",
         "saved": "บันทึกประเภทการลาสำเร็จ",
@@ -376,6 +425,15 @@
       }
     },
     "hrDashboard": {
+      "attendanceLeaveTrends": "แนวโน้มการเข้างานและการลา",
+      "top5LateEmployees": "พนักงานมาสายสูงสุด 5 อันดับ",
+      "monthlyPerformanceComparison": "เปรียบเทียบประสิทธิภาพรายเดือน",
+      "series": {
+        "present": "มาทำงาน",
+        "absent": "ขาดงาน",
+        "late": "มาสาย",
+        "leave": "ลา"
+      },
       "selectedDateLabel": "เลือกวันที่",
       "goToToday": "ไปที่วันนี้",
       "tabs": {
@@ -433,87 +491,87 @@
       "noLeaveDataFound": "ไม่พบข้อมูลการลา"
     },
     "hrEmployees": {
-        "buttons": {
-          "addNew": "เพิ่มพนักงาน",
-          "refresh": "รีเฟรช",
-          "refreshList": "รีเฟรชรายการ",
-          "edit": "แก้ไข"
-        },
-        "add": {
-          "title": "เพิ่มพนักงานใหม่",
-          "subtitle": "กรอกข้อมูลเพื่อสร้างบัญชีใหม่"
-        },
-        "title": "พนักงาน",
-        "subtitle": "จัดการพนักงานและโควต้าการลา",
-        "search": {
-          "placeholder": "ค้นหาพนักงาน..."
-        },
-        "filters": {
-          "allRoles": "ทุกบทบาท",
-          "hr": "ฝ่ายบุคคล (HR)",
-          "worker": "พนักงาน",
-          "allStatus": "ทุกสถานะ",
-          "activeOnly": "ใช้งานอยู่เท่านั้น",
-          "inactiveOnly": "ปิดใช้งานเท่านั้น"
-        },
-        "table": {
-          "id": "รหัส",
-          "name": "ชื่อ",
-          "emailRole": "อีเมล / บทบาท",
-          "actions": "การจัดการ"
-        },
-        "badge": {
-          "inactive": "ปิดใช้งาน"
-        },
-        "activate": "เปิดใช้งาน",
-        "deactivate": "ปิดใช้งาน",
-        "quota": "โควต้า",
-        "noEmployeesFound": "ไม่พบพนักงาน",
-        "form": {
-          "firstName": "ชื่อจริง",
-          "lastName": "นามสกุล",
-          "email": "อีเมล",
-          "role": "บทบาท",
-          "joiningDate": "วันที่เริ่มงาน",
-          "active": "เปิดใช้งาน",
-          "password": "รหัสผ่าน",
-          "passwordHint": "(เว้นว่างเพื่อคงรหัสเดิม)"
-        },
-        "edit": {
-          "title": "แก้ไขข้อมูลพนักงาน"
-        },
-        "quotaModal": {
-          "title": "โควต้าการลา",
-          "loadYear": "โหลด",
-          "syncStandard": "ซิงก์มาตรฐาน",
-          "leaveTypeUsed": "ประเภทการลา / ใช้ไป",
-          "thisYear": "ปีนี้",
-          "carried": "ยกมา",
-          "maxCarryDays": "ยกได้สูงสุด",
-          "carryAllowed": "อนุญาตให้ยก",
-          "usedLabel": "ใช้ไป",
-          "carryHintAllowed": "อนุญาต",
-          "carryHintBlocked": "ไม่อนุญาต",
-          "saveQuota": "บันทึกโควต้า"
-        },
-        "alert": {
-          "loadFailed": "โหลดรายชื่อพนักงานไม่สำเร็จ",
-          "saved": "บันทึกสำเร็จ",
-          "updated": "อัปเดตสำเร็จ",
-          "loadQuotaFailed": "โหลดโควต้าไม่สำเร็จ",
-          "quotaSaved": "บันทึกโควต้าเรียบร้อย",
-          "activateTitle": "ต้องการเปิดใช้งานพนักงานหรือไม่?",
-          "deactivateTitle": "ต้องการปิดใช้งานพนักงานหรือไม่?",
-          "activateText": "การดำเนินการนี้จะอนุญาตให้พนักงานเข้าสู่ระบบได้อีกครั้ง",
-          "deactivateText": "การดำเนินการนี้จะไม่อนุญาตให้พนักงานเข้าสู่ระบบ",
-          "syncTitle": "ซิงก์โควต้ามาตรฐานหรือไม่?",
-          "syncText": "การดำเนินการนี้จะซิงก์โควต้ามาตรฐานให้กับพนักงาน",
-          "synced": "ซิงก์เรียบร้อย",
-          "syncFailed": "ไม่สามารถซิงก์ได้",
-          "quotaSaveFailed": "ไม่สามารถอัปเดตโควต้าได้",
-          "activated": "พนักงานถูกตั้งค่าเป็น “เปิดใช้งาน” แล้ว",
-          "deactivated": "พนักงานถูกตั้งค่าเป็น “ปิดใช้งาน” แล้ว"
-        }
+      "buttons": {
+        "addNew": "เพิ่มพนักงาน",
+        "refresh": "รีเฟรช",
+        "refreshList": "รีเฟรชรายการ",
+        "edit": "แก้ไข"
+      },
+      "add": {
+        "title": "เพิ่มพนักงานใหม่",
+        "subtitle": "กรอกข้อมูลเพื่อสร้างบัญชีใหม่"
+      },
+      "title": "พนักงาน",
+      "subtitle": "จัดการพนักงานและโควต้าการลา",
+      "search": {
+        "placeholder": "ค้นหาพนักงาน..."
+      },
+      "filters": {
+        "allRoles": "ทุกบทบาท",
+        "hr": "ฝ่ายบุคคล (HR)",
+        "worker": "พนักงาน",
+        "allStatus": "ทุกสถานะ",
+        "activeOnly": "ใช้งานอยู่เท่านั้น",
+        "inactiveOnly": "ปิดใช้งานเท่านั้น"
+      },
+      "table": {
+        "id": "รหัส",
+        "name": "ชื่อ",
+        "emailRole": "อีเมล / บทบาท",
+        "actions": "การจัดการ"
+      },
+      "badge": {
+        "inactive": "ปิดใช้งาน"
+      },
+      "activate": "เปิดใช้งาน",
+      "deactivate": "ปิดใช้งาน",
+      "quota": "โควต้า",
+      "noEmployeesFound": "ไม่พบพนักงาน",
+      "form": {
+        "firstName": "ชื่อจริง",
+        "lastName": "นามสกุล",
+        "email": "อีเมล",
+        "role": "บทบาท",
+        "joiningDate": "วันที่เริ่มงาน",
+        "active": "เปิดใช้งาน",
+        "password": "รหัสผ่าน",
+        "passwordHint": "(เว้นว่างเพื่อคงรหัสเดิม)"
+      },
+      "edit": {
+        "title": "แก้ไขข้อมูลพนักงาน"
+      },
+      "quotaModal": {
+        "title": "โควต้าการลา",
+        "loadYear": "โหลด",
+        "syncStandard": "ซิงก์มาตรฐาน",
+        "leaveTypeUsed": "ประเภทการลา / ใช้ไป",
+        "thisYear": "ปีนี้",
+        "carried": "ยกมา",
+        "maxCarryDays": "ยกได้สูงสุด",
+        "carryAllowed": "อนุญาตให้ยก",
+        "usedLabel": "ใช้ไป",
+        "carryHintAllowed": "อนุญาต",
+        "carryHintBlocked": "ไม่อนุญาต",
+        "saveQuota": "บันทึกโควต้า"
+      },
+      "alert": {
+        "loadFailed": "โหลดรายชื่อพนักงานไม่สำเร็จ",
+        "saved": "บันทึกสำเร็จ",
+        "updated": "อัปเดตสำเร็จ",
+        "loadQuotaFailed": "โหลดโควต้าไม่สำเร็จ",
+        "quotaSaved": "บันทึกโควต้าเรียบร้อย",
+        "activateTitle": "ต้องการเปิดใช้งานพนักงานหรือไม่?",
+        "deactivateTitle": "ต้องการปิดใช้งานพนักงานหรือไม่?",
+        "activateText": "การดำเนินการนี้จะอนุญาตให้พนักงานเข้าสู่ระบบได้อีกครั้ง",
+        "deactivateText": "การดำเนินการนี้จะไม่อนุญาตให้พนักงานเข้าสู่ระบบ",
+        "syncTitle": "ซิงก์โควต้ามาตรฐานหรือไม่?",
+        "syncText": "การดำเนินการนี้จะซิงก์โควต้ามาตรฐานให้กับพนักงาน",
+        "synced": "ซิงก์เรียบร้อย",
+        "syncFailed": "ไม่สามารถซิงก์ได้",
+        "quotaSaveFailed": "ไม่สามารถอัปเดตโควต้าได้",
+        "activated": "พนักงานถูกตั้งค่าเป็น “เปิดใช้งาน” แล้ว",
+        "deactivated": "พนักงานถูกตั้งค่าเป็น “ปิดใช้งาน” แล้ว"
+      }
     },
     "workerAttendancePage": {
       "Date": "วันที่",
@@ -530,15 +588,54 @@
       "Search": "ค้นหา",
       "Check In": "เช็คอิน",
       "noRecordsInRange": "ไม่พบข้อมูลในช่วงวันที่เลือก",
-      "Late this month":"มาสายเดือนนี้",
+      "Late this month": "มาสายเดือนนี้",
       "status": {
         "late": "มาสาย",
         "onTime": "ตรงเวลา"
       }
     },
     "workerCalendar": {
-      "Company Holiday": "วันหยุดบริษัท",
-      "My Calendar": "ปฏิทินของฉัน"
+      "title": "ปฏิทินของฉัน",
+      "subtitle": "การเข้างาน + การลา (มุมมองรายเดือน)",
+      "today": "วันนี้",
+      "prevMonth": "เดือนก่อนหน้า",
+      "nextMonth": "เดือนถัดไป",
+      "companyHoliday": "วันหยุดบริษัท",
+      "weekdays": {
+        "sun": "อา",
+        "mon": "จ",
+        "tue": "อ",
+        "wed": "พ",
+        "thu": "พฤ",
+        "fri": "ศ",
+        "sat": "ส"
+      },
+      "tags": {
+        "present": "มาทำงาน",
+        "late": "สาย",
+        "normal": "ปกติ"
+      },
+      "modal": {
+        "common": {
+          "you": "คุณ"
+        },
+        "holiday": {
+          "status": "วันหยุดบริษัท",
+          "reason": "วันนี้เป็นวันหยุดที่บริษัทประกาศล่วงหน้า"
+        },
+        "weekend": {
+          "status": "วันหยุด (ไม่ใช่วันทำงาน)",
+          "reason": "เป็นวันหยุดตามตารางการทำงานของบริษัท"
+        },
+        "future": {
+          "status": "วันที่กำลังจะมาถึง",
+          "reason": "วันนี้ยังมาไม่ถึง"
+        },
+        "noData": {
+          "status": "ไม่มีข้อมูล",
+          "reason": "ไม่พบข้อมูลการเข้างานหรือการลา"
+        }
+      }
     },
     "hrProfileRequests": {
       "Profile Update Requests": "คำร้องขอแก้ไขโปรไฟล์",
@@ -559,9 +656,29 @@
       "View Attachment": "ดูไฟล์แนบ",
       "Official document (PDF/Image)": "เอกสารทางการ (PDF/รูปภาพ)",
       "Open": "เปิด",
-      "title": "คำขอแก้ไขโปรไฟล์"
+      "title": "คำขอแก้ไขโปรไฟล์",
+      "alert": {
+        "loadFailed": "ไม่สามารถโหลดคำขอแก้ไขโปรไฟล์ได้",
+        "confirmApproveTitle": "อนุมัติการแก้ไขโปรไฟล์?",
+        "confirmApproveText": "คุณต้องการอนุมัติคำขอแก้ไขโปรไฟล์นี้หรือไม่?",
+        "confirmRejectTitle": "ปฏิเสธการแก้ไขโปรไฟล์?",
+        "confirmRejectText": "คุณต้องการปฏิเสธคำขอแก้ไขโปรไฟล์นี้หรือไม่?",
+        "approved": "อนุมัติคำขอแก้ไขโปรไฟล์เรียบร้อยแล้ว",
+        "rejected": "ปฏิเสธคำขอแก้ไขโปรไฟล์เรียบร้อยแล้ว"
+      }
     },
     "workerDashboard": {
+      "button": {
+        "onLeave": "อยู่ระหว่างลา",
+        "holiday": "วันหยุด",
+        "timeExpired": "หมดเวลาแล้ว",
+        "tooEarly": "เร็วเกินไป"
+      },
+      "duration": {
+        "full": "เต็มวัน",
+        "halfMorning": "ครึ่งวัน (เช้า)",
+        "halfAfternoon": "ครึ่งวัน (บ่าย)"
+      },
       "Leave": "ลา",
       "Attendance History (Recent)": "ประวัติการลงเวลาล่าสุด",
       "Date": "วันที่",
@@ -599,11 +716,40 @@
       "cancel": "ยกเลิก"
     },
     "hrNotifications": {
-      "HR Notifications": "การแจ้งเตือน (HR)",
-      "Clear All": "ล้างทั้งหมด",
-      "Mark all read": "ทำเครื่องหมายว่าอ่านแล้วทั้งหมด",
-      "noNotifications": "ไม่มีการแจ้งเตือน",
-      "NEW": "ใหม่"
+      "title": "การแจ้งเตือน (HR)",
+      "subtitle": "จัดการและตรวจสอบการแจ้งเตือน",
+      "actions": {
+        "refresh": "รีเฟรช",
+        "markAllRead": "ทำว่าอ่านแล้วทั้งหมด",
+        "clearAll": "ล้างทั้งหมด",
+        "view": "ดู"
+      },
+      "table": {
+        "type": "ประเภท",
+        "message": "ข้อความ",
+        "time": "เวลา",
+        "action": "การทำงาน"
+      },
+      "badge": {
+        "new": "ใหม่"
+      },
+      "noNotifications": "ยังไม่มีการแจ้งเตือน",
+      "types": {
+        "profileUpdate": "อัปเดตโปรไฟล์",
+        "leaveRequest": "คำขอลา",
+        "approved": "อนุมัติแล้ว",
+        "rejected": "ไม่อนุมัติ",
+        "general": "ทั่วไป"
+      },
+      "alert": {
+        "loadFailed": "โหลดการแจ้งเตือนไม่สำเร็จ",
+        "markedRead": "ทำว่าอ่านแล้วทั้งหมดเรียบร้อย",
+        "clearAllTitle": "ล้างการแจ้งเตือนทั้งหมด?",
+        "clearAllText": "การดำเนินการนี้ไม่สามารถย้อนกลับได้",
+        "cleared": "ล้างการแจ้งเตือนทั้งหมดแล้ว",
+        "clearFailed": "ล้างการแจ้งเตือนไม่สำเร็จ",
+        "deleteOneConfirmText": "ต้องการลบการแจ้งเตือนนี้หรือไม่?"
+      }
     },
     "workerNotifications": {
       "title": "การแจ้งเตือน",
@@ -612,16 +758,20 @@
       "markAllRead": "ทำเครื่องหมายว่าอ่านแล้วทั้งหมด",
       "clearAll": "ล้างทั้งหมด",
       "noNotificationsFound": "ไม่พบการแจ้งเตือน",
-      "badge": { "new": "ใหม่" },
+      "badge": {
+        "new": "ใหม่"
+      },
       "table": {
         "type": "ประเภท",
         "message": "ข้อความ",
         "time": "เวลา",
         "action": "การทำงาน"
       },
-      "view": "ดูรายละเอียด",
+      "view": "ดู",
       "open": "เปิด",
-      "modal": { "title": "การแจ้งเตือน" },
+      "modal": {
+        "title": "การแจ้งเตือน"
+      },
       "type": {
         "lateWarning": "แจ้งเตือนมาสาย",
         "leave": "การลา",
@@ -749,7 +899,6 @@
       "loading": "กำลังโหลด...",
       "noLogs": "ไม่พบข้อมูล",
       "footerHint": "คลิกที่แถวเพื่อดูรายละเอียดการเปลี่ยนแปลง",
-
       "modal": {
         "close": "ปิด",
         "generalInfo": "ข้อมูลทั่วไป",
@@ -761,7 +910,6 @@
         "ip": "IP Address",
         "target": "รายการที่เกี่ยวข้อง"
       },
-
       "categories": {
         "Leave": "การลา",
         "Attendance": "การลงเวลา",
@@ -774,7 +922,6 @@
         "Report": "รายงาน",
         "Other": "อื่น ๆ"
       },
-
       "actions": {
         "LEAVE_REQUEST_CREATE": "ยื่นขอลา",
         "LEAVE_REQUEST_CANCEL": "ยกเลิกการลา",
@@ -894,7 +1041,40 @@
       "checkIn": "เช็คอิน",
       "checkOut": "เช็คเอาท์",
       "closeWindow": "ปิดหน้าต่าง"
-      
     }
+  },
+  "auditFields": {
+    "startTime": "เวลาเข้างาน",
+    "endTime": "เวลาเลิกงาน",
+    "graceMinutes": "เวลาอนุโลม (นาที)",
+    "workingDays": "วันทำงาน",
+    "specialHolidays": "วันหยุดพิเศษ",
+    "policyId": "รหัสนโยบาย",
+    "leaveGapDays": "ระยะห่างการลา (วัน)",
+    "updatedAt": "แก้ไขเมื่อ",
+    "createdAt": "สร้างเมื่อ",
+    "deletedAt": "ลบเมื่อ",
+    "id": "รหัส",
+    "employeeId": "รหัสพนักงาน",
+    "type": "ประเภท",
+    "status": "สถานะ",
+    "reason": "เหตุผล",
+    "amount": "จำนวน",
+    "days": "วัน",
+    "firstName": "ชื่อจริง",
+    "lastName": "นามสกุล",
+    "email": "อีเมล",
+    "role": "บทบาท",
+    "isActive": "เปิดใช้งาน",
+    "password": "รหัสผ่าน",
+    "address": "ที่อยู่",
+    "phone": "เบอร์โทรศัพท์",
+    "gender": "เพศ",
+    "maxCarryOverDays": "วันยกยอดสูงสุด",
+    "defaultQuotaDaysPerYear": "โควต้ามาตรฐาน (วัน/ปี)",
+    "enableCarryForward": "เปิดการยกยอด",
+    "typeName": "ชื่อประเภท",
+    "colorCode": "รหัสสี",
+    "isPaid": "จ่ายเงิน"
   }
 }
