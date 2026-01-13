@@ -1,7 +1,9 @@
 // src/pages/HRDashboard.jsx
 import React, { useMemo, useState, useEffect } from "react";
 import moment from "moment";
-import { 
+import "moment/locale/th"; // เพิ่มบรรทัดนี้
+import { useTranslation } from "react-i18next";
+import {  //เพิ่มตารางแบบกราฟ 
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer, 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Legend, BarChart, Bar 
 } from "recharts";
@@ -286,8 +288,8 @@ export default function HRDashboard() {
                  <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={attendanceTrend}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="date" fontSize={12} tickLine={false} axisLine={false} />
-                    <YAxis fontSize={12} tickLine={false} axisLine={false} />
+                    <XAxis dataKey="date" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(str) => moment(str).format("D MMM")} /> 
+                    <YAxis fontSize={12} tickLine={false} axisLine={false}  />
                     <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} />
                     <Legend iconType="circle" />
                     <Line
