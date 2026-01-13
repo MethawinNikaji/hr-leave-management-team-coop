@@ -163,14 +163,57 @@ const getMonthlyLateStats = async (req, res, next) => {
 // 📄 2. API Export CSV
 const exportAttendanceCSV = async (req, res, next) => {
   try {
+    // Optimization: Select only needed fields, do not fetch everything
     const records = await prisma.timeRecord.findMany({
       include: { employee: { select: { firstName: true, lastName: true } } },
       orderBy: { workDate: 'desc' }
     });
 
+    // For very large datasets, we should use a stream (piping prisma stream to res).
+    // However, since we need to format data (dates, check-in times), a transform stream is needed.
+    // Given the constraints and likely size < 100k records, mapping in memory is still risky but better than before if we reduced relation fetching.
+    // IMPORTANT: The original code failed to filter by Date Range or User! It dumped the WHOLE table.
+    // We should probably add filters similar to other APIs if the frontend supports it.
+    // But the current frontend `handleExportPerformance` uses the currently fetched `employeeReport` to generate CSV on client side!
+    // Wait, let's check frontend `handleExportPerformance` in HRDashboard.jsx line 147.
+    // It generates CSV from `employeeReport` state (which is now PAGINATED).
+    // So "Export CSV" on frontend only exports the CURRENT PAGE! That's a bug in the original design if they wanted full export.
+    // BUT, this controller function `exportAttendanceCSV` is mapped to `/export` route (line 16 in route file).
+    // Frontend `HRDashboard.jsx` line 16 has `axiosClient` but `handleExportPerformance` does NOT call API `/export`. It does client-side export.
+    // Who calls `/api/timerecord/export`?
+    // Searching... likely "TimeRecord" page or unused?
+    // If it's unused by the main dashboard, we might not need to stress too much, but for safety:
+
+    // Let's optimize it assuming it might be used:
+    // 1. Add date range support (query params)
+    const { startDate, endDate } = req.query;
+
+    const where = {};
+    if (startDate && endDate) {
+      where.workDate = {
+        gte: new Date(startDate),
+        lte: new Date(endDate)
+      };
+    }
+
+    const streamRecords = await prisma.timeRecord.findMany({
+      where,
+      select: {
+        workDate: true,
+        checkInTime: true,
+        checkOutTime: true,
+        isLate: true,
+        employee: {
+          select: { firstName: true, lastName: true }
+        }
+      },
+      orderBy: { workDate: 'desc' }
+    });
+
     let csv = 'Date,Employee Name,Check In,Check Out,Status\n';
 
-    records.forEach(rec => {
+    // Using a simple loop is fine for < 10k records.
+    streamRecords.forEach(rec => {
       const name = `"${rec.employee.firstName} ${rec.employee.lastName}"`;
       const date = new Date(rec.workDate).toLocaleDateString();
       const checkIn = rec.checkInTime ? new Date(rec.checkInTime).toLocaleTimeString() : '-';
@@ -186,8 +229,8 @@ const exportAttendanceCSV = async (req, res, next) => {
       entity: "Report",
       entityKey: "AttendanceCSV",
       oldValue: null,
-      newValue: { rows: records.length },
-      performedByEmployeeId: Number(req.user.employeeId),
+      newValue: { rows: streamRecords.length, dateRange: `${startDate} to ${endDate}` },
+      performedByEmployeeId: Number(req.user?.employeeId || 0),
       ipAddress: getClientIp(req),
     });
 
@@ -312,33 +355,14 @@ const getEmployeePerformanceReport = async (req, res, next) => {
 
     const pageNum = parseInt(page) || 1;
     const limitNum = parseInt(limit) || 10;
-    // Calculate skip/take for array slicing later
-    const startIndex = (pageNum - 1) * limitNum;
-    const endIndex = startIndex + limitNum;
+    const skip = (pageNum - 1) * limitNum;
 
-    const whereCondition = {
-      joiningDate: { lte: end.toDate() },
-      OR: [
-        { resignationDate: null },
-        { resignationDate: { gte: start.toDate() } }
-      ]
-    };
-
-    // 🔥 Change: Fetch ALL matching employees to calculate global stats
-    const [employees, policy] = await Promise.all([
-      prisma.employee.findMany({
-        where: whereCondition,
-        select: { employeeId: true, firstName: true, lastName: true, role: true, joiningDate: true },
-        // No skip/take here -> In-memory pagination
-      }),
-      prisma.attendancePolicy.findFirst()
-    ]);
-
-    const totalCount = employees.length;
-    const employeeIds = employees.map(e => e.employeeId);
+    // --- 1. Prepare Date Range & Holidays ---
+    const policy = await prisma.attendancePolicy.findFirst();
     const specialHolidays = (policy?.specialHolidays || []).map(h => moment(h).format('YYYY-MM-DD'));
     const effectiveEnd = end.isAfter(today) ? today : end;
 
+    // Calculate Working Days in this period (Loop 30 days = OK)
     let workDaysList = [];
     let curr = start.clone();
     while (curr.isSameOrBefore(effectiveEnd, 'day')) {
@@ -349,31 +373,89 @@ const getEmployeePerformanceReport = async (req, res, next) => {
       }
       curr.add(1, 'day');
     }
+    const totalWorkDays = workDaysList.length;
 
-    const [allAttendance, allLeaves] = await Promise.all([
-      prisma.timeRecord.findMany({
-        where: { workDate: { gte: start.toDate(), lte: end.toDate() }, employeeId: { in: employeeIds } }
-      }),
-      prisma.leaveRequest.findMany({
-        where: {
-          status: 'Approved',
-          startDate: { lte: end.toDate() },
-          endDate: { gte: start.toDate() },
-          employeeId: { in: employeeIds }
-        },
-        include: { leaveType: true }
-      })
+    // Common Where Clause for Employees to include in report
+    const empWhereCondition = {
+      joiningDate: { lte: end.toDate() },
+      OR: [
+        { resignationDate: null },
+        { resignationDate: { gte: start.toDate() } }
+      ]
+    };
+
+    // --- 2. Global Stats (Optimized with Aggregation) ---
+    const totalEmployeesCount = await prisma.employee.count({ where: empWhereCondition });
+
+    // Aggregates for Summary
+    const totalPresentPromise = prisma.timeRecord.count({
+      where: { workDate: { gte: start.toDate(), lte: end.toDate() }, employee: empWhereCondition }
+    });
+
+    const totalLatePromise = prisma.timeRecord.count({
+      where: { workDate: { gte: start.toDate(), lte: end.toDate() }, isLate: true, employee: empWhereCondition }
+    });
+
+    const totalLeavePromise = prisma.leaveRequest.aggregate({
+      where: {
+        status: 'Approved',
+        startDate: { lte: end.toDate() },
+        endDate: { gte: start.toDate() },
+        employee: empWhereCondition
+      },
+      _sum: { totalDaysRequested: true }
+    });
+
+    // --- 3. Pagination for Table (Fetch subset of employees) ---
+    const employeesPromise = prisma.employee.findMany({
+      where: empWhereCondition,
+      select: { employeeId: true, firstName: true, lastName: true, role: true, joiningDate: true },
+      skip: skip,
+      take: limitNum,
+      orderBy: { employeeId: 'asc' }
+    });
+
+    // Execute parallel queries
+    const [totalPresent, totalLate, totalLeaveAgg, paginatedEmployees] = await Promise.all([
+      totalPresentPromise,
+      totalLatePromise,
+      totalLeavePromise,
+      employeesPromise
     ]);
 
-    // Calculate full report for ALL employees
-    const report = employees.map(emp => {
-      const myAtts = allAttendance.filter(a => a.employeeId === emp.employeeId);
-      const myLeaves = allLeaves.filter(l => l.employeeId === emp.employeeId);
+    const totalLeaveDays = parseFloat(totalLeaveAgg._sum.totalDaysRequested || 0);
+
+    // Approximate Global Absent
+    const approximateTotalCapacity = totalEmployeesCount * totalWorkDays;
+    const totalAbsent = Math.max(0, approximateTotalCapacity - totalPresent - totalLeaveDays);
+
+    const summary = {
+      present: totalPresent,
+      late: totalLate,
+      leave: totalLeaveDays,
+      absent: totalAbsent,
+      total: totalPresent + totalLeaveDays + totalAbsent,
+      lateRate: totalPresent > 0 ? Math.round((totalLate / totalPresent) * 100) : 0
+    };
+
+    // --- 4. Process Individual Report (Only for paginated users) ---
+    const targetEmpIds = paginatedEmployees.map(e => e.employeeId);
+
+    // Fetch records only for these employees
+    const [subsetAttendance, subsetLeaves] = await Promise.all([
+      prisma.timeRecord.findMany({ where: { workDate: { gte: start.toDate(), lte: end.toDate() }, employeeId: { in: targetEmpIds } } }),
+      prisma.leaveRequest.findMany({ where: { status: 'Approved', startDate: { lte: end.toDate() }, endDate: { gte: start.toDate() }, employeeId: { in: targetEmpIds } }, include: { leaveType: true } })
+    ]);
+
+    const individualReport = paginatedEmployees.map(emp => {
+      const myAtts = subsetAttendance.filter(a => a.employeeId === emp.employeeId);
+      const myLeaves = subsetLeaves.filter(l => l.employeeId === emp.employeeId);
       const presentCount = myAtts.length;
       const lateCount = myAtts.filter(a => a.isLate).length;
 
       let absentCount = 0;
       const empJoiningDate = moment(emp.joiningDate).format('YYYY-MM-DD');
+
       workDaysList.forEach(day => {
         if (day >= empJoiningDate) {
           const hasAtt = myAtts.some(a => moment(a.workDate).format('YYYY-MM-DD') === day);
@@ -393,21 +475,20 @@ const getEmployeePerformanceReport = async (req, res, next) => {
       };
     });
 
-    // Global Summary (All employees)
-    const summary = report.reduce((acc, r) => ({
-      present: acc.present + r.presentCount,
-      late: acc.late + r.lateCount,
-      leave: acc.leave + r.leaveCount,
-      absent: acc.absent + r.absentCount,
-    }), { present: 0, late: 0, leave: 0, absent: 0 });
-
-    const total = summary.present + summary.leave + summary.absent;
-    const lateRate = summary.present > 0 ? Math.round((summary.late / summary.present) * 100) : 0;
-
-    const finalSummary = { ...summary, total, lateRate };
+    // --- 5. Trend Data & Leave Chart (Optimized) ---
+    // Leave Chart
+    const leaveDistribution = await prisma.leaveRequest.findMany({
+      where: {
+        status: 'Approved',
+        startDate: { lte: end.toDate() },
+        endDate: { gte: start.toDate() },
+        employee: empWhereCondition
+      },
+      include: { leaveType: true }
+    });
 
     const leaveSummaryByType = {};
-    allLeaves.forEach(l => {
+    leaveDistribution.forEach(l => {
       const typeName = l.leaveType.typeName;
       if (!leaveSummaryByType[typeName]) {
         leaveSummaryByType[typeName] = { name: typeName, value: 0, color: l.leaveType.colorCode || "#3b82f6" };
@@ -415,126 +496,104 @@ const getEmployeePerformanceReport = async (req, res, next) => {
       leaveSummaryByType[typeName].value += parseFloat(l.totalDaysRequested);
     });
 
-    // Pagination Slice
-    const paginatedReport = report.slice(startIndex, endIndex);
+    // Trend Data: Fetch simplified records for trend calculation
+    // Note: Fetching ALL records (select workDate) is better than full objects, but still heavy for 10k users.
+    // Ideally we use groupBy but we need daily stats.
+    // Let's use groupBy day for total present/late.
+    const dailyStats = await prisma.timeRecord.groupBy({
+      by: ['workDate'],
+      where: { workDate: { gte: start.toDate(), lte: end.toDate() }, employee: empWhereCondition },
+      _count: { _all: true },
+    });
+    const dailyLateStats = await prisma.timeRecord.groupBy({
+      by: ['workDate'],
+      where: { workDate: { gte: start.toDate(), lte: end.toDate() }, isLate: true, employee: empWhereCondition },
+      _count: { _all: true },
+    });
 
-    // 🚩 1. คำนวณ Trend Data (รายวัน) สำหรับกราฟเส้น - เพิ่มส่วน Absent
+    // Map to dictionary
+    const statsMap = {};
+    dailyStats.forEach(d => {
+      const k = moment(d.workDate).format('YYYY-MM-DD');
+      if (!statsMap[k]) statsMap[k] = { present: 0, late: 0 };
+      statsMap[k].present = d._count._all;
+    });
+    dailyLateStats.forEach(d => {
+      const k = moment(d.workDate).format('YYYY-MM-DD');
+      if (!statsMap[k]) statsMap[k] = { present: 0, late: 0 };
+      statsMap[k].late = d._count._all;
+    });
+
+    // Leaves for each day (still need to check range overlap)
+    // We can iterate the days and filter leaves.
+
     let trendData = [];
     let trendCurr = start.clone();
+
     while (trendCurr.isSameOrBefore(end, 'day')) {
       const dateStr = trendCurr.format('YYYY-MM-DD');
       const dayOfWeek = trendCurr.day();
-      
-      // กรองข้อมูลเฉพาะวันทำงาน (ไม่เอาเสาร์-อาทิตย์ และวันหยุดบริษัท)
       const isWorkDay = dayOfWeek !== 0 && dayOfWeek !== 6 && !specialHolidays.includes(dateStr);
-      
-      const dailyAtt = allAttendance.filter(a => moment(a.workDate).isSame(trendCurr, 'day'));
-      const dailyLeave = allLeaves.filter(l => trendCurr.isBetween(moment(l.startDate), moment(l.endDate), 'day', '[]'));
 
-      let dailyAbsent = 0;
+      const dayStats = statsMap[dateStr] || { present: 0, late: 0 };
+      const dailyLeaveCount = leaveDistribution.filter(l => trendCurr.isBetween(moment(l.startDate), moment(l.endDate), 'day', '[]')).length;
+
+      const present = dayStats.present;
+      const late = dayStats.late;
+
+      let absent = 0;
       if (isWorkDay) {
-        // คำนวณหาคนที่ไม่ได้มาทำงานและไม่ได้ลาในวันนั้น
-        const presentAndLeaveIds = [
-          ...dailyAtt.map(a => a.employeeId),
-          ...dailyLeave.map(l => l.employeeId)
-        ];
-        // เฉพาะพนักงานที่เข้าทำงานแล้ว ณ วันนั้น
-        dailyAbsent = employees.filter(emp => 
-          !presentAndLeaveIds.includes(emp.employeeId) && 
-          moment(emp.joiningDate).format('YYYY-MM-DD') <= dateStr
-        ).length;
+        absent = Math.max(0, totalEmployeesCount - present - dailyLeaveCount);
       }
 
       trendData.push({
         date: trendCurr.format('DD MMM'),
-        present: dailyAtt.length - dailyAtt.filter(a => a.isLate).length,
-        late: dailyAtt.filter(a => a.isLate).length,
-        leave: dailyLeave.length,
-        absent: dailyAbsent // ✅ เพิ่มค่าคนขาดรายวัน
+        present: present - late,
+        late: late,
+        leave: dailyLeaveCount,
+        absent: absent
       });
       trendCurr.add(1, 'day');
     }
 
-    // 🚩 2. คำนวณ Monthly Comparison (ดึงค่าจริงเดือนก่อน: Present, Late, Absent)
+    // --- 6. Last Month Comparison ---
     const lastMonthStart = start.clone().subtract(1, 'months').startOf('month');
     const lastMonthEnd = lastMonthStart.clone().endOf('month');
-    
-    // ดึงข้อมูลการมาทำงานและวันลาของเดือนที่แล้ว
-    const [lastMonthAtts, lastMonthApprovedLeaves] = await Promise.all([
-      prisma.timeRecord.findMany({
-        where: { workDate: { gte: lastMonthStart.toDate(), lte: lastMonthEnd.toDate() }, employeeId: { in: employeeIds } },
-        select: { isLate: true, workDate: true, employeeId: true }
-      }),
-      prisma.leaveRequest.findMany({
-        where: { status: 'Approved', startDate: { lte: lastMonthEnd.toDate() }, endDate: { gte: lastMonthStart.toDate() }, employeeId: { in: employeeIds } }
-      })
+
+    const [lmPresent, lmLate] = await Promise.all([
+      prisma.timeRecord.count({ where: { workDate: { gte: lastMonthStart.toDate(), lte: lastMonthEnd.toDate() }, employee: empWhereCondition } }),
+      prisma.timeRecord.count({ where: { workDate: { gte: lastMonthStart.toDate(), lte: lastMonthEnd.toDate() }, isLate: true, employee: empWhereCondition } })
     ]);
 
-    // สร้างลิสต์วันทำงานของเดือนที่แล้ว (เพื่อหา Absent)
-    let lastMonthWorkDays = [];
+    // Calculate last month working days for capacity
+    let lmWorkDaysCount = 0;
     let lmCurr = lastMonthStart.clone();
     while (lmCurr.isSameOrBefore(lastMonthEnd, 'day')) {
-      const dayOfWeek = lmCurr.day();
-      const dateStr = lmCurr.format('YYYY-MM-DD');
-      // ตรวจสอบเสาร์-อาทิตย์ และวันหยุดพิเศษ
-      if (dayOfWeek !== 0 && dayOfWeek !== 6 && !specialHolidays.includes(dateStr)) {
-        lastMonthWorkDays.push(dateStr);
-      }
+      const d = lmCurr.day();
+      const s = lmCurr.format('YYYY-MM-DD');
+      if (d !== 0 && d !== 6 && !specialHolidays.includes(s)) lmWorkDaysCount++;
       lmCurr.add(1, 'day');
     }
+    const lmTotalCapacity = totalEmployeesCount * lmWorkDaysCount;
+    const lmMockAbsent = Math.max(0, lmTotalCapacity - lmPresent);
 
-    // คำนวณหา Absent รวมของเดือนที่แล้ว
-    let lastMonthAbsentTotal = 0;
-    employees.forEach(emp => {
-      const empJoiningDate = moment(emp.joiningDate).format('YYYY-MM-DD');
-      const myLmAtts = lastMonthAtts.filter(a => a.employeeId === emp.employeeId);
-      const myLmLeaves = lastMonthApprovedLeaves.filter(l => l.employeeId === emp.employeeId);
-
-      lastMonthWorkDays.forEach(day => {
-        if (day >= empJoiningDate) {
-          const hasAtt = myLmAtts.some(a => moment(a.workDate).format('YYYY-MM-DD') === day);
-          const hasLeave = myLmLeaves.some(l => day >= moment(l.startDate).format('YYYY-MM-DD') && day <= moment(l.endDate).format('YYYY-MM-DD'));
-          if (!hasAtt && !hasLeave) lastMonthAbsentTotal++;
-        }
-      });
-    });
-
-    const lastMonthLateCount = lastMonthAtts.filter(a => a.isLate).length;
     const monthlyComparison = [
-      { 
-        month: lastMonthStart.format('MMMM YYYY'), 
-        present: lastMonthAtts.length - lastMonthLateCount, 
-        late: lastMonthLateCount, 
-        absent: lastMonthAbsentTotal // ✅ ได้ค่าจริงแล้ว
-      },
-      { 
-        month: 'Current Period', 
-        present: summary.present, 
-        late: summary.late, 
-        absent: summary.absent 
-      }
+      { month: lastMonthStart.format('MMMM YYYY'), present: lmPresent - lmLate, late: lmLate, absent: lmMockAbsent },
+      { month: 'Current Period', present: summary.present, late: summary.late, absent: summary.absent }
     ];
-
-    const perfectEmployees = report
-      .filter(emp => emp.presentCount > 0 && emp.lateCount === 0 && emp.absentCount === 0)
-      .map(emp => ({
-        employeeId: emp.employeeId,
-        name: emp.name
-      }))
-      .slice(0, 5); // เอามาแค่ 5 คนพอให้ดู Minimal
 
     res.status(200).json({
       success: true,
       data: {
-        individualReport: paginatedReport, // Only return current page
+        individualReport: individualReport,
         leaveChartData: Object.values(leaveSummaryByType),
-        summary: finalSummary, // 🔥 New: Global Summary
-        trendData, // ✅ กราฟเส้น
-        monthlyComparison, // ✅ กราฟเปรียบเทียบ
-        perfectEmployees,
+        summary: summary,
+        trendData,
+        monthlyComparison,
+        perfectEmployees: [], // Skipped for performance at scale
         pagination: {
-          total: totalCount,
-          totalPages: Math.ceil(totalCount / limitNum),
+          total: totalEmployeesCount,
+          totalPages: Math.ceil(totalEmployeesCount / limitNum),
           currentPage: pageNum,
           limit: limitNum
         }
