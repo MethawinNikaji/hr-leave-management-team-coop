@@ -23,7 +23,13 @@ const getAllEmployees = async (req, res, next) => {
         email: true,
         role: true,
         joiningDate: true,
-        isActive: true
+        isActive: true,
+        department: {
+          select: {
+            deptId: true,
+            deptName: true
+          }
+        }
       },
       orderBy: { employeeId: 'asc' }
     });
@@ -461,7 +467,7 @@ const processYearEndCarryForward = async (req, res, next) => {
 const createEmployee = async (req, res, next) => {
   try {
     const performedByEmployeeId = Number(req.user.employeeId);
-    const { email, password, firstName, lastName, joiningDate, role } = req.body;
+    const { email, password, firstName, lastName, joiningDate, role, departmentId } = req.body;
 
     const existing = await prisma.employee.findUnique({ where: { email } });
     if (existing) return res.status(400).json({ success: false, message: "Email is already in use." });
@@ -471,7 +477,16 @@ const createEmployee = async (req, res, next) => {
 
     const result = await prisma.$transaction(async (tx) => {
       const newEmp = await tx.employee.create({
-        data: { email, passwordHash, firstName, lastName, role: role || 'Worker', joiningDate: new Date(joiningDate), isActive: true }
+        data: {
+          email,
+          passwordHash,
+          firstName,
+          lastName,
+          role: role || 'Worker',
+          joiningDate: new Date(joiningDate),
+          isActive: true,
+          departmentId: departmentId ? parseInt(departmentId) : undefined
+        }
       });
 
       const leaveTypes = await tx.leaveType.findMany();
@@ -514,11 +529,11 @@ const updateEmployeeByAdmin = async (req, res, next) => {
   try {
     const performedByEmployeeId = Number(req.user.employeeId);
     const employeeId = parseInt(req.params.employeeId);
-    const { firstName, lastName, email, role, isActive, password } = req.body;
+    const { firstName, lastName, email, role, isActive, password, departmentId } = req.body;
 
     const oldEmp = await prisma.employee.findUnique({
       where: { employeeId },
-      select: { employeeId: true, email: true, firstName: true, lastName: true, role: true, isActive: true }
+      select: { employeeId: true, email: true, firstName: true, lastName: true, role: true, isActive: true, departmentId: true }
     });
 
     let updateData = {
@@ -526,7 +541,8 @@ const updateEmployeeByAdmin = async (req, res, next) => {
       lastName,
       email,
       role,
-      isActive: Boolean(isActive)
+      isActive: Boolean(isActive),
+      departmentId: departmentId ? parseInt(departmentId) : null
     };
 
     let passwordChanged = false;

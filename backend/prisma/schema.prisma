@@ -3,7 +3,6 @@
 // กำหนดค่า Data Source (MySQL) และ Generator (Prisma Client)
 datasource db {
   provider = "mysql"
-  url      = env("DATABASE_URL")
 }
 
 generator client {
@@ -37,6 +36,20 @@ model Employee {
   // ใช้สำหรับ approvedByHrId ใน LeaveRequest
   approvals       LeaveRequest[] @relation("ApprovedByHR") 
   auditLogs AuditLog[] @relation("EmployeeAuditLogs")
+
+  departmentId    Int?      @map("department_id")
+  department      Department? @relation(fields: [departmentId], references: [deptId])
+}
+
+// 1.2 Model: Department (แผนก)
+model Department {
+  deptId      Int      @id @default(autoincrement()) @map("dept_id")
+  deptName    String   @unique @map("dept_name")
+  description String?  @db.Text
+  createdAt   DateTime @map("created_at") @default(now())
+  updatedAt   DateTime @map("updated_at") @updatedAt
+
+  employees   Employee[]
 }
 
 // 1.1. Model: ProfileUpdateRequest (สำหรับเปลี่ยนชื่อ)

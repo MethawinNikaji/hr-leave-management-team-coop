@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { FiEdit2, FiSettings, FiRefreshCw, FiUserPlus, FiToggleLeft, FiToggleRight, FiClock, FiDownload } from "react-icons/fi";
+import { FiEdit2, FiSettings, FiRefreshCw, FiUserPlus, FiToggleLeft, FiToggleRight, FiClock, FiDownload, FiLayers, FiTrash2, FiPlus } from "react-icons/fi";
 import "./HREmployees.css";
 import { alertConfirm, alertError, alertSuccess } from "../utils/sweetAlert";
 import axiosClient from "../api/axiosClient";
@@ -9,6 +9,7 @@ export default function Employees() {
   const { t } = useTranslation();
   const [employees, setEmployees] = useState([]);
   const [types, setTypes] = useState([]);
+  const [departments, setDepartments] = useState([]); // NEW
   const [loading, setLoading] = useState(true);
 
   // Phase 2 filters
@@ -18,6 +19,7 @@ export default function Employees() {
 
   const [quotaOpen, setQuotaOpen] = useState(false);
   const [empModalOpen, setEmpModalOpen] = useState(false);
+  const [deptModalOpen, setDeptModalOpen] = useState(false); // NEW
   const [isEditMode, setIsEditMode] = useState(false);
 
   const [activeEmp, setActiveEmp] = useState(null);
@@ -56,6 +58,7 @@ export default function Employees() {
     role: "Worker",
     joiningDate: "",
     isActive: true,
+    departmentId: "", // NEW
   });
 
   const fetchEmployees = async () => {
@@ -78,10 +81,20 @@ export default function Employees() {
     }
   };
 
+  const fetchDepartments = async () => {
+    try {
+      const res = await axiosClient.get("/admin/departments");
+      setDepartments(res.data.departments || []);
+    } catch (err) {
+      console.error("Fetch Departments Error:", err);
+      // Don't block UI if this fails
+    }
+  };
+
   useEffect(() => {
     (async () => {
       setLoading(true);
-      await Promise.all([fetchEmployees(), fetchLeaveTypes()]);
+      await Promise.all([fetchEmployees(), fetchLeaveTypes(), fetchDepartments()]);
       setLoading(false);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -98,6 +111,7 @@ export default function Employees() {
       role: "Worker",
       joiningDate: "",
       isActive: true,
+      departmentId: "",
     });
     setEmpModalOpen(true);
   };
@@ -118,6 +132,7 @@ export default function Employees() {
       role: emp.role || "Worker",
       joiningDate: formatDateForInput(emp.joiningDate),
       isActive: emp.isActive !== undefined ? emp.isActive : true,
+      departmentId: emp.department?.deptId || "",
     });
     setEmpModalOpen(true);
   };
@@ -325,6 +340,10 @@ export default function Employees() {
             {t("pages.hrEmployees.quotaModal.syncStandard")}
           </button>
 
+          <button className="emp-btn emp-btn-secondary" onClick={() => setDeptModalOpen(true)}>
+            <FiLayers /> {t("pages.hrEmployees.buttons.departments", "Departments")}
+          </button>
+
           <button className="emp-btn emp-btn-primary" onClick={openAddModal}>
             <FiUserPlus />
             {t("pages.hrEmployees.buttons.addNew")}
@@ -384,6 +403,11 @@ export default function Employees() {
                     </span>
                     {!emp.isActive && (
                       <span className="badge badge-danger">{t("pages.hrEmployees.badge.inactive")}</span>
+                    )}
+                    {emp.department && (
+                      <span className="badge" style={{ backgroundColor: "#f1f5f9", color: "#475569", marginLeft: 6, border: "1px solid #e2e8f0" }}>
+                        {emp.department.deptName}
+                      </span>
                     )}
                   </td>
 
@@ -602,6 +626,22 @@ export default function Employees() {
                 </div>
               </div>
 
+              <div className="form-col">
+                <label>{t("pages.hrEmployees.form.department", "Department")}</label>
+                <select
+                  className="quota-input w-full"
+                  value={empForm.departmentId}
+                  onChange={(e) => setEmpForm({ ...empForm, departmentId: e.target.value })}
+                >
+                  <option value="">{t("common.none", "None")}</option>
+                  {departments.map((d) => (
+                    <option key={d.deptId} value={d.deptId}>
+                      {d.deptName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <label className="checkbox-label">
                 <input
                   type="checkbox"
@@ -735,6 +775,103 @@ export default function Employees() {
           </div>
         </div>
       )}
+      {deptModalOpen && (
+        <DepartmentManagerModal
+          isOpen={deptModalOpen}
+          onClose={() => setDeptModalOpen(false)}
+          departments={departments}
+          onRefresh={fetchDepartments}
+        />
+      )}
+    </div>
+  );
+}
+
+function DepartmentManagerModal({ isOpen, onClose, departments, onRefresh }) {
+  const { t } = useTranslation();
+  const [newDeptName, setNewDeptName] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleCreate = async (e) => {
+    e.preventDefault();
+    if (!newDeptName.trim()) return;
+
+    try {
+      setLoading(true);
+      await axiosClient.post("/admin/departments", { deptName: newDeptName });
+      await alertSuccess(t("common.success"), t("pages.hrEmployees.dept.created", "Department created."));
+      setNewDeptName("");
+      onRefresh();
+    } catch (err) {
+      await alertError(t("common.error"), err.response?.data?.message || err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    const ok = await alertConfirm(t("common.confirmDelete"), t("pages.hrEmployees.dept.confirmDelete", "Delete this department?"));
+    if (!ok) return;
+
+    try {
+      setLoading(true);
+      await axiosClient.delete(`/admin/departments/${id}`);
+      await alertSuccess(t("common.success"), t("pages.hrEmployees.dept.deleted", "Department deleted."));
+      onRefresh();
+    } catch (err) {
+      await alertError(t("common.error"), err.response?.data?.message || err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="emp-modal-backdrop" onClick={onClose}>
+      <div className="emp-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 500 }}>
+        <div className="emp-modal-head">
+          <div className="emp-modal-title">{t("pages.hrEmployees.dept.title", "Manage Departments")}</div>
+          <button className="emp-x" onClick={onClose}>×</button>
+        </div>
+
+        <div className="emp-modal-body">
+          <form onSubmit={handleCreate} style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+            <input
+              className="quota-input"
+              style={{ flex: 1 }}
+              placeholder={t("pages.hrEmployees.dept.placeholder", "New Department Name")}
+              value={newDeptName}
+              onChange={(e) => setNewDeptName(e.target.value)}
+              required
+            />
+            <button className="emp-btn emp-btn-primary" type="submit" disabled={loading}>
+              <FiPlus /> {t("common.add", "Add")}
+            </button>
+          </form>
+
+          <div style={{ maxHeight: 300, overflowY: "auto", border: "1px solid #eee", borderRadius: 8 }}>
+            {departments.length === 0 ? (
+              <div style={{ padding: 20, textAlign: "center", color: "#888" }}>{t("common.noData", "No departments found.")}</div>
+            ) : (
+              <table className="table" style={{ width: "100%" }}>
+                <tbody>
+                  {departments.map(d => (
+                    <tr key={d.deptId}>
+                      <td style={{ padding: "10px 15px" }}>{d.deptName}</td>
+                      <td style={{ width: 50, textAlign: "right", padding: "10px 15px" }}>
+                        <button className="emp-btn emp-btn-outline small warn" onClick={() => handleDelete(d.deptId)} disabled={loading}>
+                          <FiTrash2 />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
