@@ -308,7 +308,7 @@ const getDailyDetail = async (req, res, next) => {
       include: {
         employee: { select: { employeeId: true, firstName: true, lastName: true, role: true } },
         leaveType: true,
-        approvedByHR: { select: { firstName: true, lastName: true } }
+        approvedByHR: { select: { firstName: true, lastName: true, role: true } }
       }
     });
 

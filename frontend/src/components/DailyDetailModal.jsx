@@ -13,7 +13,7 @@ import moment from "moment";
 import "moment/locale/th";
 import { useTranslation } from "react-i18next";
 
-export default function DailyDetailModal({ isOpen, onClose, date, data, workingDays = [1,2,3,4,5] }) {
+export default function DailyDetailModal({ isOpen, onClose, date, data, workingDays = [1, 2, 3, 4, 5] }) {
   const { t, i18n } = useTranslation();
 
   const mLocale = useMemo(() => {
@@ -202,7 +202,10 @@ export default function DailyDetailModal({ isOpen, onClose, date, data, workingD
                       <td style={tableCellStyle}>{renderLeaveShiftBadge(l)}</td>
                       <td style={tableCellStyle}>
                         <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "0.85rem", color: "#64748b" }}>
-                          <FiCheck size={14} color="#10b981" /> {l.approvedByHR?.firstName || t("common.system", "System")}
+                          <FiCheck size={14} color="#10b981" />
+                          {l.approvedByHR
+                            ? `${l.approvedByHR.firstName} ${l.approvedByHR.lastName} (${l.approvedByHR.role})`
+                            : t("common.system", "System")}
                         </div>
                       </td>
                     </tr>
