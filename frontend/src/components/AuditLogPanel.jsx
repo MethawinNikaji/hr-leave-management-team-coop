@@ -446,7 +446,7 @@ export default function AuditLogPanel() {
                 disabled={loading || normalizedData.length === 0}
               >
                 <FiDownload />
-                Export CSV
+                {t("components.auditLogPanel.exportCSV")}
               </button>
 
               <button

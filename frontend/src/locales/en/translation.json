@@ -945,6 +945,7 @@
       "App Sidebar": "App Sidebar"
     },
     "auditLogPanel": {
+      "exportCSV":"Export CSV",
       "System activities and history": "System activities and history",
       "Click row for data comparison": "Click row for data comparison",
       "Refresh": "Refresh",

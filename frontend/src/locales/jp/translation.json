@@ -949,6 +949,7 @@
       "App Sidebar": "アプリサイドバー"
     },
     "auditLogPanel": {
+      "exportCSV":"CSV出力",
       "System activities and history": "システム活動と履歴",
       "Click row for data comparison": "行をクリックして変更内容を比較",
       "Refresh": "更新",
