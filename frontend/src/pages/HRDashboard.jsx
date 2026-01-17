@@ -39,7 +39,7 @@ function getMonthMatrix(year, monthIndex) {
 }
 
 const parseWorkingDays = (str) => {
-  if (!str) return [1, 2, 3, 4, 5];
+  if (str === null || str === undefined) return [1, 2, 3, 4, 5];
   const dayMap = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
   return str
     .split(",")
@@ -93,7 +93,9 @@ export default function HRDashboard() {
       ]);
       const approved = leaveRes.data.requests?.filter((r) => r.status === "Approved") || [];
       const holidays = policyRes.data.policy?.specialHolidays || [];
-      if (policyRes.data.policy?.workingDays) setWorkingDays(parseWorkingDays(policyRes.data.policy.workingDays));
+      if (policyRes.data.policy) {
+        setWorkingDays(parseWorkingDays(policyRes.data.policy.workingDays));
+      }
       setSpecialHolidays(holidays);
       const mapping = {};
       holidays.forEach((hStr) => {

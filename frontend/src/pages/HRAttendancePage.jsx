@@ -23,7 +23,7 @@ function num(v) {
 const normStatus = (s) => String(s || "").trim().toLowerCase();
 
 const parseWorkingDays = (str) => {
-  if (!str) return [1, 2, 3, 4, 5];
+  if (str === null || str === undefined) return [1, 2, 3, 4, 5];
   const dayMap = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
   return str
     .split(",")
@@ -165,7 +165,7 @@ export default function HRAttendancePage() {
 
       if (pRes.data.policy) {
         setPolicy(pRes.data.policy);
-        if (pRes.data.policy.workingDays) setWorkingDays(parseWorkingDays(pRes.data.policy.workingDays));
+        if (pRes.data.policy.workingDays !== undefined) setWorkingDays(parseWorkingDays(pRes.data.policy.workingDays));
         setSpecialHolidays(pRes.data.policy.specialHolidays || []);
       }
 
@@ -431,14 +431,14 @@ export default function HRAttendancePage() {
             btnText: isFullDayLeave
               ? "On Leave"
               : isTodaySpecialHoliday
-              ? "Holiday"
-              : isAfterWorkHours && !checkedInAt
-              ? "Time Expired"
-              : isTooEarly
-              ? "Too Early"
-              : checkedInAt
-              ? "checkedIn"
-              : "checkInNow",
+                ? "Holiday"
+                : isAfterWorkHours && !checkedInAt
+                  ? "Time Expired"
+                  : isTooEarly
+                    ? "Too Early"
+                    : checkedInAt
+                      ? "checkedIn"
+                      : "checkInNow",
           },
           { label: "checkOut", time: checkedOutAt, disabled: !checkedInAt || !!checkedOutAt || isBeforeEndTime, handler: () => handleAttendance("out"), btnText: "checkOutBtn" },
         ].map((action, idx) => (

@@ -24,7 +24,7 @@ function num(v) {
 }
 
 const parseWorkingDays = (str) => {
-  if (!str) return [1, 2, 3, 4, 5];
+  if (str === null || str === undefined) return [1, 2, 3, 4, 5];
   const dayMap = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
   return str
     .split(",")
@@ -129,7 +129,7 @@ export default function WorkerDashboard() {
 
       if (policyRes.data.policy) {
         setPolicy(policyRes.data.policy);
-        if (policyRes.data.policy.workingDays)
+        if (policyRes.data.policy.workingDays !== undefined)
           setWorkingDays(parseWorkingDays(policyRes.data.policy.workingDays));
         // Keep raw strings to preserve descriptions
         setSpecialHolidays(policyRes.data.policy.specialHolidays || []);

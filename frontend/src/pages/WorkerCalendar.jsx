@@ -29,7 +29,7 @@ function getMonthMatrix(year, monthIndex) {
 
 // 🔥 Helper Function แปลง "mon,tue" -> [1, 2]
 const parseWorkingDays = (str) => {
-  if (!str) return [1, 2, 3, 4, 5]; // Default Mon-Fri
+  if (str === null || str === undefined) return [1, 2, 3, 4, 5]; // Default Mon-Fri only if null/undefined
   const dayMap = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
   return str
     .split(",")
@@ -88,7 +88,7 @@ export default function WorkerCalendar() {
       const policy = policyRes.data.policy;
 
       // 🔥 แปลงค่าจาก String เป็น Array
-      if (policy?.workingDays) {
+      if (policy) {
         const days = parseWorkingDays(policy.workingDays);
         setWorkingDays(days);
       }
