@@ -1,7 +1,7 @@
 .page-card.hr-policy {
   width: 100%;
-  max-width: 1400px;
-  /* Wider to accommodate side-by-side */
+  max-width: 1250px;
+  /* Adjusted to match other pages */
   margin: 0 auto;
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(20px);
@@ -31,6 +31,7 @@
   letter-spacing: -0.02em;
   background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
