@@ -8,6 +8,7 @@ const prisma = new PrismaClient();
 const TIMEZONE = 'Asia/Bangkok';
 
 const userData = [
+    { email: 'admin@company.com', role: 'Admin', firstName: 'System', lastName: 'Admin', password: 'Password123', joiningDate: '2022-01-01' },
     { email: 'hr.manager@company.com', role: 'HR', firstName: 'HR', lastName: 'Manager', password: 'Password123', joiningDate: '2023-01-01' },
     { email: 'worker.a@company.com', role: 'Worker', firstName: 'Alice', lastName: 'WorkerA', password: 'Password123', joiningDate: '2023-06-15' },
     { email: 'worker.b@company.com', role: 'Worker', firstName: 'Bob', lastName: 'WorkerB', password: 'Password123', joiningDate: '2024-03-01' },

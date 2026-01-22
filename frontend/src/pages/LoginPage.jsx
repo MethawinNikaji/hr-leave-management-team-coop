@@ -156,6 +156,10 @@ export default function LoginPage() {
           <div className="title">{t("auth.login.testAccounts")}</div>
           <div className="list">
             <div className="row">
+              <span className="label">Admin</span>
+              <code>{"admin@company.com"}</code>
+            </div>
+            <div className="row">
               <span className="label">{t("auth.login.hr")}</span>
               <code>{"hr.manager@company.com"}</code>
             </div>
