@@ -5,11 +5,17 @@ import { alertConfirm, alertError, alertSuccess } from "../utils/sweetAlert";
 import axiosClient from "../api/axiosClient";
 import { useTranslation } from "react-i18next";
 
+import { useAuth } from "../context/AuthContext";
+
 export default function Employees() {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "Admin";
+
   const [employees, setEmployees] = useState([]);
   const [types, setTypes] = useState([]);
-  const [departments, setDepartments] = useState([]); // NEW
+  const [departments, setDepartments] = useState([]);
+  const [rolesList, setRolesList] = useState([]); // NEW: Dynamic roles
   const [loading, setLoading] = useState(true);
 
   // Phase 2 filters
@@ -91,14 +97,30 @@ export default function Employees() {
       setDepartments(res.data.departments || []);
     } catch (err) {
       console.error("Fetch Departments Error:", err);
-      // Don't block UI if this fails
+    }
+  };
+
+  const fetchRoles = async () => {
+    try {
+      const res = await axiosClient.get("/admin/roles");
+      if (res.data.success) {
+        setRolesList(res.data.roles);
+      }
+    } catch (err) {
+      console.error("Fetch Roles Error:", err);
+      // Fallback if roles endpoint fails or user isn't admin
+      setRolesList([
+        { roleId: 1, roleName: 'Worker' },
+        { roleId: 2, roleName: 'HR' },
+        { roleId: 3, roleName: 'Admin' }
+      ]);
     }
   };
 
   useEffect(() => {
     (async () => {
       setLoading(true);
-      await Promise.all([fetchEmployees(), fetchLeaveTypes(), fetchDepartments()]);
+      await Promise.all([fetchEmployees(), fetchLeaveTypes(), fetchDepartments(), fetchRoles()]);
       setLoading(false);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -452,8 +474,8 @@ export default function Employees() {
                   <td>
                     <div className="emp-muted mini">{emp.email}</div>
                     <span className={`badge ${emp.role === "HR" ? "badge-role-hr" :
-                        emp.role === "Worker" ? "badge-role-worker" :
-                          emp.role === "Admin" ? "badge-role-admin" : "badge-role-worker"
+                      emp.role === "Worker" ? "badge-role-worker" :
+                        emp.role === "Admin" ? "badge-role-admin" : "badge-role-worker"
                       }`}>
                       {emp.role === "HR" ? t("pages.hrEmployees.filters.hr") :
                         emp.role === "Worker" ? t("pages.hrEmployees.filters.worker") :
@@ -693,9 +715,17 @@ export default function Employees() {
                       className="quota-input w-full"
                       value={empForm.role}
                       onChange={(e) => setEmpForm({ ...empForm, role: e.target.value })}
+                      disabled={!isAdmin && empForm.role === 'Admin'} // Prevent HR from editing Admin's role if they somehow opened it (though API should block)
                     >
-                      <option value="Worker">{t("pages.hrEmployees.filters.worker")}</option>
-                      <option value="HR">{t("pages.hrEmployees.filters.hr")}</option>
+                      {rolesList.map(r => (
+                        <option
+                          key={r.roleId}
+                          value={r.roleName}
+                          disabled={!isAdmin && r.roleName === 'Admin'} // HR cannot select Admin
+                        >
+                          {r.roleName}
+                        </option>
+                      ))}
                     </select>
                   </div>
 

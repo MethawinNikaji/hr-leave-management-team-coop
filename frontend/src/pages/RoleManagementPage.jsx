@@ -7,6 +7,7 @@ import {
 } from "react-icons/fi";
 import DataTable from "react-data-table-component";
 
+import "./RoleManagementPage.css";
 
 export default function RoleManagementPage() {
     const { t } = useTranslation();
@@ -111,9 +112,9 @@ export default function RoleManagementPage() {
         {
             name: t("common.actions", "Actions"),
             cell: (row) => (
-                <div className="table-actions">
+                <div style={{ display: 'flex', gap: '8px' }}>
                     <button
-                        className="btn-icon warning"
+                        className="role-action-btn edit"
                         onClick={() => handleEdit(row)}
                         title={t("common.edit")}
                     >
@@ -123,7 +124,7 @@ export default function RoleManagementPage() {
                     {/* Prevent deleting system roles */}
                     {!['Admin', 'HR', 'Worker'].includes(row.roleName) && (
                         <button
-                            className="btn-icon danger"
+                            className="role-action-btn delete"
                             onClick={() => handleDelete(row)}
                             title={t("common.delete")}
                         >
@@ -136,19 +137,68 @@ export default function RoleManagementPage() {
         },
     ];
 
+    const customStyles = {
+        headRow: {
+            style: {
+                border: 'none',
+            },
+        },
+        headCells: {
+            style: {
+                color: '#94a3b8',
+                fontSize: '12px',
+                fontWeight: '700',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+            },
+        },
+        rows: {
+            style: {
+                minHeight: '60px',
+                borderBottom: '1px solid #f1f5f9',
+            },
+            highlightOnHoverStyle: {
+                backgroundColor: '#f8fafc',
+                borderBottomColor: '#f1f5f9',
+                borderRadius: '12px',
+                outline: '1px solid #ffffff',
+            },
+        },
+        pagination: {
+            style: {
+                border: 'none',
+            },
+        },
+    };
+
     return (
-        <div className="p-6">
-            <div className="flex justify-between items-center mb-6">
+        <div className="page-card role-mgmt">
+            <div className="role-head">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
+                    <h1 className="role-title">
                         {t("sidebar.items.rolesManagement", "Roles Management")}
                     </h1>
-                    <p className="text-gray-500 dark:text-gray-400">
+                    <p className="role-sub">
                         {t("roles.subtitle", "Manage user roles and permissions.")}
                     </p>
                 </div>
+            </div>
+
+            <div className="role-tools">
+                {/* Search */}
+                <div className="role-search-box">
+                    <FiSearch className="role-search-icon" />
+                    <input
+                        type="text"
+                        className="role-search-input"
+                        placeholder={t("common.search", "Search...")}
+                        value={filterText}
+                        onChange={(e) => setFilterText(e.target.value)}
+                    />
+                </div>
+
                 <button
-                    className="btn-primary flex items-center gap-2"
+                    className="role-btn role-btn-primary"
                     onClick={() => {
                         setEditingRole(null);
                         setForm({ roleName: "" });
@@ -160,19 +210,7 @@ export default function RoleManagementPage() {
                 </button>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
-                {/* Search */}
-                <div className="mb-4 flex items-center bg-gray-100 dark:bg-gray-700 rounded-md px-3 py-2 w-full md:w-64">
-                    <FiSearch className="text-gray-400 mr-2" />
-                    <input
-                        type="text"
-                        className="bg-transparent border-none outline-none text-sm w-full dark:text-white"
-                        placeholder={t("common.search", "Search...")}
-                        value={filterText}
-                        onChange={(e) => setFilterText(e.target.value)}
-                    />
-                </div>
-
+            <div className="role-table-card">
                 <DataTable
                     columns={columns}
                     data={filteredRoles}
@@ -180,42 +218,49 @@ export default function RoleManagementPage() {
                     pagination
                     highlightOnHover
                     responsive
+                    customStyles={customStyles}
                     theme={localStorage.getItem("theme") === "dark" ? "dark" : "default"}
                 />
             </div>
 
             {/* Modal */}
             {modalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg w-full max-w-md p-6 animate-fade-in-up">
-                        <h2 className="text-xl font-bold mb-4 dark:text-white">
-                            {editingRole ? t("roles.editRole", "Edit Role") : t("roles.newRole", "New Role")}
-                        </h2>
-                        <form onSubmit={handleSubmit}>
-                            <label className="block mb-4">
-                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                    {t("roles.roleName", "Role Name")}
-                                </span>
-                                <input
-                                    type="text"
-                                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border"
-                                    value={form.roleName}
-                                    onChange={(e) => setForm({ ...form, roleName: e.target.value })}
-                                    required
-                                />
-                            </label>
+                <div className="role-modal-overlay" onClick={() => setModalOpen(false)}>
+                    <div className="role-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="role-modal-header">
+                            <h2 className="role-modal-title">
+                                {editingRole ? t("roles.editRole", "Edit Role") : t("roles.newRole", "New Role")}
+                            </h2>
+                        </div>
 
-                            <div className="flex justify-end gap-3 mt-6">
+                        <form onSubmit={handleSubmit}>
+                            <div className="role-modal-body">
+                                <div className="role-form-group">
+                                    <span className="role-label">
+                                        {t("roles.roleName", "Role Name")}
+                                    </span>
+                                    <input
+                                        type="text"
+                                        className="role-input"
+                                        value={form.roleName}
+                                        onChange={(e) => setForm({ ...form, roleName: e.target.value })}
+                                        required
+                                        placeholder="e.g. Supervisor"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="role-modal-footer">
                                 <button
                                     type="button"
-                                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                                    className="role-btn role-btn-secondary"
                                     onClick={() => setModalOpen(false)}
                                 >
                                     {t("common.cancel", "Cancel")}
                                 </button>
                                 <button
                                     type="submit"
-                                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+                                    className="role-btn role-btn-primary"
                                 >
                                     {t("common.save", "Save")}
                                 </button>

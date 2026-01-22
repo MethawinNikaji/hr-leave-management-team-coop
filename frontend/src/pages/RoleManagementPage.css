@@ -1,0 +1,410 @@
+/* frontend/src/pages/RoleManagementPage.css */
+
+/* 1. Page Container & Layout */
+.page-card.role-mgmt {
+    padding: 32px 40px;
+    max-width: 1200px;
+    margin: 0 auto;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #334155;
+    animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fadeUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 2. Header Section */
+.role-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 40px;
+}
+
+.role-title {
+    font-size: 32px;
+    font-weight: 700;
+    color: #0f172a;
+    letter-spacing: -0.02em;
+    margin: 0;
+    background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.role-sub {
+    font-size: 15px;
+    color: #64748b;
+    margin-top: 8px;
+    font-weight: 400;
+    letter-spacing: 0.01em;
+}
+
+/* 3. Toolbar (Search & Add) - "Floating Bar" Style */
+.role-tools {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.role-search-box {
+    position: relative;
+    width: 320px;
+}
+
+.role-search-icon {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    font-size: 18px;
+    transition: color 0.2s;
+}
+
+.role-search-input {
+    width: 100%;
+    padding: 14px 16px 14px 48px;
+    border-radius: 100px;
+    /* Pill shape for ultra-modern look */
+    border: 1px solid #e2e8f0;
+    background-color: #ffffff;
+    font-size: 14px;
+    color: #1e293b;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.role-search-input:focus {
+    outline: none;
+    border-color: #cbd5e1;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
+    width: 340px;
+    /* Subtle expand effect */
+}
+
+.role-search-input:focus+.role-search-icon {
+    color: #6366f1;
+    /* Indigo */
+}
+
+/* Primary Button (Minimal & Gradient) */
+.role-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 24px;
+    border-radius: 100px;
+    background: #0f172a;
+    /* Dark slate (almost black) for luxury feel */
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.15);
+}
+
+.role-btn-primary:hover {
+    background: #334155;
+    transform: translateY(-1px);
+    box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.2);
+}
+
+.role-btn-primary:active {
+    transform: translateY(0);
+}
+
+/* 4. Table Card (Clean, airy) */
+.role-table-card {
+    background: #ffffff;
+    border-radius: 24px;
+    /* Soft large radius */
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.02), 0 10px 10px -5px rgba(0, 0, 0, 0.01);
+    /* Super subtle shadow */
+    border: 1px solid rgba(241, 245, 249, 1);
+    /* Slate-100 */
+    overflow: hidden;
+    padding: 4px;
+    /* Inner padding for border separation */
+}
+
+/* React Data Table Component Overrides (if utilizing styled-components or default props, this wraps it) */
+.role-table-card .rdt_Table {
+    background: transparent;
+}
+
+.role-table-card .rdt_TableHeadRow {
+    background: #f8fafc !important;
+    /* Slate-50 */
+    border-bottom: 1px solid #e2e8f0;
+    font-weight: 700;
+    color: #475569;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    min-height: 56px;
+}
+
+.role-table-card .rdt_TableRow {
+    font-size: 15px;
+    color: #334155;
+    min-height: 64px;
+    /* Taller rows for elegance */
+    border-bottom: 1px solid #f1f5f9;
+    transition: background 0.2s;
+}
+
+.role-table-card .rdt_TableRow:hover {
+    background: #f8fafc !important;
+}
+
+/* Action Buttons (Minimal icons) */
+.role-action-btn {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 18px;
+}
+
+.role-action-btn.edit {
+    color: #64748b;
+    /* Slate-500 */
+}
+
+.role-action-btn.edit:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+.role-action-btn.delete {
+    color: #94a3b8;
+}
+
+.role-action-btn.delete:hover {
+    background: #fef2f2;
+    color: #ef4444;
+}
+
+/* 5. Modal (Glassmorphism & Centered) */
+.role-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(255, 255, 255, 0.1);
+    /* Very light overlay base */
+    backdrop-filter: blur(12px);
+    /* Strong blur for premium feel */
+    -webkit-backdrop-filter: blur(12px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    animation: fadeIn 0.3s ease;
+}
+
+.role-modal {
+    background: #ffffff;
+    width: 100%;
+    max-width: 440px;
+    border-radius: 32px;
+    /* Very round */
+    box-shadow:
+        0 20px 25px -5px rgba(0, 0, 0, 0.05),
+        0 8px 10px -6px rgba(0, 0, 0, 0.01),
+        0 0 0 1px rgba(0, 0, 0, 0.03);
+    /* Border ring */
+    padding: 0;
+    overflow: hidden;
+    animation: zoomIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.role-modal-header {
+    padding: 32px 32px 10px;
+    text-align: left;
+}
+
+.role-modal-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #0f172a;
+    letter-spacing: -0.02em;
+}
+
+.role-modal-body {
+    padding: 10px 32px 32px;
+}
+
+.role-form-group {
+    margin-top: 16px;
+}
+
+.role-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.role-input {
+    width: 100%;
+    padding: 14px 18px;
+    border-radius: 16px;
+    border: 2px solid #f1f5f9;
+    /* Subtle border */
+    background: #f8fafc;
+    font-size: 16px;
+    font-weight: 500;
+    color: #0f172a;
+    transition: all 0.2s;
+}
+
+.role-input:focus {
+    outline: none;
+    background: #ffffff;
+    border-color: #0f172a;
+    /* Focus to black/dark slate for high contrast minimal look */
+}
+
+.role-modal-footer {
+    padding: 24px 32px 32px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    background: transparent;
+    /* Seamless */
+}
+
+.role-btn-secondary {
+    padding: 12px 24px;
+    border-radius: 100px;
+    background: transparent;
+    color: #64748b;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.role-btn-secondary:hover {
+    color: #0f172a;
+    background: #f1f5f9;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes zoomIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* Dark Mode Support */
+:global(.dark) .page-card.role-mgmt {
+    color: #f1f5f9;
+}
+
+:global(.dark) .role-title {
+    color: #ffffff;
+    background: none;
+    -webkit-text-fill-color: initial;
+}
+
+:global(.dark) .role-sub {
+    color: #94a3b8;
+}
+
+:global(.dark) .role-search-input {
+    background: #1e293b;
+    border-color: #334155;
+    color: #f1f5f9;
+}
+
+:global(.dark) .role-table-card {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+:global(.dark) .role-table-card .rdt_TableHeadRow {
+    background: #0f172a !important;
+    color: #cbd5e1;
+    border-bottom-color: #334155;
+}
+
+:global(.dark) .role-table-card .rdt_TableRow {
+    background: #1e293b !important;
+    color: #f1f5f9;
+    border-bottom-color: #334155;
+}
+
+:global(.dark) .role-table-card .rdt_TableRow:hover {
+    background: #334155 !important;
+}
+
+:global(.dark) .role-btn-primary {
+    background: #f8fafc;
+    color: #0f172a;
+}
+
+/* Invert for dark mode pop */
+:global(.dark) .role-modal {
+    background: #1e293b;
+}
+
+:global(.dark) .role-modal-title {
+    color: #ffffff;
+}
+
+:global(.dark) .role-input {
+    background: #0f172a;
+    border-color: #334155;
+    color: #ffffff;
+}
+
+:global(.dark) .role-btn-secondary {
+    color: #cbd5e1;
+}
+
+:global(.dark) .role-action-btn.edit {
+    color: #cbd5e1;
+}
+
+:global(.dark) .role-action-btn.edit:hover {
+    background: #334155;
+}
