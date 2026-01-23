@@ -12,6 +12,7 @@ import "./RoleManagementPage.css";
 export default function RoleManagementPage() {
     const { t } = useTranslation();
     const [roles, setRoles] = useState([]);
+    const [permissions, setPermissions] = useState([]); // New
     const [loading, setLoading] = useState(false);
     const [filterText, setFilterText] = useState("");
 
@@ -19,24 +20,32 @@ export default function RoleManagementPage() {
     const [modalOpen, setModalOpen] = useState(false);
     const [editingRole, setEditingRole] = useState(null);
     const [form, setForm] = useState({ roleName: "" });
+    const [selectedPermissionIds, setSelectedPermissionIds] = useState([]); // New
 
-    const fetchRoles = async () => {
+    const fetchData = async () => {
         try {
             setLoading(true);
-            const res = await axiosClient.get("/admin/roles");
-            if (res.data.success) {
-                setRoles(res.data.roles);
+            const [rolesRes, permsRes] = await Promise.all([
+                axiosClient.get("/admin/roles"),
+                axiosClient.get("/admin/permissions")
+            ]);
+
+            if (rolesRes.data.success) {
+                setRoles(rolesRes.data.roles);
+            }
+            if (permsRes.data.success) {
+                setPermissions(permsRes.data.permissions);
             }
         } catch (err) {
             console.error(err);
-            alertError(t("common.error"), t("alerts.loadFailed") || "Failed to load roles.");
+            alertError(t("common.error"), t("alerts.loadFailed") || "Failed to load data.");
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        fetchRoles();
+        fetchData();
     }, []);
 
     // Filter
@@ -50,6 +59,9 @@ export default function RoleManagementPage() {
     const handleEdit = (role) => {
         setEditingRole(role);
         setForm({ roleName: role.roleName });
+        // Map permission objects to IDs
+        const ids = (role.permissions || []).map(p => p.permissionId);
+        setSelectedPermissionIds(ids);
         setModalOpen(true);
     };
 
@@ -63,7 +75,7 @@ export default function RoleManagementPage() {
         try {
             await axiosClient.delete(`/admin/roles/${role.roleId}`);
             alertSuccess(t("common.success"), t("roles.deleted", "Role deleted."));
-            fetchRoles();
+            fetchData();
         } catch (err) {
             console.error(err);
             const msg = err.response?.data?.message || err.message;
@@ -75,20 +87,23 @@ export default function RoleManagementPage() {
         e.preventDefault();
         if (!form.roleName.trim()) return;
 
+        const payload = { ...form, permissionIds: selectedPermissionIds };
+
         try {
             if (editingRole) {
                 // Update
-                await axiosClient.put(`/admin/roles/${editingRole.roleId}`, form);
+                await axiosClient.put(`/admin/roles/${editingRole.roleId}`, payload);
                 alertSuccess(t("common.success"), t("roles.updated", "Role updated."));
             } else {
                 // Create
-                await axiosClient.post("/admin/roles", form);
+                await axiosClient.post("/admin/roles", payload);
                 alertSuccess(t("common.success"), t("roles.created", "Role created."));
             }
             setModalOpen(false);
             setEditingRole(null);
             setForm({ roleName: "" });
-            fetchRoles();
+            setSelectedPermissionIds([]);
+            fetchData();
         } catch (err) {
             console.error(err);
             const msg = err.response?.data?.message || err.message;
@@ -202,6 +217,7 @@ export default function RoleManagementPage() {
                     onClick={() => {
                         setEditingRole(null);
                         setForm({ roleName: "" });
+                        setSelectedPermissionIds([]);
                         setModalOpen(true);
                     }}
                 >
@@ -246,7 +262,33 @@ export default function RoleManagementPage() {
                                         onChange={(e) => setForm({ ...form, roleName: e.target.value })}
                                         required
                                         placeholder="e.g. Supervisor"
+                                        disabled={['Admin', 'HR', 'Worker'].includes(form.roleName)} // Lock system role names
                                     />
+                                </div>
+
+                                <div className="role-form-group">
+                                    <span className="role-label">
+                                        {t("roles.permissions", "Permissions")}
+                                    </span>
+                                    <div className="role-perm-grid">
+                                        {permissions.map(perm => (
+                                            <label key={perm.permissionId} className="role-perm-item">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedPermissionIds.includes(perm.permissionId)}
+                                                    onChange={(e) => {
+                                                        const checked = e.target.checked;
+                                                        setSelectedPermissionIds(prev =>
+                                                            checked
+                                                                ? [...prev, perm.permissionId]
+                                                                : prev.filter(id => id !== perm.permissionId)
+                                                        );
+                                                    }}
+                                                />
+                                                <span title={perm.description}>{perm.name}</span>
+                                            </label>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
 

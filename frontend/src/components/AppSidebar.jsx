@@ -24,10 +24,10 @@ const MENUS = {
     {
       sectionKey: "sidebar.sections.main",
       items: [
-        { to: "/worker/dashboard", labelKey: "sidebar.items.dashboard", icon: <FiGrid /> },
-        { to: "/worker/attendance", labelKey: "sidebar.items.myAttendance", icon: <FiCalendar /> },
-        { to: "/worker/calendar", labelKey: "sidebar.items.myCalendar", icon: <FiCalendar /> },
-        { to: "/worker/leave", labelKey: "sidebar.items.myLeaves", icon: <FiClipboard /> },
+        { to: "/worker/dashboard", labelKey: "sidebar.items.dashboard", icon: <FiGrid />, permission: "access_worker_dashboard" },
+        { to: "/worker/attendance", labelKey: "sidebar.items.myAttendance", icon: <FiCalendar />, permission: "access_my_attendance" },
+        { to: "/worker/calendar", labelKey: "sidebar.items.myCalendar", icon: <FiCalendar />, permission: "access_my_attendance" },
+        { to: "/worker/leave", labelKey: "sidebar.items.myLeaves", icon: <FiClipboard />, permission: "access_my_leaves" },
         { to: "/worker/notifications", labelKey: "sidebar.items.notifications", icon: <FiBell />, badgeKey: "worker_unread_notifications" },
       ],
     },
@@ -40,19 +40,19 @@ const MENUS = {
     {
       sectionKey: "sidebar.sections.main",
       items: [
-        { to: "/hr/dashboard", labelKey: "sidebar.items.dashboard", icon: <FiGrid /> },
-        { to: "/hr/attendance", labelKey: "sidebar.items.employeeAttendance", icon: <FiCalendar /> },
+        { to: "/hr/dashboard", labelKey: "sidebar.items.dashboard", icon: <FiGrid />, permission: "access_hr_dashboard" },
+        { to: "/hr/attendance", labelKey: "sidebar.items.employeeAttendance", icon: <FiCalendar />, permission: "access_attendance_list" },
         { to: "/hr/notifications", labelKey: "sidebar.items.notifications", icon: <FiBell />, badgeKey: "hr_unread_notifications" },
       ],
     },
     {
       sectionKey: "sidebar.sections.hrManagement",
       items: [
-        { to: "/hr/profile-requests", labelKey: "sidebar.items.profileRequests", icon: <FiUser />, badgeKey: "profile_request_unread" },
-        { to: "/hr/leave-approvals", labelKey: "sidebar.items.leaveApprovals", icon: <FiCheckSquare /> },
-        { to: "/hr/employees", labelKey: "sidebar.items.employees", icon: <FiUsers /> },
-        { to: "/hr/leave-settings", labelKey: "sidebar.items.leaveQuotaSettings", icon: <FiSettings /> },
-        { to: "/hr/attendance-policy", labelKey: "sidebar.items.attendanceSettings", icon: <FiSettings /> },
+        { to: "/hr/profile-requests", labelKey: "sidebar.items.profileRequests", icon: <FiUser />, badgeKey: "profile_request_unread", permission: "access_profile_requests" },
+        { to: "/hr/leave-approvals", labelKey: "sidebar.items.leaveApprovals", icon: <FiCheckSquare />, permission: "access_leave_approval" },
+        { to: "/hr/employees", labelKey: "sidebar.items.employees", icon: <FiUsers />, permission: "access_employee_list" },
+        { to: "/hr/leave-settings", labelKey: "sidebar.items.leaveQuotaSettings", icon: <FiSettings />, permission: "access_leave_settings" },
+        { to: "/hr/attendance-policy", labelKey: "sidebar.items.attendanceSettings", icon: <FiSettings />, permission: "access_attendance_policy" },
       ],
     },
   ],
@@ -60,17 +60,16 @@ const MENUS = {
     {
       sectionKey: "sidebar.sections.main",
       items: [
-        { to: "/hr/dashboard", labelKey: "sidebar.items.dashboard", icon: <FiGrid /> },
-        // Admin can access HR stuff too, or we can separate. Assuming Admin ~ Super HR.
-        { to: "/hr/attendance", labelKey: "sidebar.items.employeeAttendance", icon: <FiCalendar /> },
+        { to: "/hr/dashboard", labelKey: "sidebar.items.dashboard", icon: <FiGrid />, permission: "access_hr_dashboard" },
+        { to: "/hr/attendance", labelKey: "sidebar.items.employeeAttendance", icon: <FiCalendar />, permission: "access_attendance_list" },
       ],
     },
     {
       sectionKey: "sidebar.sections.hrManagement",
       items: [
-        { to: "/hr/employees", labelKey: "sidebar.items.employees", icon: <FiUsers /> },
-        { to: "/admin/roles", labelKey: "sidebar.items.rolesManagement", icon: <FiSettings /> }, // NEW
-        { to: "/hr/leave-settings", labelKey: "sidebar.items.leaveQuotaSettings", icon: <FiSettings /> },
+        { to: "/hr/employees", labelKey: "sidebar.items.employees", icon: <FiUsers />, permission: "access_employee_list" },
+        { to: "/admin/roles", labelKey: "sidebar.items.rolesManagement", icon: <FiSettings />, permission: "access_role_management" },
+        { to: "/hr/leave-settings", labelKey: "sidebar.items.leaveQuotaSettings", icon: <FiSettings />, permission: "access_leave_settings" },
       ],
     },
   ],
@@ -98,6 +97,25 @@ export default function AppSidebar() {
 
   const user = useMemo(() => safeJSON(localStorage.getItem("user") || "{}", {}), []);
   const role = user.role === "HR" ? "HR" : (user.role === "Admin" ? "Admin" : "Worker");
+
+  // Fallback: If no permissions found (old user/login), allow defaults based on role to prevent breaking
+  // But for the new role request, we want strict checking.
+  // Strategy: If user.permissions exists, use it. If not, fallback to 'allow all' for standard roles maybe?
+  // Actually, let's assume valid login sends permissions.
+  const permissions = user.permissions || [];
+
+  // Helper to check permission
+  const hasPermission = (perm) => {
+    // If no permission requirement, allow
+    if (!perm) return true;
+    // If has permission, allow
+    if (permissions.includes(perm)) return true;
+    // Admin bypass (optional, but good for safety)
+    if (role === 'Admin') return true;
+
+    return false;
+  };
+
   const sections = MENUS[role];
 
   // key ที่ sidebar ใช้แสดงเลข
@@ -338,6 +356,8 @@ export default function AppSidebar() {
               {sec.items.map((item) => {
                 const showBadge = item.badgeKey === notificationKey;
                 const badgeCount = showBadge ? unread : 0;
+
+                if (!hasPermission(item.permission)) return null;
 
                 return (
                   <NavLink

@@ -51,6 +51,14 @@ model Role {
   roleId   Int    @id @default(autoincrement()) @map("role_id")
   roleName String @unique @map("role_name") // 'Admin', 'HR', 'Worker'
   employees Employee[]
+  permissions Permission[]
+}
+
+model Permission {
+  permissionId Int @id @default(autoincrement()) @map("permission_id")
+  name         String @unique
+  description  String?
+  roles        Role[]
 }
 
 // 1.2 Model: Department (แผนก)

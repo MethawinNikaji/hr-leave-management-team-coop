@@ -652,23 +652,61 @@ const updateAttendancePolicy = async (req, res, next) => {
 };
 
 // --- Role Management (CRUD) ---
+// --- Role Management (CRUD) ---
 const getRoles = async (req, res, next) => {
   try {
-    const roles = await prisma.role.findMany({ orderBy: { roleId: 'asc' } });
+    const roles = await prisma.role.findMany({
+      orderBy: { roleId: 'asc' },
+      include: { permissions: true }
+    });
     res.status(200).json({ success: true, roles });
+  } catch (error) { next(error); }
+};
+
+const getPermissions = async (req, res, next) => {
+  try {
+    const count = await prisma.permission.count();
+    if (count === 0) {
+      // Seed default permissions
+      const DEFAULT_PERMISSIONS = [
+        { name: 'access_worker_dashboard', description: 'Access Worker Dashboard' },
+        { name: 'access_hr_dashboard', description: 'Access HR Dashboard' },
+        { name: 'access_admin_dashboard', description: 'Access Admin Dashboard' }, // Implied for Admin
+        { name: 'access_employee_list', description: 'View and Manage Employees' },
+        { name: 'access_role_management', description: 'Manage Roles and Permissions' },
+        { name: 'access_leave_approval', description: 'Approve Leave Requests' },
+        { name: 'access_leave_settings', description: 'Manage Leave Allocations and Types' },
+        { name: 'access_attendance_policy', description: 'Manage Attendance Policies' },
+        { name: 'access_profile_requests', description: 'Approve Profile Change Requests' },
+        { name: 'access_attendance_list', description: 'View Employee Attendance' },
+        { name: 'access_my_attendance', description: 'View Own Attendance' },
+        { name: 'access_my_leaves', description: 'View Own Leaves' },
+      ];
+      await prisma.permission.createMany({ data: DEFAULT_PERMISSIONS });
+    }
+    const permissions = await prisma.permission.findMany({ orderBy: { name: 'asc' } });
+    res.json({ success: true, permissions });
   } catch (error) { next(error); }
 };
 
 const createRole = async (req, res, next) => {
   try {
     const performedByEmployeeId = Number(req.user.employeeId);
-    const { roleName } = req.body;
+    const { roleName, permissionIds } = req.body;
 
     // Check if role exists
     const existing = await prisma.role.findUnique({ where: { roleName } });
     if (existing) throw CustomError.badRequest("Role name already exists.");
 
-    const newRole = await prisma.role.create({ data: { roleName } });
+    const newRole = await prisma.role.create({
+      data: {
+        roleName,
+        permissions: {
+          connect: (permissionIds || []).map(id => ({ permissionId: id }))
+        }
+      },
+      include: { permissions: true }
+    });
 
     await safeAudit({
       action: "ROLE_CREATE",
@@ -688,24 +726,24 @@ const updateRole = async (req, res, next) => {
   try {
     const performedByEmployeeId = Number(req.user.employeeId);
     const roleId = parseInt(req.params.roleId);
-    const { roleName } = req.body;
+    const { roleName, permissionIds } = req.body;
 
-    const oldRole = await prisma.role.findUnique({ where: { roleId } });
+    const oldRole = await prisma.role.findUnique({ where: { roleId }, include: { permissions: true } });
     if (!oldRole) throw CustomError.notFound("Role not found.");
 
-    // Protected roles check (optional but good practice)
     if (['Admin', 'HR', 'Worker'].includes(oldRole.roleName) && oldRole.roleName !== roleName) {
-      // Prevent renaming core system roles if critical logic depends on strings
-      // But user wanted full CRUD, so we allow it but warn or ensure ID stability. 
-      // Since logic uses IDs or strings? Logic uses roleName strings heavily!
-      // Ideally we should block renaming 'Admin', 'HR', 'Worker'.
-      // Let's block renaming system roles for safety.
       throw CustomError.forbidden("Cannot rename system default roles.");
     }
 
     const updatedRole = await prisma.role.update({
       where: { roleId },
-      data: { roleName }
+      data: {
+        roleName,
+        permissions: {
+          set: (permissionIds || []).map(id => ({ permissionId: id }))
+        }
+      },
+      include: { permissions: true }
     });
 
     await safeAudit({
@@ -763,5 +801,6 @@ module.exports = {
   getHolidays, createHoliday, deleteHoliday,
   syncAllEmployeesQuota, processYearEndCarryForward, createEmployee, updateEmployeeByAdmin,
   getAttendancePolicy, updateAttendancePolicy,
-  getRoles, createRole, updateRole, deleteRole
+  getRoles, createRole, updateRole, deleteRole,
+  getPermissions
 };

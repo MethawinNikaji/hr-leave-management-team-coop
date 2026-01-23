@@ -51,12 +51,21 @@ const findEmployeeByEmail = async (email) => {
             lastName: true,
             email: true,
             passwordHash: true,
-            role: { select: { roleName: true } },
+            role: {
+                select: {
+                    roleName: true,
+                    permissions: { select: { name: true } }
+                }
+            },
             isActive: true, // ตรวจสอบสถานะการใช้งาน
         }
     });
     if (employee) {
-        return { ...employee, role: employee.role?.roleName };
+        return {
+            ...employee,
+            role: employee.role?.roleName,
+            permissions: employee.role?.permissions?.map(p => p.name) || []
+        };
     }
     return null;
 };

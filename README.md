@@ -69,6 +69,8 @@ Add Break Policy
 pnpx prisma@6 migrate dev --name break_policy
 Add Department
 pnpx prisma@6 migrate dev --name department
+Add Permission
+pnpx prisma@6 migrate dev --name add_permissions
 ```
 ### To Run Project
 ```bash

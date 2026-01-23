@@ -408,3 +408,59 @@
 :global(.dark) .role-action-btn.edit:hover {
     background: #334155;
 }
+
+/* Permission Grid Styles */
+.role-perm-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+    margin-top: 10px;
+    max-height: 250px;
+    overflow-y: auto;
+    border: 2px solid #f1f5f9;
+    padding: 16px;
+    border-radius: 16px;
+    background: #f8fafc;
+}
+
+.role-perm-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    color: #475569;
+    cursor: pointer;
+    user-select: none;
+    padding: 4px;
+    border-radius: 8px;
+    transition: background 0.1s;
+}
+
+.role-perm-item:hover {
+    background: #e2e8f0;
+}
+
+.role-perm-item input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: #0f172a;
+    cursor: pointer;
+}
+
+/* Dark Mode updates for permissions */
+:global(.dark) .role-perm-grid {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+:global(.dark) .role-perm-item {
+    color: #cbd5e1;
+}
+
+:global(.dark) .role-perm-item:hover {
+    background: #334155;
+}
+
+:global(.dark) .role-perm-item input[type="checkbox"] {
+    accent-color: #f8fafc;
+}

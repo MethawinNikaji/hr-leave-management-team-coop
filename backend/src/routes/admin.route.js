@@ -83,6 +83,7 @@ router.use(authorizeRole(['Admin'])); // Ensure subsequent routes are Admin only
 
 // Role Management
 router.get('/roles', authorizeRole(['Admin']), adminController.getRoles);
+router.get('/permissions', authorizeRole(['Admin']), adminController.getPermissions);
 router.post('/roles', [authorizeRole(['Admin']), body('roleName').notEmpty(), validate], adminController.createRole);
 router.put('/roles/:roleId', [authorizeRole(['Admin']), param('roleId').isInt(), body('roleName').notEmpty(), validate], adminController.updateRole);
 router.delete('/roles/:roleId', [authorizeRole(['Admin']), param('roleId').isInt(), validate], adminController.deleteRole);

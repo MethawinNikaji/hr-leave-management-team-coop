@@ -33,16 +33,76 @@ async function main() {
     await prisma.holiday.deleteMany();
     await prisma.employee.deleteMany();
     await prisma.role.deleteMany(); // Clear Roles
+    await prisma.permission.deleteMany(); // Clear Permissions
     console.log('✅ Old data cleared successfully.');
 
-    // --- 1.1 Create Roles ---
-    const roles = ['Admin', 'HR', 'Worker'];
-    const roleMap = {};
-    for (const r of roles) {
-        const createdRole = await prisma.role.create({ data: { roleName: r } });
-        roleMap[r] = createdRole.roleId;
+    // --- 1.0 Create Permissions ---
+    const DEFAULT_PERMISSIONS = [
+        { name: 'access_worker_dashboard', description: 'Access Worker Dashboard' },
+        { name: 'access_hr_dashboard', description: 'Access HR Dashboard' },
+        { name: 'access_admin_dashboard', description: 'Access Admin Dashboard' },
+        { name: 'access_employee_list', description: 'View and Manage Employees' },
+        { name: 'access_role_management', description: 'Manage Roles and Permissions' },
+        { name: 'access_leave_approval', description: 'Approve Leave Requests' },
+        { name: 'access_leave_settings', description: 'Manage Leave Allocations and Types' },
+        { name: 'access_attendance_policy', description: 'Manage Attendance Policies' },
+        { name: 'access_profile_requests', description: 'Approve Profile Change Requests' },
+        { name: 'access_attendance_list', description: 'View Employee Attendance' },
+        { name: 'access_my_attendance', description: 'View Own Attendance' },
+        { name: 'access_my_leaves', description: 'View Own Leaves' },
+    ];
+
+    const permMap = {}; // name -> id
+    for (const p of DEFAULT_PERMISSIONS) {
+        const created = await prisma.permission.create({ data: p });
+        permMap[p.name] = created.permissionId;
     }
-    console.log('✅ Roles created:', roleMap);
+    console.log(`✅ Created ${DEFAULT_PERMISSIONS.length} permissions.`);
+
+    // --- 1.1 Create Roles with Defaults ---
+    const rolesDef = [
+        {
+            name: 'Admin',
+            perms: Object.values(permMap) // All permissions
+        },
+        {
+            name: 'HR',
+            perms: [
+                permMap['access_hr_dashboard'],
+                permMap['access_employee_list'],
+                permMap['access_leave_approval'],
+                permMap['access_leave_settings'],
+                permMap['access_attendance_policy'],
+                permMap['access_profile_requests'],
+                permMap['access_attendance_list'],
+                // HR is also a worker? Maybe give them worker access too if they have "My Attendance"
+                permMap['access_my_attendance'],
+                permMap['access_my_leaves'],
+            ]
+        },
+        {
+            name: 'Worker',
+            perms: [
+                permMap['access_worker_dashboard'],
+                permMap['access_my_attendance'],
+                permMap['access_my_leaves'],
+            ]
+        }
+    ];
+
+    const roleMap = {};
+    for (const r of rolesDef) {
+        const createdRole = await prisma.role.create({
+            data: {
+                roleName: r.name,
+                permissions: {
+                    connect: r.perms.map(id => ({ permissionId: id }))
+                }
+            }
+        });
+        roleMap[r.name] = createdRole.roleId;
+    }
+    console.log('✅ Roles created with permissions:', Object.keys(roleMap));
 
     // --- 2. Create Employees ---
     const employees = [];

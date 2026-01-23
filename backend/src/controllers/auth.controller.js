@@ -131,7 +131,8 @@ const login = async (req, res, next) => {
       user: {
         employeeId: employee.employeeId,
         email: employee.email,
-        role: employee.role,
+        role: employee.role, // This is just the name string because of how model flattens it? No, wait.
+        permissions: employee.permissions || [], // We will flatten this below
         firstName: employee.firstName,
         lastName: employee.lastName,
       }
