@@ -19,61 +19,39 @@ import {
   FiSettings,
 } from "react-icons/fi";
 
-const MENUS = {
-  Worker: [
-    {
-      sectionKey: "sidebar.sections.main",
-      items: [
-        { to: "/worker/dashboard", labelKey: "sidebar.items.dashboard", icon: <FiGrid />, permission: "access_worker_dashboard" },
-        { to: "/worker/attendance", labelKey: "sidebar.items.myAttendance", icon: <FiCalendar />, permission: "access_my_attendance" },
-        { to: "/worker/calendar", labelKey: "sidebar.items.myCalendar", icon: <FiCalendar />, permission: "access_my_attendance" },
-        { to: "/worker/leave", labelKey: "sidebar.items.myLeaves", icon: <FiClipboard />, permission: "access_my_leaves" },
-        { to: "/worker/notifications", labelKey: "sidebar.items.notifications", icon: <FiBell />, badgeKey: "worker_unread_notifications" },
-      ],
-    },
-    {
-      sectionKey: "sidebar.sections.account",
-      items: [{ to: "/worker/profile", labelKey: "sidebar.items.profile", icon: <FiUser /> }],
-    },
-  ],
-  HR: [
-    {
-      sectionKey: "sidebar.sections.main",
-      items: [
-        { to: "/hr/dashboard", labelKey: "sidebar.items.dashboard", icon: <FiGrid />, permission: "access_hr_dashboard" },
-        { to: "/hr/attendance", labelKey: "sidebar.items.employeeAttendance", icon: <FiCalendar />, permission: "access_attendance_list" },
-        { to: "/hr/notifications", labelKey: "sidebar.items.notifications", icon: <FiBell />, badgeKey: "hr_unread_notifications" },
-      ],
-    },
-    {
-      sectionKey: "sidebar.sections.hrManagement",
-      items: [
-        { to: "/hr/profile-requests", labelKey: "sidebar.items.profileRequests", icon: <FiUser />, badgeKey: "profile_request_unread", permission: "access_profile_requests" },
-        { to: "/hr/leave-approvals", labelKey: "sidebar.items.leaveApprovals", icon: <FiCheckSquare />, permission: "access_leave_approval" },
-        { to: "/hr/employees", labelKey: "sidebar.items.employees", icon: <FiUsers />, permission: "access_employee_list" },
-        { to: "/hr/leave-settings", labelKey: "sidebar.items.leaveQuotaSettings", icon: <FiSettings />, permission: "access_leave_settings" },
-        { to: "/hr/attendance-policy", labelKey: "sidebar.items.attendanceSettings", icon: <FiSettings />, permission: "access_attendance_policy" },
-      ],
-    },
-  ],
-  Admin: [
-    {
-      sectionKey: "sidebar.sections.main",
-      items: [
-        { to: "/hr/dashboard", labelKey: "sidebar.items.dashboard", icon: <FiGrid />, permission: "access_hr_dashboard" },
-        { to: "/hr/attendance", labelKey: "sidebar.items.employeeAttendance", icon: <FiCalendar />, permission: "access_attendance_list" },
-      ],
-    },
-    {
-      sectionKey: "sidebar.sections.hrManagement",
-      items: [
-        { to: "/hr/employees", labelKey: "sidebar.items.employees", icon: <FiUsers />, permission: "access_employee_list" },
-        { to: "/admin/roles", labelKey: "sidebar.items.rolesManagement", icon: <FiSettings />, permission: "access_role_management" },
-        { to: "/hr/leave-settings", labelKey: "sidebar.items.leaveQuotaSettings", icon: <FiSettings />, permission: "access_leave_settings" },
-      ],
-    },
-  ],
-};
+const MENU_SECTIONS = [
+  {
+    sectionKey: "sidebar.sections.main",
+    items: [
+      { to: "/worker/dashboard", labelKey: "sidebar.items.dashboard", icon: <FiGrid />, permission: "access_worker_dashboard" },
+      { to: "/hr/dashboard", labelKey: "sidebar.items.dashboard", icon: <FiGrid />, permission: "access_hr_dashboard" },
+      { to: "/worker/attendance", labelKey: "sidebar.items.myAttendance", icon: <FiCalendar />, permission: "access_my_attendance" },
+      { to: "/hr/attendance", labelKey: "sidebar.items.employeeAttendance", icon: <FiCalendar />, permission: "access_attendance_list" },
+      { to: "/worker/calendar", labelKey: "sidebar.items.myCalendar", icon: <FiCalendar />, permission: "access_my_attendance" },
+      { to: "/worker/leave", labelKey: "sidebar.items.myLeaves", icon: <FiClipboard />, permission: "access_my_leaves" },
+      // Notifications: usually we link this dynamically in the bell, but if we want it in sidebar:
+      { to: "/worker/notifications", labelKey: "sidebar.items.notifications", icon: <FiBell />, badgeKey: "worker_unread_notifications", permission: "access_worker_dashboard" },
+      { to: "/hr/notifications", labelKey: "sidebar.items.notifications", icon: <FiBell />, badgeKey: "hr_unread_notifications", permission: "access_hr_dashboard" },
+    ],
+  },
+  {
+    sectionKey: "sidebar.sections.hrManagement",
+    items: [
+      { to: "/hr/profile-requests", labelKey: "sidebar.items.profileRequests", icon: <FiUser />, badgeKey: "profile_request_unread", permission: "access_profile_requests" },
+      { to: "/hr/leave-approvals", labelKey: "sidebar.items.leaveApprovals", icon: <FiCheckSquare />, permission: "access_leave_approval" },
+      { to: "/hr/employees", labelKey: "sidebar.items.employees", icon: <FiUsers />, permission: "access_employee_list" },
+      { to: "/admin/roles", labelKey: "sidebar.items.rolesManagement", icon: <FiSettings />, permission: "access_role_management" },
+      { to: "/hr/leave-settings", labelKey: "sidebar.items.leaveQuotaSettings", icon: <FiSettings />, permission: "access_leave_settings" },
+      { to: "/hr/attendance-policy", labelKey: "sidebar.items.attendanceSettings", icon: <FiSettings />, permission: "access_attendance_policy" },
+    ],
+  },
+  {
+    sectionKey: "sidebar.sections.account",
+    items: [
+      { to: "/worker/profile", labelKey: "sidebar.items.profile", icon: <FiUser /> }, // No specific permission required, always visible to logged in users
+    ],
+  },
+];
 
 const safeJSON = (v, fallback = {}) => {
   try {
@@ -96,35 +74,33 @@ export default function AppSidebar() {
   const location = useLocation();
 
   const user = useMemo(() => safeJSON(localStorage.getItem("user") || "{}", {}), []);
-  const role = user.role === "HR" ? "HR" : (user.role === "Admin" ? "Admin" : "Worker");
 
-  // Fallback: If no permissions found (old user/login), allow defaults based on role to prevent breaking
-  // But for the new role request, we want strict checking.
-  // Strategy: If user.permissions exists, use it. If not, fallback to 'allow all' for standard roles maybe?
-  // Actually, let's assume valid login sends permissions.
+  // Use raw role from user object for display
+  const userRoleDisplay = user.role || "Worker";
+  const isAdmin = userRoleDisplay === 'Admin';
+
   const permissions = user.permissions || [];
 
   // Helper to check permission
-  const hasPermission = (perm) => {
+  const hasPermission = useCallback((perm) => {
     // If no permission requirement, allow
     if (!perm) return true;
     // If has permission, allow
     if (permissions.includes(perm)) return true;
-    // Admin bypass (optional, but good for safety)
-    if (role === 'Admin') return true;
+    // Admin bypass
+    if (isAdmin) return true;
 
     return false;
-  };
+  }, [permissions, isAdmin]);
 
-  const sections = MENUS[role];
+  // Determine Notification Context
+  // If user has access to HR dashboard, show HR notifications. Otherwise Worker.
+  const useHRNoti = hasPermission('access_hr_dashboard');
+  const notificationKey = useHRNoti ? "hr_unread_notifications" : "worker_unread_notifications";
 
-  // key ที่ sidebar ใช้แสดงเลข
-  const notificationKey = role === "HR" ? "hr_unread_notifications" : "worker_unread_notifications";
-
-  // ✅ key last seen ให้ตรงกับหน้า Notifications ที่คุณใช้จริง
-  const lastSeenKey = role === "HR"
-    ? "hr_unread_notifications_last_seen"     // จาก HRNotifications.jsx
-    : "worker_notifications_last_seen";       // จาก WorkerNotifications.jsx
+  const lastSeenKey = useHRNoti
+    ? "hr_unread_notifications_last_seen"
+    : "worker_notifications_last_seen";
 
   const first = user.firstName || user.first_name || "";
   const last = user.lastName || user.last_name || "";
@@ -238,6 +214,23 @@ export default function AppSidebar() {
     return v === key ? fallback : v;
   };
 
+  // Filter Sections
+  const sections = useMemo(() => {
+    return MENU_SECTIONS.map(sec => ({
+      ...sec,
+      items: sec.items.filter(item => {
+        // Special case for Notifications: Only show the one relevant to context
+        if (item.to.includes('notifications')) {
+          if (useHRNoti && item.to === "/hr/notifications") return true;
+          if (!useHRNoti && item.to === "/worker/notifications") return true;
+          return false;
+        }
+        return hasPermission(item.permission);
+      })
+    })).filter(sec => sec.items.length > 0);
+  }, [hasPermission, useHRNoti]);
+
+
   // =========================================================
   // 🌐 Language Dropdown (future-proof)
   // =========================================================
@@ -268,6 +261,8 @@ export default function AppSidebar() {
     }
   };
 
+  const notificationPath = useHRNoti ? "/hr/notifications" : "/worker/notifications";
+
   return (
     <>
       <button
@@ -291,7 +286,7 @@ export default function AppSidebar() {
               <div className="sb-name">{fullName}</div>
 
               <div className="sb-role">
-                {role === "HR" ? tt("common.role.HR", "HR") : (role === "Admin" ? "Admin" : tt("common.role.Worker", "Worker"))}
+                {userRoleDisplay}
               </div>
             </div>
 
@@ -299,7 +294,7 @@ export default function AppSidebar() {
               className="sb-bell"
               type="button"
               title={t("common.notifications")}
-              onClick={() => navigate(`/${role.toLowerCase()}/notifications`)}
+              onClick={() => navigate(notificationPath)}
             >
               <FiBell />
               {unread > 0 && <span className="sb-badge">{unread > 99 ? "99+" : unread}</span>}
@@ -356,8 +351,6 @@ export default function AppSidebar() {
               {sec.items.map((item) => {
                 const showBadge = item.badgeKey === notificationKey;
                 const badgeCount = showBadge ? unread : 0;
-
-                if (!hasPermission(item.permission)) return null;
 
                 return (
                   <NavLink

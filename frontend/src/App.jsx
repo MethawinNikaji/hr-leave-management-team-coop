@@ -48,7 +48,7 @@ export default function App() {
         <Route
           path="worker/dashboard"
           element={
-            <RoleRoute allow={["Worker"]}>
+            <RoleRoute allow={["Worker"]} permission="access_worker_dashboard">
               <WorkerDashboard />
             </RoleRoute>
           }
@@ -56,7 +56,7 @@ export default function App() {
         <Route
           path="worker/attendance"
           element={
-            <RoleRoute allow={["Worker"]}>
+            <RoleRoute allow={["Worker"]} permission="access_my_attendance">
               <WorkerAttendancePage />
             </RoleRoute>
           }
@@ -64,7 +64,7 @@ export default function App() {
         <Route
           path="worker/leave"
           element={
-            <RoleRoute allow={["Worker"]}>
+            <RoleRoute allow={["Worker"]} permission="access_my_leaves">
               <WorkerLeave />
             </RoleRoute>
           }
@@ -72,7 +72,7 @@ export default function App() {
         <Route
           path="worker/calendar"
           element={
-            <RoleRoute allow={["Worker"]}>
+            <RoleRoute allow={["Worker"]} permission="access_my_attendance">
               <WorkerCalendar />
             </RoleRoute>
           }
@@ -80,7 +80,7 @@ export default function App() {
         <Route
           path="worker/notifications"
           element={
-            <RoleRoute allow={["Worker"]}>
+            <RoleRoute allow={["Worker"]} permission="access_worker_dashboard">
               <WorkerNotifications />
             </RoleRoute>
           }
@@ -88,7 +88,7 @@ export default function App() {
         <Route
           path="worker/profile"
           element={
-            <RoleRoute allow={["Worker"]}>
+            <RoleRoute allow={["Worker", "HR", "Admin"]}>
               <WorkerProfile />
             </RoleRoute>
           }
@@ -98,7 +98,7 @@ export default function App() {
         <Route
           path="hr/dashboard"
           element={
-            <RoleRoute allow={["HR", "Admin"]}>
+            <RoleRoute allow={["HR"]} permission="access_hr_dashboard">
               <HRDashboard />
             </RoleRoute>
           }
@@ -106,7 +106,7 @@ export default function App() {
         <Route
           path="hr/attendance"
           element={
-            <RoleRoute allow={["HR", "Admin"]}>
+            <RoleRoute allow={["HR"]} permission="access_attendance_list">
               <HRAttendancePage />
             </RoleRoute>
           }
@@ -114,7 +114,7 @@ export default function App() {
         <Route
           path="hr/notifications"
           element={
-            <RoleRoute allow={["HR", "Admin"]}>
+            <RoleRoute allow={["HR"]} permission="access_hr_dashboard">
               <HRNotifications />
             </RoleRoute>
           }
@@ -122,7 +122,7 @@ export default function App() {
         <Route
           path="hr/profile-requests"
           element={
-            <RoleRoute allow={["HR", "Admin"]}>
+            <RoleRoute allow={["HR"]} permission="access_profile_requests">
               <HRProfileRequests />
             </RoleRoute>
           }
@@ -130,7 +130,7 @@ export default function App() {
         <Route
           path="hr/leave-approvals"
           element={
-            <RoleRoute allow={["HR", "Admin"]}>
+            <RoleRoute allow={["HR"]} permission="access_leave_approval">
               <HRLeaveApprovals />
             </RoleRoute>
           }
@@ -138,7 +138,7 @@ export default function App() {
         <Route
           path="hr/employees"
           element={
-            <RoleRoute allow={["HR", "Admin"]}>
+            <RoleRoute allow={["HR"]} permission="access_employee_list">
               <Employees />
             </RoleRoute>
           }
@@ -146,7 +146,7 @@ export default function App() {
         <Route
           path="hr/leave-settings"
           element={
-            <RoleRoute allow={["HR", "Admin"]}>
+            <RoleRoute allow={["HR"]} permission="access_leave_settings">
               <LeaveSettings />
             </RoleRoute>
           }
@@ -156,7 +156,7 @@ export default function App() {
         <Route
           path="hr/attendance-policy"
           element={
-            <RoleRoute allow={["HR", "Admin"]}>
+            <RoleRoute allow={["HR"]} permission="access_attendance_policy">
               <HRAttendancePolicy />
             </RoleRoute>
           }
@@ -165,7 +165,7 @@ export default function App() {
         <Route
           path="admin/roles"
           element={
-            <RoleRoute allow={["Admin"]}>
+            <RoleRoute allow={["Admin"]} permission="access_role_management">
               <RoleManagementPage />
             </RoleRoute>
           }
