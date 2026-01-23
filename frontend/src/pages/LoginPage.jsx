@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate, useLocation } from "react-router-dom";
 import "./LoginPage.css";
 import { alertError, alertSuccess } from "../utils/sweetAlert";
+import { getRedirectPath } from "../utils/navigation";
 import { useAuth } from "../context/AuthContext";
 import { useNotification } from "../context/NotificationContext";
 
@@ -34,16 +35,14 @@ export default function LoginPage() {
     }));
   };
 
-  const goAfterLogin = (role) => {
+  // Priority of pages to redirect to based on permissions
+  const goAfterLogin = (user) => {
     // If redirected by auth guard, go back to requested page
     const from = location.state?.from;
     if (from) return navigate(from, { replace: true });
 
-    // Otherwise route by role
-    return navigate(
-      (role === "HR" || role === "Admin") ? "/hr/dashboard" : "/worker/dashboard",
-      { replace: true }
-    );
+    const target = getRedirectPath(user);
+    return navigate(target, { replace: true });
   };
 
   const handleSubmit = async (e) => {
@@ -68,7 +67,7 @@ export default function LoginPage() {
         t("alerts.welcomeBack", { name: user?.firstName || t("common.user") })
       );
 
-      goAfterLogin(user?.role);
+      goAfterLogin(user);
     } catch (err) {
       console.error("Login Error:", err);
 

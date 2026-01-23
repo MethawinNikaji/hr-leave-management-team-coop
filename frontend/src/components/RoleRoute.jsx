@@ -2,6 +2,7 @@ import React from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useTranslation } from "react-i18next";
+import { getRedirectPath } from "../utils/navigation";
 
 export default function RoleRoute({ allow = [], permission, children }) {
   const { isReady, user } = useAuth();
@@ -36,6 +37,6 @@ export default function RoleRoute({ allow = [], permission, children }) {
 
   // If unauthorized:
   // If trying to access a page they can't see, send them to their main dashboard
-  const target = role === "HR" ? "/hr/dashboard" : "/worker/dashboard";
+  const target = getRedirectPath(user);
   return <Navigate to={target} replace />;
 }

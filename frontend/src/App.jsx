@@ -6,6 +6,7 @@ import AppLayout from "./layouts/AppLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import RoleRoute from "./components/RoleRoute";
 import { useAuth } from "./context/AuthContext";
+import { getRedirectPath } from "./utils/navigation";
 
 import WorkerDashboard from "./pages/WorkerDashboard";
 import WorkerAttendancePage from "./pages/WorkerAttendancePage";
@@ -181,7 +182,6 @@ function HomeRedirect() {
   const { user, isReady } = useAuth();
   if (!isReady) return null;
 
-  const role = user?.role;
-  const target = (role === "HR" || role === "Admin") ? "/hr/dashboard" : "/worker/dashboard";
+  const target = getRedirectPath(user);
   return <Navigate to={target} replace />;
 }
