@@ -11,20 +11,44 @@ const authorizeRole = (requiredRoles) => {
     return (req, res, next) => {
         // ต้องมั่นใจว่า req.user ถูก set จาก authenticateToken ก่อน
         if (!req.user || !req.user.role) {
-            // ควรจะถูกจับโดย authenticateToken ก่อน แต่เป็น Safety Check
             return next(CustomError.unauthorized("User authentication details are incomplete."));
         }
-        
+
         const userRole = req.user.role;
 
-        // ตรวจสอบว่า role ของผู้ใช้อยู่ใน requiredRoles หรือไม่
         if (requiredRoles.includes(userRole)) {
-            next(); // อนุญาตให้เข้าถึง
+            next();
         } else {
-            // โยน 403 Forbidden หากไม่มีสิทธิ์
             return next(CustomError.forbidden(`Access denied. Role '${userRole}' is not permitted.`));
         }
     };
 };
 
-module.exports = { authorizeRole };
+/**
+ * Middleware for Permission-based access control.
+ * Admins are always allowed (Golden Key).
+ * Users with the specific permission are allowed.
+ * @param {string} permission - The permission required (e.g., 'access_employee_list')
+ */
+const authorizePermission = (permission) => {
+    return (req, res, next) => {
+        if (!req.user) {
+            return next(CustomError.unauthorized("User authentication details are incomplete."));
+        }
+
+        const { role, permissions } = req.user;
+
+        // 1. Admin always has access
+        if (role === 'Admin') return next();
+
+        // 2. Check if user has the specific permission
+        // permissions should be an array of strings from the token
+        if (permissions && permissions.includes(permission)) {
+            return next();
+        }
+
+        return next(CustomError.forbidden(`Access denied. Required permission: '${permission}'.`));
+    };
+};
+
+module.exports = { authorizeRole, authorizePermission };

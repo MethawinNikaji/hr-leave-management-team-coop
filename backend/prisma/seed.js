@@ -50,6 +50,9 @@ async function main() {
         { name: 'access_attendance_list', description: 'View Employee Attendance' },
         { name: 'access_my_attendance', description: 'View Own Attendance' },
         { name: 'access_my_leaves', description: 'View Own Leaves' },
+        // New permissions requested
+        { name: 'access_view_profile', description: 'View Own Profile' },
+        { name: 'access_view_notifications', description: 'View Notifications' },
     ];
 
     const permMap = {}; // name -> id
@@ -78,6 +81,8 @@ async function main() {
                 // HR is also a worker? Maybe give them worker access too if they have "My Attendance"
                 permMap['access_my_attendance'],
                 permMap['access_my_leaves'],
+                permMap['access_view_profile'],
+                permMap['access_view_notifications'],
             ]
         },
         {
@@ -86,6 +91,8 @@ async function main() {
                 permMap['access_worker_dashboard'],
                 permMap['access_my_attendance'],
                 permMap['access_my_leaves'],
+                permMap['access_view_profile'],
+                permMap['access_view_notifications'],
             ]
         }
     ];

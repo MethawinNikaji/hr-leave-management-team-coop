@@ -30,8 +30,8 @@ const MENU_SECTIONS = [
       { to: "/worker/calendar", labelKey: "sidebar.items.myCalendar", icon: <FiCalendar />, permission: "access_my_attendance" },
       { to: "/worker/leave", labelKey: "sidebar.items.myLeaves", icon: <FiClipboard />, permission: "access_my_leaves" },
       // Notifications: usually we link this dynamically in the bell, but if we want it in sidebar:
-      { to: "/worker/notifications", labelKey: "sidebar.items.notifications", icon: <FiBell />, badgeKey: "worker_unread_notifications", permission: "access_worker_dashboard" },
-      { to: "/hr/notifications", labelKey: "sidebar.items.notifications", icon: <FiBell />, badgeKey: "hr_unread_notifications", permission: "access_hr_dashboard" },
+      { to: "/worker/notifications", labelKey: "sidebar.items.notifications", icon: <FiBell />, badgeKey: "worker_unread_notifications", permission: "access_view_notifications" },
+      { to: "/hr/notifications", labelKey: "sidebar.items.notifications", icon: <FiBell />, badgeKey: "hr_unread_notifications", permission: "access_view_notifications" },
     ],
   },
   {
@@ -48,7 +48,7 @@ const MENU_SECTIONS = [
   {
     sectionKey: "sidebar.sections.account",
     items: [
-      { to: "/worker/profile", labelKey: "sidebar.items.profile", icon: <FiUser /> }, // No specific permission required, always visible to logged in users
+      { to: "/worker/profile", labelKey: "sidebar.items.profile", icon: <FiUser />, permission: "access_view_profile" },
     ],
   },
 ];
@@ -290,15 +290,17 @@ export default function AppSidebar() {
               </div>
             </div>
 
-            <button
-              className="sb-bell"
-              type="button"
-              title={t("common.notifications")}
-              onClick={() => navigate(notificationPath)}
-            >
-              <FiBell />
-              {unread > 0 && <span className="sb-badge">{unread > 99 ? "99+" : unread}</span>}
-            </button>
+            {hasPermission('access_view_notifications') && (
+              <button
+                className="sb-bell"
+                type="button"
+                title={t("common.notifications")}
+                onClick={() => navigate(notificationPath)}
+              >
+                <FiBell />
+                {unread > 0 && <span className="sb-badge">{unread > 99 ? "99+" : unread}</span>}
+              </button>
+            )}
           </div>
 
           {/* 🌐 Language Dropdown */}

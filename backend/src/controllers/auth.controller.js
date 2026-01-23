@@ -19,6 +19,7 @@ const generateToken = (employee) => {
   const payload = {
     employeeId: employee.employeeId,
     role: employee.role,
+    permissions: employee.permissions || [] // Add permissions to token
   };
 
   return jwt.sign(payload, process.env.JWT_SECRET, {
@@ -153,8 +154,12 @@ const getMe = async (req, res, next) => {
         firstName: true,
         lastName: true,
         email: true,
-        email: true,
-        role: { select: { roleName: true } },
+        role: {
+          select: {
+            roleName: true,
+            permissions: { select: { permission: { select: { name: true } } } } // Fetch permissions
+          }
+        },
         joiningDate: true,
         isActive: true,
         profileImageUrl: true,
@@ -165,8 +170,14 @@ const getMe = async (req, res, next) => {
         }
       }
     });
-    // Flatten role
-    const flatUser = user ? { ...user, role: user.role?.roleName } : null;
+
+    // Flatten role and permissions
+    let flatPermissions = [];
+    if (user.role?.permissions) {
+      flatPermissions = user.role.permissions.map(p => p.permission.name);
+    }
+    const flatUser = user ? { ...user, role: user.role?.roleName, permissions: flatPermissions } : null;
+
     res.status(200).json({ success: true, user: flatUser });
   } catch (error) {
     next(error);
