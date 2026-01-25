@@ -16,6 +16,7 @@ import axiosClient from "../api/axiosClient";
 import { alertError } from "../utils/sweetAlert";
 import AuditLogPanel from "../components/AuditLogPanel";
 import { useTranslation } from "react-i18next";
+import { useAuth } from "../context/AuthContext";
 
 /* ===== Helpers ===== */
 const pad2 = (n) => String(n).padStart(2, "0");
@@ -49,6 +50,7 @@ const parseWorkingDays = (str) => {
 
 export default function HRDashboard() {
   const { t } = useTranslation();
+  const { user } = useAuth();
 
   const [tab, setTab] = useState("overview");
   const [viewYear, setViewYear] = useState(new Date().getFullYear());
@@ -206,7 +208,7 @@ export default function HRDashboard() {
       </header>
 
       <div className="hr-tabs">
-        {[{ key: "overview", label: t("pages.hrDashboard.tabs.overview") }, { key: "reports", label: t("pages.hrDashboard.tabs.performanceReports") }, { key: "audit", label: t("pages.hrDashboard.tabs.auditLog") }].map((x) => (
+        {[{ key: "overview", label: t("pages.hrDashboard.tabs.overview") }, { key: "reports", label: t("pages.hrDashboard.tabs.performanceReports") }, ...(user?.role === "HR" ? [{ key: "audit", label: t("pages.hrDashboard.tabs.auditLog") }] : [])].map((x) => (
           <button key={x.key} className={`btn small ${tab === x.key ? "primary" : "outline"}`} onClick={() => setTab(x.key)}>{x.label}</button>
         ))}
       </div>
