@@ -13,6 +13,8 @@ exports.getAuditLogs = async (req, res, next) => {
       role = "",        // Filter by role name (e.g. HR)
     } = req.query;
 
+    const requesterRole = req.user?.role || "";
+
     const p = Math.max(parseInt(page, 10) || 1, 1);
     const ps = Math.min(Math.max(parseInt(pageSize, 10) || 20, 5), 100);
     const skip = (p - 1) * ps;
@@ -37,7 +39,14 @@ exports.getAuditLogs = async (req, res, next) => {
     const where = {
       ...categoryToActionWhere(category),
       ...(action ? { action } : {}),
-      ...(role ? { performer: { role: { roleName: role } } } : {}),
+      performer: {
+        role: {
+          roleName: {
+            ...(role ? { equals: role } : {}),
+            ...(requesterRole !== "Admin" ? { not: "Admin" } : {}),
+          },
+        },
+      },
       ...(dateFrom || dateTo
         ? {
           createdAt: {
