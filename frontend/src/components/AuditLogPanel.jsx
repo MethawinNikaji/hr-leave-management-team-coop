@@ -134,7 +134,7 @@ const JsonBlock = ({ value }) => (
   </pre>
 );
 
-export default function AuditLogPanel() {
+export default function AuditLogPanel({ roleFilter = "" }) {
   const { t, i18n } = useTranslation();
 
   const [loading, setLoading] = useState(false);
@@ -246,6 +246,7 @@ export default function AuditLogPanel() {
         action: action === "All" ? "" : action,
         dateFrom,
         dateTo,
+        role: roleFilter,
         page,
         pageSize,
       };
@@ -268,7 +269,7 @@ export default function AuditLogPanel() {
   useEffect(() => {
     fetchAudit();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, pageSize, category, action, dateFrom, dateTo]);
+  }, [page, pageSize, category, action, dateFrom, dateTo, roleFilter]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {

@@ -153,7 +153,8 @@
       "employees": "Employees",
       "leaveQuotaSettings": "Leave Quota Settings",
       "attendanceSettings": "Attendance Settings",
-      "rolesManagement": "Roles Management"
+      "rolesManagement": "Roles Management",
+      "adminAuditLog": "Audit Logs"
     },
     "toggleSidebar": "Toggle sidebar",
     "title": "Sidebar"
@@ -187,6 +188,9 @@
     "loginFailedDefault": "Unable to connect to server or invalid email/password."
   },
   "pages": {
+    "adminAuditLog": {
+      "subtitle": "View all HR activities and system logs."
+    },
     "roles": {
       "title": "Roles Management",
       "subtitle": "Manage user roles and permissions.",

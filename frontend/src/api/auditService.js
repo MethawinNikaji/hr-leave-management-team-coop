@@ -6,6 +6,7 @@ export const getAuditLogs = async ({
   action = "",
   dateFrom = "",
   dateTo = "",
+  role = "",
   page = 1,
   pageSize = 10,
 } = {}) => {
@@ -16,6 +17,7 @@ export const getAuditLogs = async ({
       action,
       dateFrom,
       dateTo,
+      role,
       page,
       pageSize,
     },

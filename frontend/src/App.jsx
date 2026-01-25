@@ -26,6 +26,7 @@ import HRAttendancePolicy from "./pages/HRAttendancePolicy";
 
 import LoginPage from "./pages/LoginPage";
 import RoleManagementPage from "./pages/RoleManagementPage";
+import AdminAuditLogPage from "./pages/AdminAuditLogPage";
 
 export default function App() {
 
@@ -171,10 +172,19 @@ export default function App() {
             </RoleRoute>
           }
         />
+
+        <Route
+          path="admin/audit-logs"
+          element={
+            <RoleRoute allow={["Admin"]} permission="access_audit_log">
+              <AdminAuditLogPage />
+            </RoleRoute>
+          }
+        />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    </Routes >
   );
 }
 

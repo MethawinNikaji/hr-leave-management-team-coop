@@ -17,6 +17,7 @@ import {
   FiMenu,
   FiX,
   FiSettings,
+  FiShield,
 } from "react-icons/fi";
 
 const MENU_SECTIONS = [
@@ -48,6 +49,7 @@ const MENU_SECTIONS = [
     sectionKey: "sidebar.sections.adminManagement",
     items: [
       { to: "/admin/roles", labelKey: "sidebar.items.rolesManagement", icon: <FiSettings />, permission: "access_role_management" },
+      { to: "/admin/audit-logs", labelKey: "sidebar.items.adminAuditLog", icon: <FiShield />, permission: "access_audit_log" },
     ],
   },
   {

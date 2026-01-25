@@ -10,6 +10,7 @@ exports.getAuditLogs = async (req, res, next) => {
       pageSize = "20",
       dateFrom = "",    // YYYY-MM-DD
       dateTo = "",      // YYYY-MM-DD
+      role = "",        // Filter by role name (e.g. HR)
     } = req.query;
 
     const p = Math.max(parseInt(page, 10) || 1, 1);
@@ -36,6 +37,7 @@ exports.getAuditLogs = async (req, res, next) => {
     const where = {
       ...categoryToActionWhere(category),
       ...(action ? { action } : {}),
+      ...(role ? { performer: { role: { roleName: role } } } : {}),
       ...(dateFrom || dateTo
         ? {
           createdAt: {

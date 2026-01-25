@@ -148,7 +148,8 @@
       "employees": "พนักงาน",
       "leaveQuotaSettings": "ตั้งค่าโควต้าการลา",
       "attendanceSettings": "ตั้งค่าการลงเวลา",
-      "rolesManagement": "จัดการบทบาท"
+      "rolesManagement": "จัดการบทบาท",
+      "adminAuditLog": "บันทึกการตรวจสอบ"
     },
     "toggleSidebar": "เปิด/ปิดแถบเมนู",
     "title": "แถบเมนู"
@@ -179,6 +180,9 @@
     "loginFailedDefault": "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์หรืออีเมล/รหัสผ่านไม่ถูกต้อง"
   },
   "pages": {
+    "adminAuditLog": {
+      "subtitle": "ดูบันทึกกิจกรรมและการตรวจสอบทั้งหมดของระบบ"
+    },
     "roles": {
       "title": "จัดการบทบาท",
       "subtitle": "จัดการบทบาทผู้ใช้และสิทธิ์การใช้งาน",

@@ -9,7 +9,7 @@ const router = express.Router();
 router.get(
   '/',
   authenticateToken,
-  authorizeRole(['HR']),
+  authorizeRole(['HR', 'Admin']),
   auditController.getAuditLogs
 );
 
